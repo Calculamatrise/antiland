@@ -98,11 +98,12 @@ export default class extends BaseManager {
 
 	/**
 	 * Start a private chat
-	 * @param {User|string} userId 
-	 * @param {boolean} [createIfNotExists] 
+	 * @param {User|string} userId
+	 * @param {object} [options]
+	 * @param {boolean} [options.createIfNotExists] 
 	 * @returns {Promise<Dialogue>}
 	 */
-	async getPrivateChat(userId, createIfNotExists = false) {
+	async getPrivateChat(userId, { createIfNotExists = false } = {}) {
 		return this.client.requests.post("functions/v2:chat.getPrivate", {
 			createIfNotExists,
 			userId: typeof userId == 'object' ? userId.id : userId

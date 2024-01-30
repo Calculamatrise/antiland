@@ -284,7 +284,7 @@ export default class extends EventEmitter {
 			token = await this.requests.post("functions/v2:profile.login", {
 				username: token.username ?? token.login,
 				password: token.password
-			}).then(r => r.sessionToken);
+			}, true).then(({ auth }) => auth.sessionToken);
 			if (!token) {
 				throw new Error("Invalid login info");
 			}
