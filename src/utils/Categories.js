@@ -1,0 +1,23 @@
+export default {
+	Adult: 'adult',
+	Auto: 'auto',
+	Books: 'books',
+	Cooking: 'cooking',
+	Depression: 'depression',
+	Family: 'family',
+	Fashion: 'vogue',
+	Flirt: 'flirt',
+	Friendship: 'friendship',
+	Health: 'health',
+	Home: 'home',
+	Humor: 'humor',
+	Lifestyle: 'lifestyle',
+	Love: 'love',
+	Movies: 'movies',
+	Photo: 'photo',
+	Psychology: 'psychology',
+	Rude: 'rude',
+	Science: 'science',
+	Sports: 'sports',
+	Travel: 'travel'
+}

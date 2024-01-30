@@ -1,0 +1,3 @@
+export default {
+	ALLOW_MESSAGE_DELETE: 'OWN_MSG_REMOVE_ALLOWED'
+}

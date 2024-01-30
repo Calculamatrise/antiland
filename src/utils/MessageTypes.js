@@ -1,0 +1,11 @@
+export default {
+	MESSAGE: void 0,
+	MESSAGE_UPDATE: 2,
+	LIKE: 3,
+	JOIN: 4,
+	PRIVATE: 5,
+	BLOCKED_WHOM: 6,
+	BLOCKED_BY: 7,
+	ALIPAY: 9,
+	EMAIL_VERIFIED: 10
+}
