@@ -1,10 +1,10 @@
 import BaseManager from "./BaseManager.js";
 import Message from "../structures/Message.js";
 
-export default class extends BaseManager {
+export default class MessageManager extends BaseManager {
 	constructor() {
 		super(...arguments);
-		let maxCacheSize = this.client.options.configuredHistoryLength ?? this.client.options.historyLength ?? 50;
+		let maxCacheSize = (this.client.options && (this.client.options.configuredHistoryLength ?? this.client.options.historyLength)) ?? 50;
 		this.cache.set = function() {
 			if (this.size >= maxCacheSize) {
 				for (let entry of Array.from(this.values()).sort((a, b) => a.createdAt - b.createdAt).slice(0, 4)) {

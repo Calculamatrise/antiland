@@ -63,6 +63,10 @@ export default class Dialogue extends Structure {
 		this.friend.dialogueId = this.id);
 	}
 
+	get url() {
+		return "https://anti.land/g/" + this.id
+	}
+
 	leave() {
 		return this.client.requests.post("functions/v2:chat.leave", {
 			dialogueId: this.id

@@ -1,6 +1,6 @@
 import StickerManager from "./StickerManager.js";
 
-export default class extends StickerManager {
+export default class ClientStickerManager extends StickerManager {
 	async fetch(id, { force } = {}) {
 		if (!force && this.cache.has(id)) {
 			return this.cache.get(id);

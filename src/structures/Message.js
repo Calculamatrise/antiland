@@ -90,7 +90,7 @@ export default class Message extends Structure {
 				this.author._update({ id: data[key] });
 				break;
 			case 'sendersName':
-				this.author._update({ displayName: data[key] });
+				this.author._update({ profileName: data[key] });
 				break;
 			case 'sticker': // https://gfx.antiland.com/stickers/a10
 				this.content = "https://gfx.antiland.com/stickers/" + data[key];
@@ -115,6 +115,26 @@ export default class Message extends Structure {
 		}).then(r => {
 			console.log(r);
 			return r
+		})
+	}
+
+	fetchLovers(id, { force } = {}) {
+		if (!force && this.lovers && this.lovers.size > 0) {
+			if (this.lovers.has(id)) {
+				return this.lovers.get(id);
+			} else if (!id) {
+				return this.lovers;
+			}
+		}
+		return this.client.requests.post("functions/v2:chat.message.getLovers", {
+			messageId: this.id
+		}).then(entries => {
+			this.lovers ||= new Map();
+			for (let item of entries) {
+				let entry = new User(item, this.client);
+				this.lovers.set(entry.id, entry);
+			}
+			return id ? this.lovers.get(id) ?? null : this.lovers
 		})
 	}
 

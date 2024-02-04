@@ -1,7 +1,7 @@
 import BaseManager from "./BaseManager.js";
 import Dialogue from "../structures/Dialogue.js";
 
-export default class extends BaseManager {
+export default class DialogueManager extends BaseManager {
 	async fetch(id, { force } = {}) {
 		if (!force && this.cache.has(id)) {
 			return this.cache.get(id);

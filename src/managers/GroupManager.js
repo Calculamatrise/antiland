@@ -2,7 +2,7 @@ import BaseManager from "./BaseManager.js";
 import Dialogue from "../structures/Dialogue.js";
 import Group from "../structures/Group.js";
 
-export default class extends BaseManager {
+export default class GroupManager extends BaseManager {
 	async fetch(id, { force } = {}) {
 		if (!id || typeof id == 'object') {
 			return this.fetchActive(...arguments)

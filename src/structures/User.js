@@ -84,8 +84,8 @@ export default class User extends Structure {
 				if (!counters) break;
 				for (let key in counters) {
 					switch(key) {
-						case 'likes':
-							this.likesReceived = counters[key];
+					case 'likes':
+						this.likesReceived = counters[key];
 					}
 				}
 				break;
@@ -114,7 +114,7 @@ export default class User extends Structure {
 				break;
 			case 'profileName':
 				this.displayName = data[key];
-				this.username ||= this.displayName.replace(/\s[🚺🚹]+$/, match => (this.gender ||= (match.endsWith('🚺') ? 'FE' : '') + 'MALE', '')).toLowerCase()
+				this.username ||= this.displayName.replace(/\s[👩🚺🚹]+$/, match => (this.gender ||= (match.endsWith('🚹') ? '' : 'FE') + 'MALE', '')).toLowerCase()
 			}
 		}
 		return this

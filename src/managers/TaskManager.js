@@ -1,6 +1,6 @@
 import BaseManager from "./BaseManager.js";
 
-export default class extends BaseManager {
+export default class TaskManager extends BaseManager {
 	async fetch(id, { force } = {}) {
 		if (!force && this.cache.size > 0) {
 			if (this.cache.has(id)) {

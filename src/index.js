@@ -1,5 +1,6 @@
 export { default as Client } from "./client/Client.js";
 export { default as ActivityTypes } from "./utils/ActivityTypes.js";
+export { default as ArtifactTypes } from "./utils/ArtifactTypes.js";
 export { default as Categories } from "./utils/Categories.js";
 export { default as ChatFilters } from "./utils/ChatFilters.js";
 export { default as ChatFlags } from "./utils/ChatFlags.js";

@@ -1,6 +1,6 @@
 import EventEmitter from "events";
 
-import { ActivityTypes, Categories, ChatFilters, ChatFlags, ChatMoods, ChatSetupFlags, Events, MessageTypes } from "../src";
+import { ActivityTypes, ArtifactTypes, Categories, ChatFilters, ChatFlags, ChatMoods, ChatSetupFlags, Events, MessageTypes } from "../src";
 import CallManager from "../src/managers/CallManager";
 import DialogueManager from "../src/managers/DialogueManager";
 import GroupManager from "../src/managers/GroupManager";
@@ -109,6 +109,14 @@ export enum ActivityTypes {
 	ONLINE = 'ONLINE'
 }
 
+export enum ArtifactTypes {
+	ROSE = 'rose',
+	TEDDY = 'teddy',
+	HEART = 'heart',
+	DIAMOND = 'diamond',
+	TEN_DIAMONDS = 'diamond10'
+}
+
 export enum Categories {
 	Adult = 'adult',
 	Auto = 'auto',
@@ -117,6 +125,12 @@ export enum Categories {
 	Depression = 'depression',
 	Family = 'family',
 	Fashion = 'vogue'
+}
+
+export enum ChannelTypes {
+	GROUP = 'GROUP',
+	PRIVATE = 'PRIVATE',
+	PUBLIC = 'PUBLIC'
 }
 
 export enum ChatFilters {
@@ -156,6 +170,11 @@ export enum ChatMoods {
 
 export enum ChatSetupFlags {
 	ALLOW_MESSAGE_DELETE = 'OWN_MSG_REMOVE_ALLOWED'
+}
+
+export enum ChatSetupFlags {
+	KARMA = 'karma',
+	TOKENS = 'tokens'
 }
 
 export enum MessageTypes {

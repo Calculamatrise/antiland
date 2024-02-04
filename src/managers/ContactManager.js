@@ -1,7 +1,7 @@
 import BaseManager from "./BaseManager.js";
 import User from "../structures/User.js";
 
-export default class extends BaseManager {
+export default class ContactManager extends BaseManager {
 	blocked = new Set();
 	async fetch({ force } = {}) {
 		if (!force && this.cache.size > 0) {
@@ -55,7 +55,9 @@ export default class extends BaseManager {
 	 */
 	async block(user, { force } = {}) {
 		let userId = typeof user == 'object' ? user.id : user;
-		if (this.client.client.user.friends.cache.has(userId)) {
+		if (!force && this.blocked.has(userId)) {
+			return true;
+		} else if (this.client.client.user.friends.cache.has(userId)) {
 			if (!force) {
 				throw new Error("Cannot block a user that is your friend.");
 			}
@@ -63,6 +65,40 @@ export default class extends BaseManager {
 		}
 		return this.client.client.requests.post("functions/v2:contact.blockPrivate", { userId }).then(r => {
 			return r && (this.blocked.add(userId), r)
+		})
+	}
+
+	/**
+	 * Check if a user is blocked
+	 * @param {User|string} user
+	 * @param {object} [options]
+	 * @param {boolean} [options.force]
+	 * @returns {Promise<boolean>}
+	 */
+	isBlocked(user, { force } = {}) {
+		let userId = typeof user == 'object' ? user.id : user;
+		if (!force && this.blocked.has(userId)) {
+			return true;
+		}
+		return this.client.client.requests.post("functions/v2:contact.checkPrivateBlocked", { userId }).then(r => {
+			return r && (this.blocked.add(userId), r)
+		})
+	}
+
+	/**
+	 * Check if you are blocked
+	 * @param {User|string} user
+	 * @param {object} [options]
+	 * @param {boolean} [options.force]
+	 * @returns {Promise<boolean>}
+	 */
+	isClientBlocked(user, { force } = {}) {
+		let userId = typeof user == 'object' ? user.id : user;
+		if (!force && this.client.client.user.blockedBy.has(userId)) {
+			return true;
+		}
+		return this.client.client.requests.post("functions/v2:contact.getBanInfo", { userId }).then(r => {
+			return r && (this.client.client.user.blockedBy.add(userId), r)
 		})
 	}
 

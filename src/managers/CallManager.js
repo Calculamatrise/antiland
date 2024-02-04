@@ -1,7 +1,7 @@
 import BaseManager from "./BaseManager.js";
 import CallRoom from "../structures/Room.js";
 
-export default class extends BaseManager {
+export default class CallManager extends BaseManager {
 	incoming = new Set();
 
 	/**
@@ -38,6 +38,21 @@ export default class extends BaseManager {
 	 */
 	accept(callerId) {
 		return this.client.requests.post("functions/v2:call.accept", { callerId })
+	}
+
+	/**
+	 * Give the call a rating
+	 * @param {number?} rating
+	 * @param {object} [options]
+	 * @param {string} [options.comments]
+	 * @returns {Promise<unknown>}
+	 */
+	rate(rating, { comments }) {
+		return this.client.requests.post("functions/v2:call.rate", {
+			id: this.id,
+			score: rating ?? 0,
+			comments: comments || null
+		})
 	}
 
 	/**

@@ -6,7 +6,7 @@ import StickerManager from "../managers/StickerManager.js";
 import UserManager from "../managers/UserManager.js";
 // import Message from "../structures/Message.js";
 
-export default class extends BaseClient {
+export default class Client extends BaseClient {
 	calls = new CallManager(this);
 	dialogues = new DialogueManager(this);
 	groups = new GroupManager(this);
@@ -36,7 +36,7 @@ export default class extends BaseClient {
 	}
 
 	sendAnySticker(dialogueId, stickerId) {
-		return this.sendImage(dialogueId, "https://gfx.antiland.com/stickers/" + stickerId, Array.prototype.slice.call(arguments, 2))
+		return this.sendMedia(dialogueId, "https://gfx.antiland.com/stickers/" + stickerId, Array.prototype.slice.call(arguments, 2))
 	}
 
 	async sendMedia(dialogueId, mediaURL, { reference } = {}) {

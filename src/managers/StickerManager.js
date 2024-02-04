@@ -1,6 +1,6 @@
 import BaseManager from "./BaseManager.js";
 
-export default class extends BaseManager {
+export default class StickerManager extends BaseManager {
 	async fetch(id, { force } = {}) {
 		if (!force && this.cache.has(id)) {
 			return this.cache.get(id);

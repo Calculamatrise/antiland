@@ -1,7 +1,7 @@
 import BaseManager from "./BaseManager.js";
 import User from "../structures/User.js";
 
-export default class extends BaseManager {
+export default class FriendManager extends BaseManager {
 	async fetch(id, { force } = {}) {
 		if (!force && this.cache.size > 0) {
 			if (this.cache.has(id)) {

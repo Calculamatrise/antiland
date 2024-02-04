@@ -1,7 +1,7 @@
 import BaseManager from "./BaseManager.js";
 import User from "../structures/User.js";
 
-export default class extends BaseManager {
+export default class FavoriteManager extends BaseManager {
 	async fetch({ force } = {}) {
 		if (!force && this.cache.size > 0) {
 			return this.cache

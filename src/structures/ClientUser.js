@@ -1,9 +1,9 @@
 import User from "./User.js";
 import ClientFriendManager from "../managers/ClientFriendManager.js";
+import ClientStickerManager from "../managers/ClientStickerManager.js";
 import ContactManager from "../managers/ContactManager.js";
 import FavoriteManager from "../managers/FavoriteManager.js";
 import TaskManager from "../managers/TaskManager.js";
-import UserStickerManager from "../managers/UserStickerManager.js";
 
 export default class ClientUser extends User {
 	blockedBy = new Set();
@@ -11,8 +11,13 @@ export default class ClientUser extends User {
 	favorites = new FavoriteManager(this);
 	friends = new ClientFriendManager(this);
 	messages = new Map(); // private message manager
-	stickers = new UserStickerManager(this);
+	stickers = new ClientStickerManager(this);
 	tasks = new TaskManager(this);
+	constructor(data) {
+		super(...arguments, true);
+		this._update(data)
+	}
+
 	_update(data) {
 		if (typeof data != 'object' || data == null) return;
 		super._update(...arguments);
@@ -137,6 +142,13 @@ export default class ClientUser extends User {
 		})
 	}
 
+	generateToken() {
+		return this.client.requests.post("functions/v2:profile.authToken.create").then(r => {
+			console.log(r);
+			return r
+		})
+	}
+
 	async getHumanLink({ force } = {}) {
 		if (force || !this.humanLink) {
 			this.humanLink = await this.client.requests.post("functions/v2:profile.getHumanLink").then(r => r.link)
@@ -163,10 +175,7 @@ export default class ClientUser extends User {
 	setAvatar(avatarId) {
 		return this.client.requests.post("functions/v2:profile.setAvatar", {
 			avatar: avatarId ?? this.avatar.id
-		}).then(r => {
-			console.log(r)
-			return r
-		})
+		}).then(this._update.bind(this))
 	}
 
 	/**
@@ -238,6 +247,14 @@ export default class ClientUser extends User {
 
 	setUserData(options) {
 		return this.client.requests.post("functions/v2:profile.setUserData", options).then(this._update.bind(this))
+	}
+
+	/**
+	 * Soft delete your account
+	 * @returns {<Promise<boolean>>}
+	 */
+	softDelete() {
+		return this.client.requests.post("functions/v2:profile.softDelete")
 	}
 
 	update(options) {

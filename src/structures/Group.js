@@ -1,19 +1,26 @@
 import Dialogue from "./Dialogue.js";
-import GroupMemberManager from "../managers/GroupMemberManager.js";
+import BanManager from "../managers/BanManager.js";
+import MemberManager from "../managers/MemberManager.js";
 
 export default class Group extends Dialogue {
-	members = new GroupMemberManager(this); // participants
-	constructor(data) {
-		super(...arguments);
-		if (this.hasOwnProperty('client')) {
-			let entry = this.client.groups.cache.get(this.id);
+	bans = new BanManager(this);
+	founderId = null;
+	members = new MemberManager(this); // participants
+	constructor(data, options) {
+		if (options instanceof Object && options.hasOwnProperty('client')) {
+			let id = data.id || data.objectId;
+			let entry = options.client.groups.cache.get(id);
 			if (entry) {
 				entry._update(data);
 				return entry;
 			}
-
-			this.client.groups.cache.set(this.id, this);
 		}
+		super(...arguments);
+		this.hasOwnProperty('client') && this.client.groups.cache.set(this.id, this)
+	}
+
+	get manageable() {
+		return this.founderId === this.client.user.id
 	}
 
 	_update(data) {
@@ -29,39 +36,14 @@ export default class Group extends Dialogue {
 				this[key] = data[key]
 			}
 		}
+		this.founder && (this.founderId = this.founder.id);
 		return this
 	}
 
 	#throwFounder() {
-		if (!this.founder || this.client.user.id !== this.founder.id) {
+		if (!this.manageable) {
 			throw new Error("You must be the founder to perform this action.");
 		}
-	}
-
-	/**
-	 * Submit an appeal request
-	 * @returns {Promise<Dialogue>}
-	 */
-	appealBan() {
-		return this.client.requests.post("functions/v2:chat.mod.appealClubBan", {
-			dialogueId: this.id
-		}).then(data => {
-			let entry = new Dialogue(data.appealRoom, this);
-			this.client.dialogues.cache.set(entry.id, entry);
-			return entry
-		})
-	}
-
-	/**
-	 * Check if a user is banned from the chat
-	 * @param {string} [userId] 
-	 * @returns {Promise<object>}
-	 */
-	checkBan(userId) {
-		return this.client.requests.post("functions/v2:chat.checkBan", {
-			dialogueId: this.id,
-			userId: userId ?? this.client.user.id
-		})
 	}
 
 	/**

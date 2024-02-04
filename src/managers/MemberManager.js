@@ -1,7 +1,7 @@
 import BaseManager from "./BaseManager.js";
 import User from "../structures/User.js";
 
-export default class extends BaseManager {
+export default class MemberManager extends BaseManager {
 	async fetch(id, { force } = {}) {
 		if (!force && this.cache.size > 0) {
 			if (this.cache.has(id)) {
@@ -56,12 +56,6 @@ export default class extends BaseManager {
 		}
 	}
 
-	#throwFounder() {
-		if (!this.client.founder || this.client.client.user.id !== this.client.founder.id) {
-			throw new Error("You must be the founder to perform this action.");
-		}
-	}
-
 	/**
 	 * Check if client can ban
 	 * @param {object} [options]
@@ -69,7 +63,7 @@ export default class extends BaseManager {
 	 * @returns {Promise<boolean>}
 	 */
 	async canIBan({ force } = {}) {
-		if (!force && this.client.admins.has(this.client.client.user.id)) {
+		if (!force && (this.client.founder.id === this.client.client.user.id || this.client.admins.has(this.client.client.user.id))) {
 			return true
 		}
 		return this.client.client.requests.post("functions/v2:chat.mod.canIBan", {
@@ -90,20 +84,6 @@ export default class extends BaseManager {
 	}
 
 	/**
-	 * Add a chat moderator
-	 * @protected requires founder permissions
-	 * @param {string} userId
-	 * @returns {Promise<boolean>}
-	 */
-	async addModerator(userId) {
-		this.#throwFounder();
-		return this.client.client.requests.post("functions/v2:chat.mod.add", {
-			dialogueId: this.client.id,
-			userId
-		}).then(r => r && (this.client.admins.add(userId), r))
-	}
-
-	/**
 	 * Ban a user
 	 * @protected moderation endpoint for moderators
 	 * @param {string} userId 
@@ -117,19 +97,5 @@ export default class extends BaseManager {
 			reason,
 			userId
 		})
-	}
-
-	/**
-	 * Remove a chat moderator
-	 * @protected requires founder permissions
-	 * @param {string} userId
-	 * @returns {Promise<boolean>}
-	 */
-	async removeModerator(userId) {
-		userId !== this.client.client.user.id && this.#throwFounder();
-		return this.client.client.requests.post("functions/v2:chat.mod.delete", {
-			dialogueId: this.client.id,
-			userId
-		}).then(r => r && (this.client.admins.delete(userId), r))
 	}
 }
