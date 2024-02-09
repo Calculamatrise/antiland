@@ -6,45 +6,73 @@ import FavoriteManager from "../managers/FavoriteManager.js";
 import TaskManager from "../managers/TaskManager.js";
 
 export default class ClientUser extends User {
+	accentColor = null;
 	blockedBy = new Set();
+	channelId = null;
 	contacts = new ContactManager(this);
 	favorites = new FavoriteManager(this);
 	friends = new ClientFriendManager(this);
+	hexAccentColor = null;
 	messages = new Map(); // private message manager
 	stickers = new ClientStickerManager(this);
 	tasks = new TaskManager(this);
 	constructor(data) {
 		super(...arguments, true);
-		this._update(data)
+		Object.defineProperties(this, {
+			referrerId: { value: null, writable: true }
+		});
+		this._patch(data)
 	}
 
-	_update(data) {
+	_patch(data) {
 		if (typeof data != 'object' || data == null) return;
-		super._update(...arguments);
+		super._patch(...arguments);
 		for (let key in data) {
 			switch (key) {
 			case 'antiTokens':
-			case 'country':
-			case 'phone':
-			case 'replyRate':
+			case 'color':
 				this[key] = data[key];
 				break;
 			case 'auth':
-				let auth = data[key];
-				for (let key in auth) {
-					switch(key) {
-					case 'channelId':
-						this.privateChannelId = auth[key];
+				if (typeof data[key] != 'object') break;
+				for (let prop in data[key]) {
+					switch(prop) {
 					case 'email':
 					case 'emailIsVerified':
-					case 'referrerId':
 					case 'username':
-						this[key] = auth[key]
+						this[prop] = data[key][prop];
+						break;
+					case 'channelId':
+					case 'referrerId':
+						if (this[prop] !== null) break;
+						Object.defineProperty(this, prop, { value: data[key][prop], writable: false })
 					}
 				}
 				break;
-			case 'avgRating':
-				this.averageRating = data[key];
+			case 'avatars':
+				this.avatar ||= {};
+				if (typeof data[key] == 'object') {
+					for (let prop in data[key]) {
+						switch (prop) {
+						case 'allAccs':
+							this.accessoriesOwned = new Set(data[key][prop]);
+							break;
+						case 'freeChange':
+							this.avatar.hasFreeChange = data[key][prop];
+							break;
+						case 'exclusive':
+						case 'regular':
+							this.avatar.id ??= data[key][prop];
+							this.avatar.type = prop
+						}
+					}
+					break;
+				}
+				Object.assign(this.avatar, { id: data[key] });
+				break;
+			case 'badgeColor':
+				this.hexAccentColor = data[key];
+				this.accentColor = parseInt(this.hexAccentColor.replace(/^#/, ''), 16);
 				break;
 			case 'blockedBy':
 				this[key] = new Set(data[key]);
@@ -60,56 +88,34 @@ export default class ClientUser extends User {
 				// this.locale = data[key];
 				break;
 			case 'langs':
-			case 'userLangs':
 				this.userLanguages = new Set(data[key]);
-				break;
-			case 'likesFemale':
-			case 'likesMale':
-				this.interests ||= {};
-				this.interests[key] = data[key];
 				break;
 			case 'msgCount':
 				this.messageCount = data[key];
 				break;
-			case 'pvtChannelId':
-				this.privateChannelId = data[key];
-				break;
 			case 'security':
-				this.security = Object.assign({}, this[key]);
+				this[key] = Object.assign({}, this[key]);
 				let meta = data[key];
-				for (let key in meta) {
-					switch(key) {
-						case 'acceptRandoms':
-						case 'allowUnsafeContent':
-						case 'getRandoms':
-						case 'hideMates':
-						case 'minKarma':
-							this.security[key] = meta[key];
-						case 'karmaWallArtifacts': // change to this.artifacts.karmaWall // ???
-							this[key] = meta[key];
-							break;
-						case 'deleted':
-							this.security.isScheduledForDeletion = meta[key];
-							this.isScheduledForDeletion = meta[key];
+				for (let prop in meta) {
+					switch(prop) {
+					case 'acceptRandoms':
+					case 'allowUnsafeContent':
+					case 'getRandoms':
+					case 'hideMates':
+					case 'minKarma':
+						this[key][prop] = meta[prop];
+					case 'karmaWallArtifacts': // change to this.artifacts.karmaWall // ???
+						this[prop] = meta[prop];
+						break;
+					case 'deleted':
+						this[key].scheduledDeletion = meta[prop]
 					}
 				}
 				// this[key] = Object.assign({}, this[key], data[key]);
 				// this[key] = new Map(Object.entries(data[key]));
 				break;
 			case 'sp':
-				this.superPowers = Object.assign({}, this.superPowers, data[key]);
-				break;
-			case 'stickerSets':
-				this.stickerSets = data[key]; // new Set(data[key]);
-				break;
-			case 'lastOpen':
-			case 'more':
-			case 'lastChangeDate':
-			// default:
-				this.extra ??= {};
-				Object.assign(this.extra, {
-					[key]: data[key]
-				})
+				this.superPowers = Object.assign({}, this.superPowers, data[key])
 			}
 		}
 		return this
@@ -120,7 +126,7 @@ export default class ClientUser extends User {
 			return this.contentSettings;
 		}
 		return this.client.requests.post("functions/v2:profile.me.contentSettings").then(r => {
-			console.log(r) // cache settings // this._update;
+			console.log(r) // cache settings // this._patch;
 			return r
 		})
 	}
@@ -130,14 +136,14 @@ export default class ClientUser extends User {
 			return this.settings;
 		}
 		return this.client.requests.post("functions/v2:profile.me.security").then(r => {
-			console.log(r) // cache settings // this._update;
+			console.log(r) // cache settings // this._patch;
 			return r
 		})
 	}
 
 	async fetchVisitors({ force } = {}) {
 		return this.client.requests.post("functions/v2:profile.visitor.list").then(r => {
-			console.log(r) // cache settings // this._update;
+			console.log(r) // cache settings // this._patch;
 			return r
 		})
 	}
@@ -166,16 +172,13 @@ export default class ClientUser extends User {
 	setAccessories(accessories) {
 		return this.client.requests.post("functions/v2:profile.setAccessories", {
 			accessories: Array.from(accessories || this.avatar.accessories)
-		}).then(r => {
-			console.log(r)
-			return r
-		})
+		}).then(this._patch.bind(this))
 	}
 
 	setAvatar(avatarId) {
 		return this.client.requests.post("functions/v2:profile.setAvatar", {
 			avatar: avatarId ?? this.avatar.id
-		}).then(this._update.bind(this))
+		}).then(this._patch.bind(this))
 	}
 
 	/**
@@ -189,7 +192,7 @@ export default class ClientUser extends User {
 		return this.client.requests.post("functions/v2:profile.setGenderAndAge", {
 			birthDate: age ?? this.age,
 			gender: gender || this.gender
-		}).then(this._update.bind(this))
+		}).then(this._patch.bind(this))
 	}
 
 	/**
@@ -205,7 +208,7 @@ export default class ClientUser extends User {
 			lang: language || this.language,
 			likesMale: likesMale ?? this.interests.likesMale,
 			likesFemale: likesFemale ?? this.interests.likesFemale
-		}).then(this._update.bind(this))
+		}).then(this._patch.bind(this))
 	}
 
 	setMood(mood) {
@@ -223,16 +226,28 @@ export default class ClientUser extends User {
 		})
 	}
 
-	setSecuritySettings({ acceptRandoms, allowUnsafeContent, deleted, getRandoms, hideMates, karmaWallArtifacts, minKarma }) {
+	/**
+	 * Set security settings
+	 * @param {object} options
+	 * @param {boolean} [options.acceptRandoms]
+	 * @param {boolean} [options.allowUnsafeContent]
+	 * @param {boolean} [options.getRandoms]
+	 * @param {boolean} [options.hideMates]
+	 * @param {Iterable} [options.karmaWallArtifacts]
+	 * @param {number} [options.minKarma]
+	 * @param {boolean} [options.scheduledDeletion] schedule account for deletion in 30 days
+	 * @returns {Promise<ClientUser>}
+	 */
+	setSecuritySettings({ acceptRandoms, allowUnsafeContent, getRandoms, hideMates, karmaWallArtifacts, minKarma, scheduledDeletion }) {
 		return this.client.requests.post("functions/v2:profile.setSecuritySettings", {
 			acceptRandoms: acceptRandoms ?? this.security.acceptRandoms,
 			allowUnsafeContent: allowUnsafeContent ?? this.security.allowUnsafeContent,
-			deleted: deleted ?? this.security.isScheduledForDeletion,
+			deleted: scheduledDeletion ?? this.security.scheduledDeletion,
 			getRandoms: getRandoms ?? this.security.getRandoms,
 			hideMates: hideMates ?? this.security.hideMates,
 			karmaWallArtifacts: Array.from(karmaWallArtifacts || this.karmaWallArtifacts),
 			minKarma: minKarma ?? this.security.minKarma
-		}).then(this._update.bind(this))
+		}).then(this._patch.bind(this))
 	}
 
 	setSuperPowers({ blessed, doubleKarma, hideVisits, highlightPrivates, showOnline } = {}) {
@@ -242,11 +257,11 @@ export default class ClientUser extends User {
 			hideVisits,
 			highlightPrivates,
 			showOnline
-		})).then(this._update.bind(this))
+		})).then(this._patch.bind(this))
 	}
 
 	setUserData(options) {
-		return this.client.requests.post("functions/v2:profile.setUserData", options).then(this._update.bind(this))
+		return this.client.requests.post("functions/v2:profile.setUserData", options).then(this._patch.bind(this))
 	}
 
 	/**
@@ -257,22 +272,29 @@ export default class ClientUser extends User {
 		return this.client.requests.post("functions/v2:profile.softDelete")
 	}
 
+	/**
+	 * Update your data
+	 * @param {object} options
+	 * @param {string} options.description
+	 * @param {string} options.profileName
+	 * @returns {Promise<this>}
+	 */
 	update(options) {
 		return this.client.requests.post("functions/v2:profile.update", Object.assign({
 			aboutMe: this.description
-		}, options)).then(this._update.bind(this))
+		}, options)).then(this._patch.bind(this))
 	}
 
 	updatePrivateChannel(rollback) {
 		return this.client.requests.post("functions/v2:profile.updatePrivateChannel", {
 			rollback: Boolean(rollback)
-		}).then(this._update.bind(this))
+		}).then(this._patch.bind(this))
 	}
 
 	setHumanLink(login) {
 		return this.client.requests.post("functions/v2:profile.setHumanLink", {
 			humanLink: login ?? this.login
-		}).then(this._update.bind(this))
+		}).then(this._patch.bind(this))
 	}
 
 	unsetHumanLink() {

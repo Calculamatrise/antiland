@@ -1,14 +1,14 @@
-import Structure from "./Structure.js";
+import BaseStructure from "./BaseStructure.js";
 
-export default class FriendRequest extends Structure {
+export default class FriendRequest extends BaseStructure {
 	constructor(data) {
 		super(...arguments, true);
-		this._update(data);
+		this._patch(data);
 	}
 
-	_update(data) {
+	_patch(data) {
 		if (typeof data != 'object' || data == null) return;
-		super._update(...arguments);
+		super._patch(...arguments);
 		for (let key in data) {
 			switch (key) {
 			case 'activity':
@@ -25,7 +25,7 @@ export default class FriendRequest extends Structure {
 				this.username = String.prototype.toLowerCase.call(data[key]);
 				break;
 			case 'user':
-				this._update(data[key])
+				this._patch(data[key])
 			}
 		}
 	}

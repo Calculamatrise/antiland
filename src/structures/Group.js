@@ -4,28 +4,32 @@ import MemberManager from "../managers/MemberManager.js";
 
 export default class Group extends Dialogue {
 	bans = new BanManager(this);
+	categories = new Set();
+	description = null;
 	founderId = null;
 	members = new MemberManager(this); // participants
+	minKarma = null;
 	constructor(data, options) {
-		if (options instanceof Object && options.hasOwnProperty('client')) {
+		if (data instanceof Object && options instanceof Object && options.hasOwnProperty('client')) {
 			let id = data.id || data.objectId;
 			let entry = options.client.groups.cache.get(id);
 			if (entry) {
-				entry._update(data);
-				return entry;
+				entry._patch(data);
+				return entry
 			}
 		}
-		super(...arguments);
-		this.hasOwnProperty('client') && this.client.groups.cache.set(this.id, this)
+		super(...arguments, true);
+		this._patch(data);
+		this.id !== null && this.hasOwnProperty('client') && this.client.groups.cache.set(this.id, this)
 	}
 
 	get manageable() {
 		return this.founderId === this.client.user.id
 	}
 
-	_update(data) {
+	_patch(data) {
 		if (typeof data != 'object' || data == null) return;
-		super._update(...arguments);
+		super._patch(...arguments);
 		for (let key in data) {
 			switch (key) {
 			case 'categories':
@@ -33,10 +37,12 @@ export default class Group extends Dialogue {
 				break;
 			case 'description':
 			case 'minKarma':
-				this[key] = data[key]
+				this[key] = data[key];
+				break;
+			case 'founder':
+				this.founderId = data[key].id
 			}
 		}
-		this.founder && (this.founderId = this.founder.id);
 		return this
 	}
 
@@ -103,12 +109,12 @@ export default class Group extends Dialogue {
 	 * @param {string} humanLink
 	 * @returns {Promise<Group>}
 	 */
-	setHumanLink(humanLink) {
+	async setHumanLink(humanLink) {
 		this.#throwFounder();
 		return this.client.requests.post("functions/v2:chat.mod.setHumanLink", {
 			dialogueId: this.id,
 			humanLink
-		}).then(this._update.bind(this))
+		}).then(this._patch.bind(this))
 	}
 
 	/**
@@ -116,12 +122,12 @@ export default class Group extends Dialogue {
 	 * @param {Set|Array} filters
 	 * @returns {Promise<Group>}
 	 */
-	setFilters(filters) {
+	async setFilters(filters) {
 		this.#throwFounder();
 		return this.client.requests.post("functions/v2:chat.mod.setFilters", {
 			dialogueId: this.id,
 			filters: Array.from(filters || this.options.filters)
-		}).then(this._update.bind(this))
+		}).then(this._patch.bind(this))
 	}
 
 	/**
@@ -134,16 +140,16 @@ export default class Group extends Dialogue {
 	 * @param {string} [options.setup]
 	 * @returns {Promise<Group>}
 	 */
-	setInfo({ categories, filters, historyLength, minKarma, setup } = {}) {
+	async setInfo({ categories, filters, historyLength, minKarma, setup } = {}) {
 		this.#throwFounder();
 		return this.client.requests.post("functions/v2:chat.mod.setInfo", {
 			dialogueId: this.id,
-			categories: Array.from(categories || this.categories),
-			filters: Array.from(filters || this.options.filters),
+			categories: Array.from(categories || this.categories || []),
+			filters: Array.from(filters || this.options.filters || []),
 			historyLength: historyLength ?? this.options.historyLength,
 			minKarma: minKarma ?? this.minKarma,
 			setup: Array.from(setup || this.options.setup)
-		}).then(this._update.bind(this))
+		}).then(this._patch.bind(this))
 	}
 
 	/**
@@ -152,7 +158,7 @@ export default class Group extends Dialogue {
 	 * @param {string} mood
 	 * @returns {Promise<boolean>}
 	 */
-	setMood(mood) {
+	async setMood(mood) {
 		this.#throwFounder();
 		return this.client.requests.post("functions/v2:chat.mod.setMood", {
 			dialogueId: this.id,
@@ -168,23 +174,22 @@ export default class Group extends Dialogue {
 	 * @param {string} name
 	 * @returns {Promise<Group>}
 	 */
-	setName(name) {
+	async setName(name) {
 		this.#throwFounder();
 		return this.client.requests.post("functions/v2:chat.mod.setName", {
 			dialogueId: this.id,
 			name
-		}).then(this._update.bind(this))
+		}).then(this._patch.bind(this))
 	}
 
 	/**
 	 * Unset a vanity URL
 	 * @returns {Promise<Group>}
 	 */
-	unsetHumanLink(humanLink) {
+	async unsetHumanLink() {
 		this.#throwFounder();
 		return this.client.requests.post("functions/v2:chat.mod.unsetHumanLink", {
-			dialogueId: this.id,
-			humanLink
+			dialogueId: this.id
 		}).then(r => {
 			console.log(r);
 			return r
@@ -196,7 +201,7 @@ export default class Group extends Dialogue {
 	 * @param {function} callback
 	 * @returns {Promise<Group>}
 	 */
-	updateFilters(callback) {
+	async updateFilters(callback) {
 		if (typeof callback != 'function') {
 			throw new TypeError("Callback must be of type: function")
 		}

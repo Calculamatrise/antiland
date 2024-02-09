@@ -1,11 +1,11 @@
-import Structure from "./Structure.js";
+import BaseStructure from "./BaseStructure.js";
 import Dialogue from "./Dialogue.js";
 import User from "./User.js";
 
-export default class GiftMessage extends Structure {
+export default class GiftMessage extends BaseStructure {
 	artifactName = null;
 	author = new User(null, this);
-	avatar = { id: 2002 }
+	avatar = { id: 2002 };
 	content = null;
 	victim = new User(null, this);
 	get iconId() {
@@ -13,24 +13,22 @@ export default class GiftMessage extends Structure {
 	}
 
 	constructor(data, dialogue) {
-		super(...arguments, true);
 		if (dialogue.hasOwnProperty('messages')) {
-			super._update(data);
-			let entry = dialogue.messages.cache.get(this.id);
+			let id = data.id || data.objectId;
+			let entry = dialogue.messages.cache.get(id);
 			if (entry) {
-				entry._update(data);
+				entry._patch(data);
 				return entry
 			}
-
-			this.id !== null && dialogue.messages.cache.set(this.id, this)
 		}
-
-		this._update(data)
+		super(...arguments, true);
+		this._patch(data);
+		this.id !== null && dialogue.messages.cache.set(this.id, this)
 	}
 
-	_update(data) {
+	_patch(data) {
 		if (typeof data != 'object' || data == null) return;
-		super._update(...arguments);
+		super._patch(...arguments);
 		data = this.constructor.convert(data);
 		for (let key in data) {
 			switch (key) {
@@ -45,7 +43,7 @@ export default class GiftMessage extends Structure {
 			case 'dialogue':
 				if (typeof data[key] == 'object') {
 					if (this.dialogue instanceof Dialogue) {
-						this.dialogue._update(data[key]);
+						this.dialogue._patch(data[key]);
 						break;
 					}
 					this.dialogue = new Dialogue(data[key], this);
@@ -65,7 +63,7 @@ export default class GiftMessage extends Structure {
 				this.author.color = this.color;
 				this[key] = data[key];
 			case 'blessed':
-				this.author._update({ [key]: data[key] });
+				this.author._patch({ [key]: data[key] });
 				break;
 			case 'karma':
 				this[key] = data[key];

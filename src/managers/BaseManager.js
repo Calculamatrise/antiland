@@ -1,8 +1,13 @@
 export default class {
 	cache = new Map();
 	constructor(client) {
-		/** @private */
-		this.client = client
+		/**
+		 * The client that instantiated this Manager
+		 * @name BaseManager#client
+		 * @type {Client}
+		 * @readonly
+		 */
+		Object.defineProperty(this, 'client', { value: client })
 	}
 
 	fetch(key, { force } = {}) {

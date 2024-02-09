@@ -1,7 +1,7 @@
 {
     "name": "antiland",
     "alias": "@Calculamatrise/antiland",
-    "version": "0.0.0-beta",
+    "version": "0.0.0-gamma",
     "author": "Calculamatrise",
     "description": "An app to communicacte with the AntiLand API",
     "directories": {

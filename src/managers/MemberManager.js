@@ -1,5 +1,5 @@
 import BaseManager from "./BaseManager.js";
-import User from "../structures/User.js";
+import Member from "../structures/Member.js";
 
 export default class MemberManager extends BaseManager {
 	async fetch(id, { force } = {}) {
@@ -17,7 +17,7 @@ export default class MemberManager extends BaseManager {
 			search: null
 		}).then(entries => {
 			for (let item of entries) {
-				let entry = new User(item, this.client);
+				let entry = new Member(item, this.client);
 				this.cache.set(entry.id, entry);
 			}
 			return id ? this.cache.get(id) ?? null : this.cache
@@ -42,7 +42,7 @@ export default class MemberManager extends BaseManager {
 			dialogueId: this.client.id
 		}).then(entries => {
 			for (let item of entries) {
-				let entry = new User(item, this.client);
+				let entry = new Member(item, this.client);
 				this.cache.set(entry.id, entry);
 				activeMembers.set(entry.id, entry)
 			}
@@ -89,13 +89,56 @@ export default class MemberManager extends BaseManager {
 	 * @param {string} userId 
 	 * @returns {Promise<object>}
 	 */
-	ban(userId, { messageId, reason = "No reason provided." } = {}) {
+	async ban(userId, { force, messageId, reason = "No reason provided." } = {}) {
 		this.#throwAdmin();
+		if (!force && this.client.bans.cache.has(userId)) {
+			return this.client.bans.cache.get(userId);
+		}
 		return this.client.client.requests.post("functions/v2:chat.mod.ban", {
 			dialogueId: this.client.id,
 			message: messageId,
 			reason,
 			userId
+		}).then(res => {
+			if (res.banned) {
+				let createdAt = new Date();
+				let endsAt = new Date(typeof res.info.endsAt == 'object' ? res.info.endsAt.iso : res.info.endsAt);
+				Object.defineProperties(res.info, {
+					createdAt: { value: createdAt },
+					createdTimestamp: { value: createdAt.getTime() },
+					dialogue: { enumerable: false, value: this.client, writable: false },
+					dialogueId: { enumerable: true, value: res.info.dialogue, writable: true },
+					endsAt: { value: endsAt },
+					endsTimestamp: { value: endsAt.getTime() }
+				});
+			}
+			return res.banned && (this.client.bans.cache.set(userId, res.info),
+			res.info)
+		})
+	}
+
+	/**
+	 * Unban a user
+	 * @protected moderation endpoint for moderators
+	 * @param {string} userId 
+	 * @returns {Promise<object>}
+	 */
+	async unban(userId, { force } = {}) {
+		this.#throwAdmin();
+		if (!force && !this.client.bans.cache.has(userId)) {
+			return true;
+		}
+		return this.client.client.users.fetch(userId).then(user => {
+			return user.fetchDM({ createIfNotExists: true }).then(dialogue => {
+				return dialogue.send("/forgive " + this.client.id).then(({ text }) => {
+					let result = parseInt(text.replace(/^.+\n(\d+).+/, "$1"));
+					if (result < 1) {
+						throw new Error("No bans found.");
+					}
+					this.client.bans.cache.delete(userId);
+					return result > 0
+				})
+			})
 		})
 	}
 }

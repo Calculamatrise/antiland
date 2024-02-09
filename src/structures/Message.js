@@ -1,47 +1,59 @@
-import Structure from "./Structure.js";
+import Structure from "./BaseStructure.js";
 import Dialogue from "./Dialogue.js";
 import User from "./User.js";
 
 export default class Message extends Structure {
 	author = new User(null, this);
 	content = null;
+	dialogueId = null;
 	reactions = new Map();
+	referenceId = null;
 	constructor(data, dialogue) {
-		super(...arguments, true);
-		if (dialogue.hasOwnProperty('messages')) {
-			super._update(data);
-			let entry = dialogue.messages.cache.get(this.id);
+		if (data instanceof Object && dialogue instanceof Object && dialogue.hasOwnProperty('messages')) {
+			let id = data.id || data.objectId;
+			let entry = dialogue.messages.cache.get(id);
 			if (entry) {
-				entry._update(data);
+				entry._patch(data);
 				return entry
 			}
-
-			this.id !== null && dialogue.messages.cache.set(this.id, this)
 		}
-
-		this._update(data)
+		super(...arguments, true);
+		let isDialogue = dialogue instanceof Dialogue;
+		Object.defineProperties(this, {
+			dialogue: { value: isDialogue ? dialogue : null, writable: !isDialogue },
+			reference: { value: null, writable: true }
+		});
+		this._patch(data);
+		this.id !== null && this.hasOwnProperty('client') && dialogue.messages.cache.set(this.id, this)
 	}
 
-	_update(data) {
+	get deletable() {
+		return this.dialogue.founderId === this.client.user.id || this.dialogue.admins.has(this.client.user.id)
+	}
+
+	_patch(data) {
 		if (typeof data != 'object' || data == null) return;
-		super._update(...arguments);
+		super._patch(...arguments);
 		for (let key in data) {
 			switch (key) {
 			case 'avatar':
-				this.author._update({ avatar: { idx: data[key] }});
+				this.author._patch({ avatar: { idx: data[key] }});
 				break;
 			case 'dialogue':
+				if (this[key] !== null) break;
 				if (typeof data[key] == 'object') {
 					if (this.dialogue instanceof Dialogue) {
-						this.dialogue._update(data[key]);
+						this.dialogue._patch(data[key]);
 						break;
+					} else if (data[key] instanceof Dialogue) {
+						Object.defineProperty(this, key, { value: data[key], writable: false });
 					}
-					this.dialogue = new Dialogue(data[key], this);
+					Object.defineProperty(this, key, { value: new Dialogue(data[key], this), writable: false });
 					break;
 				}
 			case 'dialogueId':
-				// check private chats and group chats // this.client.users // this.client.groups
-				this.dialogue = this.client.dialogues.cache.get(data[key]?.id ?? data[key]) || new Dialogue({ id: data[key] }, this);
+				if (this[key] !== null) break;
+				Object.defineProperty(this, 'dialogue', { value: new Dialogue({ id: data[key] }, this), writable: false });
 				this.dialogueId = data[key];
 				break;
 			// case 'color':
@@ -51,9 +63,9 @@ export default class Message extends Structure {
 				this[key] = data[key];
 				break;
 			case 'likesCount':
-				// this.likes = data[key];
-				// this.likeCount = data[key];
+				this.likes = data[key];
 				this.reactions.set('❤️', data[key]);
+				data[key] > 1 && this.reactions.set('❤️', data[key]);
 				break;
 			case 'media':
 				let media = data[key];
@@ -71,12 +83,9 @@ export default class Message extends Structure {
 				}
 				break;
 			case 'replyToId':
+				if (this.reference !== null) break;
 				this.referenceId = data[key];
-				this.reference = null;
-				if (this.dialogue) {
-					let reference = this.dialogue.messages.cache.get(this.referenceId);
-					reference && (this.reference = reference)
-				}
+				this.dialogue !== null && Object.defineProperty(this, 'reference', { value: new Message({ id: data[key] }, this.dialogue), writable: false });
 				break;
 			case 'sender':
 				this.author = new User(data[key], this);
@@ -87,10 +96,10 @@ export default class Message extends Structure {
 					this.author = author;
 					break;
 				}
-				this.author._update({ id: data[key] });
+				this.author._patch({ id: data[key] });
 				break;
 			case 'sendersName':
-				this.author._update({ profileName: data[key] });
+				this.author._patch({ profileName: data[key] });
 				break;
 			case 'sticker': // https://gfx.antiland.com/stickers/a10
 				this.content = "https://gfx.antiland.com/stickers/" + data[key];

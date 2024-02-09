@@ -1,26 +1,26 @@
-import Structure from "./Structure.js";
+import BaseStructure from "./BaseStructure.js";
 import MessageManager from "../managers/MessageManager.js";
 import Message from "./Message.js";
 import User from "./User.js";
 
-export default class Dialogue extends Structure {
+export default class Dialogue extends BaseStructure {
 	messages = new MessageManager(this);
-	constructor(data) {
-		super(...arguments);
-		if (this.hasOwnProperty('client')) {
-			let entry = this.client.dialogues.cache.get(this.id);
+	constructor(data, options) {
+		if (data instanceof Object && options instanceof Object && options.hasOwnProperty('client')) {
+			let id = data.id || data.objectId;
+			let entry = options.client.dialogues.cache.get(id);
 			if (entry) {
-				entry._update(data);
-				return entry;
+				entry._patch(data);
+				return entry
 			}
-
-			this.client.dialogues.cache.set(this.id, this);
 		}
+		super(...arguments);
+		this.id !== null && this.hasOwnProperty('client') && this.client.dialogues.cache.set(this.id, this)
 	}
 
-	_update(data) {
+	_patch(data) {
 		if (typeof data != 'object' || data == null) return;
-		super._update(...arguments);
+		super._patch(...arguments);
 		for (let key in data) {
 			switch (key) {
 			case 'admins':
@@ -51,6 +51,7 @@ export default class Dialogue extends Structure {
 				for (let option in data[key]) {
 					switch(option) {
 					case 'filters':
+					case 'setup':
 						this[key][option] = new Set(data[key][option]);
 						break;
 					default:
@@ -59,8 +60,7 @@ export default class Dialogue extends Structure {
 				}
 			}
 		}
-		this.friend && (this.friend.dialogue = this,
-		this.friend.dialogueId = this.id);
+		this.friend && !this.friend.dmChannel && Object.defineProperty(this.friend, 'dmChannel', { value: this, writable: false })
 	}
 
 	get url() {
@@ -105,7 +105,7 @@ export default class Dialogue extends Structure {
 			text: content
 		}, reference ? {
 			replyToId: reference.id,
-			text: '>>> ' + reference.content?.replace(/^(?=>).+\n/, '') + '\n' + content
+			text: '>>> ' + reference.content?.replace(/^(?=>).+\n/, '').replace(/(.{36})..+/, "$1…") + '\n' + content
 		} : null)).then(data => {
 			if (data.flags === 3) {
 				throw new Error(data.text);
@@ -144,7 +144,7 @@ export default class Dialogue extends Structure {
 		})
 	}
 
-	sendSticker(stickerId, { reference }) {
+	sendSticker(stickerId, { reference } = {}) {
 		return this.client.requests.post("functions/v2:chat.message.sendSticker", Object.assign({
 			dialogueId: this.id,
 			sticker: stickerId

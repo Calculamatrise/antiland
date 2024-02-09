@@ -1,13 +1,17 @@
-import Structure from "./Structure.js";
+import BaseStructure from "./BaseStructure.js";
 import { WebSocket } from "ws";
 
-export default class CallRoom extends Structure {
+export default class CallRoom extends BaseStructure {
 	connection = null;
 	createdAt = new Date();
 	participants = new Map();
-	_update(data) {
+	constructor() {
+		super();
+	}
+
+	_patch(data) {
 		if (typeof data != 'object' || data == null) return;
-		super._update(...arguments);
+		super._patch(...arguments);
 		for (let key in data) {
 			switch (key) {
 			case 'url':

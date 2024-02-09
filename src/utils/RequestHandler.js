@@ -21,7 +21,7 @@ export default class {
 	async attachToken(token) {
 		return this.request("functions/v2:profile.me", {
 			method: 'POST'
-		}, token).then(async data => {
+		}, token).then(data => {
 			data.auth && data.auth.sessionToken && (this.#sessionToken = data.auth.sessionToken);
 			return data
 		})

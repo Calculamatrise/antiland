@@ -77,10 +77,13 @@ export interface ClientOptions {
 }
 
 export enum Events {
-	BanCreate = 'banCreate',
 	Blocked = 'blocked',
+	ChannelBanAdd = 'channelBanAdd',
+	ChannelBanRemove = 'channelBanRemove',
 	ChannelCreate = 'channelCreate',
 	ChannelDelete = 'channelDelete',
+	ChannelMemberAdd = 'channelMemberAdd',
+	// ChannelMemberRemove = 'channelMemberRemove',
 	ChannelUpdate = 'channelUpdate',
 	ClientReady = 'ready',
 	Debug = 'debug',
@@ -92,12 +95,11 @@ export enum Events {
 	MessageDelete = 'messageDelete',
 	MessageReactionAdd = 'messageReactionAdd',
 	MessageUpdate = 'messageUpdate',
-	NotificationCreate = 'notificationCreate',
 	Ping = 'ping',
 	Raw = 'raw',
-	RawNotification = 'rawNotification',
-	RawPrivate = 'rawPrivate',
+	Unblocked = 'unblocked',
 	UserBlocked = 'userBlocked',
+	UserUnblocked = 'userUnblocked',
 	Warn = 'warn'
 }
 

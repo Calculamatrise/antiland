@@ -1,32 +1,41 @@
-import Structure from "./Structure.js";
+import BaseStructure from "./BaseStructure.js";
 import Dialogue from "./Dialogue.js";
 import FriendManager from "../managers/ClientFriendManager.js";
 
-export default class User extends Structure {
-	dialogue = null;
-	dialogueId = null;
+export default class User extends BaseStructure {
+	activity = null;
+	age = null;
 	displayName = null;
 	friends = new FriendManager(this);
+	gender = null;
+	isAdmin = false;
+	isInPrison = false;
+	isVIP = false;
+	karma = null;
+	minKarma = null;
 	username = null;
-	constructor(data) {
-		super(...arguments, true);
-		if (this.hasOwnProperty('client')) {
-			super._update(data);
-			let entry = this.client.users.cache.get(this.id);
+	constructor(data, options) {
+		if (data instanceof Object && options instanceof Object && options.hasOwnProperty('client')) {
+			let id = data.id || data.objectId;
+			let entry = options.client.users.cache.get(id);
 			if (entry) {
-				entry._update(data);
+				entry._patch(data);
 				return entry
 			}
-
-			this.id !== null && this.client.users.cache.set(this.id, this)
 		}
-
-		this._update(data)
+		super(...arguments, true);
+		Object.defineProperties(this, {
+			blocked: { value: false, writable: true },
+			dmChannel: { value: null, writable: true },
+			humanLink: { value: null, writable: true }
+		});
+		this._patch(data);
+		this.id !== null && this.hasOwnProperty('client') && this.client.users.cache.set(this.id, this)
 	}
 
-	_update(data) {
+	_patch(data) {
 		if (typeof data != 'object' || data == null) return;
-		super._update(...arguments);
+		super._patch(...arguments);
 		for (let key in data) {
 			switch (key) {
 			case 'aboutMe':
@@ -34,9 +43,6 @@ export default class User extends Structure {
 				break;
 			case 'activity':
 			case 'age':
-			case 'badgeColor':
-			case 'blocked':
-			case 'color':
 			case 'gender':
 			case 'isAdmin':
 			case 'isInPrison':
@@ -44,7 +50,6 @@ export default class User extends Structure {
 			case 'karma':
 			case 'karmaWallArtifacts':
 			case 'minKarma':
-			case 'username':
 			case 'views':
 				this[key] = data[key];
 				break;
@@ -58,7 +63,7 @@ export default class User extends Structure {
 					for (let prop in data[key]) {
 						switch (prop) {
 						case 'accs':
-							this[key].accessories = new Set([key][prop]);
+							this[key].accessories = new Set(data[key][prop]);
 							break;
 						case 'idx':
 							this[key].id = data[key][prop];
@@ -81,11 +86,20 @@ export default class User extends Structure {
 				break;
 			case 'features':
 				let counters = data[key] instanceof Object && data[key].counters;
-				if (!counters) break;
+				if (typeof counters != 'object') break;
 				for (let key in counters) {
 					switch(key) {
+					case 'accs':
+						this.accessoriesOwned = counters[key];
+						break;
+					case 'avatars':
+						this.avatarsOwned = counters[key];
+						break;
 					case 'likes':
 						this.likesReceived = counters[key];
+						break;
+					case 'views':
+						this[key] = counters[key]
 					}
 				}
 				break;
@@ -96,6 +110,9 @@ export default class User extends Structure {
 				this.blocked = true;
 			case 'by':
 				this.id = data[key];
+				break;
+			case 'humanLink':
+				Object.defineProperty(this, key, { value: data[key], writable: false });
 				break;
 			case 'interests':
 				this.interests ||= {};
@@ -134,20 +151,43 @@ export default class User extends Structure {
 		}).then(r => this.averageRating = r)
 	}
 
-	async getPrivateChat({ createIfNotExists = false }) {
+	createDM() {
+		return this.client.requests.post("functions/v2:chat.createPrivate", {
+			createIfNotExists,
+			userId: this.id
+		}).then(data => {
+			return Object.defineProperty(this, 'dmChannel', {
+				value: new Dialogue(data, this),
+				writable: false
+			}),
+			this.dmChannel
+		})
+	}
+
+	fetchDM({ createIfNotExists = false }) {
+		if (!createIfNotExists && this.dmChannel) {
+			return this.dmChannel;
+		}
 		return this.client.requests.post("functions/v2:chat.getPrivate", {
 			createIfNotExists,
 			userId: this.id
-		}).then(r => {
-			let dialogue = new Dialogue(r, this);
-			return dialogue && (this.dialogue = dialogue,
-			this.dialogueId = dialogue.id),
-			dialogue
+		}).then(data => {
+			return data && (Object.defineProperty(this, 'dmChannel', {
+				value: new Dialogue(data, this),
+				writable: false
+			}),
+			this.dmChannel)
 		}).catch(err => {
 			if (!createIfNotExists) {
 				return null
 			}
 			throw err
+		})
+	}
+
+	send() {
+		return this.fetchDM({ createIfNotExists: true }).then(dmChannel => {
+			return dmChannel.send(...arguments)
 		})
 	}
 }

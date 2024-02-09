@@ -27,12 +27,12 @@ export default class MessageManager extends BaseManager {
 		return this.client.client.requests.post("functions/v2:chat.message.history", Object.assign({
 			dialogueId: this.client.id,
 			fetch: limit ?? 300
-		}, since instanceof Date ? {
-			since: since instanceof Date ? {
+		}, since instanceof Date && {
+			since: {
 				__type: 'Date',
 				iso: since.toISOString()
-			} : null
-		} : null)).then(async data => {
+			}
+		})).then(async data => {
 			if (id) {
 				let message = data.messages.find(message => message.id == id);
 				if (message) {
@@ -54,8 +54,12 @@ export default class MessageManager extends BaseManager {
 		return this.client.send(...arguments)
 	}
 
+	get manageable() {
+		return this.client.manageable || this.client.admins.has(this.client.client.user.id)
+	}
+
 	#throwAdmin() {
-		if ((!this.client.founder || this.client.client.user.id !== this.client.founder.id) && !this.client.admins.has(this.client.client.user.id)) {
+		if (this.client.founderId !== this.client.client.user.id && !this.client.admins.has(this.client.client.user.id)) {
 			throw new Error("Insufficient privileges.");
 		}
 	}
@@ -181,7 +185,7 @@ export default class MessageManager extends BaseManager {
 		let messageId = typeof message == 'object' ? message.id : message;
 		if (this.cache.has(messageId)) {
 			let entry = this.cache.get(messageId);
-			if (entry.author.id !== this.client.client.user.id) {
+			if (entry.author.id !== this.client.client.user.id || !this.client.options.setup?.has('OWN_MSG_REMOVE_ALLOWED')) {
 				this.#throwAdmin();
 				return this.client.client.requests.post("functions/v2:chat.mod.deleteMessage", {
 					dialogueId: this.client.id,

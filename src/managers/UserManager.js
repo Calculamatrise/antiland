@@ -1,4 +1,3 @@
-import Client from "../client/Client.js";
 import Dialogue from "../structures/Dialogue.js";
 import User from "../structures/User.js";
 import BaseManager from "./BaseManager.js";
@@ -97,10 +96,15 @@ export default class extends BaseManager {
 	 * @param {boolean} [options.createIfNotExists] 
 	 * @returns {Promise<Dialogue>}
 	 */
-	async getPrivateChat(user, { createIfNotExists = false } = {}) {
+	async fetchPrivateChat(user, { createIfNotExists = false } = {}) {
 		let userId = typeof user == 'object' ? user.id : user;
 		if (this.client.user.blockedBy.has(userId)) {
 			throw new Error("You are blocked by this user.");
+		} else if (this.cache.has(userId)) {
+			let user = this.cache.get(userId);
+			if (user.dmChannel !== null) {
+				return user.dmChannel
+			}
 		}
 		return this.client.requests.post("functions/v2:chat.getPrivate", {
 			createIfNotExists,

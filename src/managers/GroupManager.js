@@ -1,31 +1,8 @@
-import BaseManager from "./BaseManager.js";
+import DialogueManager from "./DialogueManager.js";
 import Dialogue from "../structures/Dialogue.js";
 import Group from "../structures/Group.js";
 
-export default class GroupManager extends BaseManager {
-	async fetch(id, { force } = {}) {
-		if (!id || typeof id == 'object') {
-			return this.fetchActive(...arguments)
-		} else if (!force) {
-			if (this.cache.has(id)) {
-				return this.cache.get(id);
-			} else if (!id && this.cache.size > 0) {
-				return this.cache;
-			}
-		}
-
-		return this.client.requests.post("functions/v2:chat.byId", {
-			dialogueId: id
-		}).then(data => {
-			if (data && /^(group|public)$/i.test(data.type)) {
-				let entry = new Group(data, this);
-				this.cache.set(entry.id, entry);
-				return entry
-			}
-			return null
-		})
-	}
-
+export default class GroupManager extends DialogueManager {
 	async fetchActive({ force, ignore, limit } = {}) {
 		if (!force && this.cache.size > 0) {
 			return this.cache;
@@ -130,7 +107,7 @@ export default class GroupManager extends BaseManager {
 				historyLength: historyLength ?? dialogue.options.historyLength,
 				minKarma: minKarma ?? dialogue.minKarma,
 				setup: Array.from(setup || dialogue.options.setup)
-			}).then(dialogue._update.bind(dialogue))
+			}).then(dialogue._patch.bind(dialogue))
 		})
 	}
 
@@ -174,24 +151,6 @@ export default class GroupManager extends BaseManager {
 		return this.client.requests.post(`functions/v2:chat.addMatesToGroup`, {
 			dialogueId,
 			mateIds: Array.from(new Set(mateIds)).map(m => typeof m == 'object' ? m.id : m)
-		})
-	}
-
-	/**
-	 * Leave a chatroom
-	 * @param {string} dialogueId
-	 * @returns {Promise<boolean>}
-	 */
-	leave(dialogueId) {
-		return this.client.requests.post("functions/v2:chat.leave", {
-			dialogueId
-		}).then(result => {
-			if (result) {
-				this.cache.delete(dialogueId);
-				this.client.dialogues.cache.delete(dialogueId);
-				this.client.closeChannel(dialogueId);
-			}
-			return result
 		})
 	}
 }

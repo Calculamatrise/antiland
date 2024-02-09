@@ -48,9 +48,9 @@ export default class Client extends BaseClient {
 		return this.requests.post("functions/v2:chat.message.send" + (/^image/i.test(contentType) ? 'Photo' : 'Video'), Object.assign({
 			body: dataURI,
 			dialogueId
-		}, reference ? {
+		}, reference && {
 			replyToId: reference.id
-		} : null)).then(data => {
+		})).then(data => {
 			if (data.flags === 3) {
 				throw new Error(data.text);
 			}
@@ -62,10 +62,10 @@ export default class Client extends BaseClient {
 		return this.requests.post("functions/v2:chat.message.sendText", Object.assign({
 			dialogueId,
 			text: content
-		}, reference ? {
+		}, reference && {
 			replyToId: reference.id,
-			text: '>>> ' + reference.content?.replace(/^(?=>).+\n/, '') + '\n' + content
-		} : null)).then(data => {
+			text: '>>> ' + reference.content?.replace(/^(?=>).+\n/, '').replace(/(.{36})..+/, "$1…") + '\n' + content
+		})).then(data => {
 			if (data.flags === 3) {
 				throw new Error(data.text);
 			} else if (data && attachments && attachments.length > 0) {
@@ -81,9 +81,9 @@ export default class Client extends BaseClient {
 		return this.requests.post("functions/v2:chat.message.sendSticker", Object.assign({
 			dialogueId,
 			sticker: stickerId
-		}, reference ? {
+		}, reference && {
 			replyToId: reference.id
-		} : null)).then(data => {
+		})).then(data => {
 			if (data.flags === 3) {
 				throw new Error(data.text);
 			}

@@ -51,7 +51,7 @@ export default class FavoriteManager extends BaseManager {
 		}
 		return this.client.client.requests.post("functions/v2:profile.backup", {
 			favorites: favorites || Array.from(this.cache.values()).map(entry => entry.dialogueId ?? entry.id)
-		}).then(this.client._update.bind(this.client))
+		}).then(this.client._patch.bind(this.client))
 	}
 
 	/**
