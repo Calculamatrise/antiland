@@ -1,6 +1,7 @@
 import EventEmitter from "events";
 import { WebSocket } from "ws";
 
+import PubNubBroker from "../utils/PubNubBroker.js";
 import RequestHandler from "../utils/RequestHandler.js";
 import ClientUser from "../structures/ClientUser.js";
 import FriendRequest from "../structures/FriendRequest.js";
@@ -13,15 +14,18 @@ import Opcodes from "../utils/Opcodes.js";
 export default class extends EventEmitter {
 	static sharedGroups = new Set();
 	static lastMessageId = new Map();
+	static lastMessageTimestamp = new Map();
 	#connectionId = null;
 	#reconnectAttempts = 0;
 	#clientVersion = "nodejs/0.0.0-gamma";
 	#host = "ps.anti.land";
 	#url = "wss://" + this.#host + "/v1/";
+	#fallback = false;
 	#pingTimeout = null;
 	#pingTimestamp = Date.now();
+	#pubnub = false;
 	#ws = null;
-	_outgoing = new Set();
+	_outgoing = new Set(); // use this to guaruntee a response from the server/make promises
 	channels = new Set();
 	queueChannels = new Set();
 	maxReconnectAttempts = 3;
@@ -36,46 +40,46 @@ export default class extends EventEmitter {
 		super();
 		for (let key in options) {
 			switch(key.toLowerCase()) {
+			case 'fallback':
+				this.#fallback = Boolean(options[key]);
+				break;
 			case 'maxReconnectAttempts':
 				this[key] = options[key] | 0;
+				break;
+			case 'pubnub':
+				this.#pubnub = Boolean(options[key])
 			}
 		}
-		if (this.maxReconnectAttempts > 0) {
-			let listener;
-			this.on('error', listener = err => {
-				this.#reconnectAttempts++ > this.maxReconnectAttempts && this.reconnect() || this.off('error', listener)
-			})
-		}
 	}
+
 	#connect(cb) {
 		return new Promise((resolve, reject) => {
-			let socket = new WebSocket(this.#url + "?client=" + this.#clientVersion + (this.#connectionId ? '&connectionId=' + this.#connectionId : ''));
-			socket.on('close', code => this.emit('disconnect', code)),
-			socket.on('error', err => (this.emit('error', err), reject(err))),
-			socket.on('message', this.#handleMessage.bind(this)),
-			socket.on('open', () => (typeof cb == 'function' && cb(socket), resolve(this.#ws = socket)))
+			let socket = this.#pubnub ? new PubNubBroker(this) : new WebSocket(this.#url + "?client=" + this.#clientVersion + (this.#connectionId ? '&connectionId=' + this.#connectionId : ''));
+			socket.on('close', code => (this.#ws = null, this.emit('disconnect', code))),
+			socket.on('error', err => this.maxReconnectAttempts > this.#reconnectAttempts++ ? resolve(this.#fallback && (this.#pubnub = true), this.#connect(cb)) : (this.emit('error', err), reject(err))),
+			socket.on('message', this.#messageListener.bind(this)),
+			socket.on('open', () => (this.#ws = socket, typeof cb == 'function' && cb(socket), resolve(socket)))
 		})
 	}
 
-	destroy(disconnect) {
+	async destroy(disconnect) {
+		disconnect && (this.#connectionId = null);
+		this.#pingTimeout && clearTimeout(this.#pingTimeout);
+		if (!this.#ws) return true;
 		return new Promise((resolve, reject) => {
-			this.#ws && (disconnect && (this.#connectionId = null,
-			this.removeAllListeners()),
-			this.#pingTimeout && clearTimeout(this.#pingTimeout),
 			this.#ws.once('close', resolve),
 			this.#ws.once('error', reject),
-			this.#ws.terminate(),
-			this.#ws = null)
+			this.#ws.close()
 		})
 	}
 
 	async reconnect() {
-		this.emit('reconnecting');
 		let config = await this.requests.fetchConfigBody();
 		await this.destroy();
 		if (!config._SessionToken) {
 			throw new Error("Session token not found!");
 		}
+		this.emit('reconnecting');
 		return this.login(config._SessionToken)
 	}
 
@@ -90,8 +94,24 @@ export default class extends EventEmitter {
 		} : null)))
 	}
 
-	#lastMessageTimestamp = new Map();
-	async #handleMessage(message) {
+	sendCommandAsync(code, payload, cb) {
+		return new Promise((resolve, reject) => {
+			let uniqueId = (Date.now() - performance.now()) + '.' + Math.random();
+			let listener;
+			this.on('ack', listener = message => {
+				if (message.id !== uniqueId) return;
+				this.removeListener('ack', listener);
+				listener = null;
+				typeof cb == 'function' && cb(message);
+				resolve(message)
+			});
+			arguments.splice(2, 0, uniqueId);
+			this.sendCommand(...arguments);
+			setTimeout(() => reject("Request timed out"), 3e4)
+		});
+	}
+
+	#messageListener(message) {
 		let data = message.toString('utf-8');
 		try {
 			data = JSON.parse(data)
@@ -110,140 +130,24 @@ export default class extends EventEmitter {
 		// 	break;
 		case Opcodes.MESSAGE:
 			this.emit('raw', payload);
-			let lastMessageTimestamp = this.#lastMessageTimestamp.get(payload.channelId) ?? 0;
-			// payload.messages = payload.messages.filter(msg => !msg.createdAt || msg.createdAt >= lastMessageTimestamp);
-			if (payload.messages.length < 1) break;
-			if (payload.channelId == this.user.channelId) {
-				let blockedUserEvents = payload.messages.filter(msg => msg.hasOwnProperty('blocked'));
-				payload.messages = payload.messages.filter(msg => !blockedUserEvents.includes(msg));
-				for (let entry of blockedUserEvents) {
-					if (entry.by) {
-						let user = this.users.cache.get(entry.by) || await this.users.fetch(entry.by);
-						this.user.blockedBy[entry.blocked ? 'add' : 'delete'](user.id);
-						this.emit((entry.blocked ? '' : 'un') + 'blocked', user)
-					} else if (entry.whom) {
-						let user = this.users.cache.get(entry.whom) || await this.users.fetch(entry.whom);
-						this.user.contacts.blocked[entry.blocked ? 'add' : 'delete'](user.id);
-						this.emit('user' + (entry.blocked ? 'B' : 'Unb') + 'locked', user)
+			for (let message of payload.messages) {
+				this.#handleMessage(message, payload).catch(err => {
+					if (this.listenerCount('error') > 0) {
+						this.emit('error', err);
+					} else {
+						throw err
 					}
-				}
-
-				for (let message of payload.messages) {
-					if (typeof message.type == 'string') {
-						// message.hasOwnProperty('dialogueId') && (message.dialogue = await this.dialogues.fetch(message.dialogueId));
-						// message.hasOwnProperty('senderId') && (message.sender = await this.users.fetch(message.senderId));
-						switch(message.type.toLowerCase()) {
-						case 'join_notification':
-							message.hasOwnProperty('dialogueId') && Object.defineProperty(message, 'dialogue', { value: await this.dialogues.fetch(message.dialogueId) });
-							message.hasOwnProperty('senderId') && Object.defineProperty(message, 'sender', { value: await this.users.fetch(message.senderId) });
-							this.emit('channelMemberAdd', dialogue, user);
-							break;
-						case 'mate.event.request':
-							let entry = new FriendRequest(message, this.user.friends);
-							this.user.friends.pending.incoming.set(entry.id, entry);
-							this.emit('friendRequest', entry);
-							break;
-						case 'message_like':
-							// this.emit('clientMessageLiked');
-						case 'private_notification':
-							message.hasOwnProperty('dialogueId') && Object.defineProperty(message, 'dialogue', { value: await this.dialogues.fetch(message.dialogueId) });
-							message.hasOwnProperty('senderId') && Object.defineProperty(message, 'sender', { value: await this.users.fetch(message.senderId) });
-							this.emit('notification', message);
-							payload.messages.splice(payload.messages.indexOf(message), 1);
-							break;
-						default:
-							if (message.hasOwnProperty())
-							console.warn('unknown private notification', message);
-							this.emit('debug', { message, type: 'UNKNOWN_MESSAGE' })
-						}
-					}
-				}
-				if (payload.messages.length < 1) break;
+				});
 			}
-
-			this.#lastMessageTimestamp.set(payload.channelId, Math.max(...payload.messages.filter(msg => msg.message && msg.senderId && msg.hasOwnProperty('createdAt')).map(msg => msg.createdAt), lastMessageTimestamp) ?? Date.now());
-			this.sendCommand(Opcodes.MARK_AS_READ, {
-				messages: payload.messages.map(message => ({
+			let filteredMessages = payload.messages.filter(({ objectId }) => objectId);
+			filteredMessages.length > 0 && this.sendCommand(Opcodes.SYN, {
+				messages: filteredMessages.map(({ objectId }) => ({
 					channelId: payload.channelId,
-					messageId: message.objectId,
+					messageId: objectId,
 					transport: 'anti',
 					ts: Date.now()
 				}))
 			}, true);
-			for (let item of payload.messages.filter(msg => !msg.type || /^(message_like|private_notification)$/i.test(msg.type))/*.filter(msg => msg.createdAt > lastMessageTimestamp)*/.reverse()) {
-				let dialogueId = item.dialogue || item.dialogueId || item.deleteChat || (payload.channelId !== this.user.channelId && payload.channelId);
-				let dialogue = dialogueId && this.dialogues.cache.get(dialogueId) || await this.dialogues.fetch(dialogueId).then(async dialogue => {
-					/^(group|public)$/i.test(dialogue.type) && await dialogue.members.fetchActive();
-					// await dialogue.members.fetch(); // fetch active members only?? // make sure type is group
-					return dialogue
-				}).catch(err => {
-					if (this.listenerCount('error') > 0) {
-						this.emit('error', err);
-					} else {
-						throw err
-					}
-				});
-				if (!dialogue) {
-					console.warn("Dialogue not found:", item);
-					continue
-				} else if (item.deleteChat) {
-					this.emit('channelBanAdd', dialogue);
-					continue
-				}
-				Object.defineProperty(item, 'dialogue', { enumerable: false, value: dialogue, writable: false });
-				Object.defineProperty(item, 'dialogueId', { enumerable: true, value: dialogueId, writable: false });
-				if (item.giftname || item.giftName) {
-					let message = new GiftMessage(item, dialogue);
-					this.emit('messageCreate', message);
-					if (message.victim.id == this.user.id) {
-						this.emit('giftMessageCreate', message);
-					}
-					continue
-				} else if (item.update) {
-					let message = await dialogue.messages.fetch(item.id || item.objectId);
-					if (!message) continue;
-					message.oldContent = message.content;
-					message._patch(item);
-					message.updatedAt = new Date(typeof item.createdAt == 'object' ? item.createdAt.iso : item.createdAt);
-					this.emit('messageUpdate', message);
-					if (/^\*{5}$/.test(message.content)) {
-						this.emit('messageDelete', message);
-						dialogue.messages.cache.delete(message.id);
-					}
-					continue
-				}
-				let senderId = typeof item.sender == 'object' ? item.sender.id : item.sender || item.senderId;
-				let sender = this.users.cache.get(senderId) || await this.users.fetch(senderId).catch(err => {
-					console.warn('sender not found???', item)
-					if (this.listenerCount('error') > 0) {
-						this.emit('error', err);
-					} else {
-						throw err
-					}
-				});
-				Object.defineProperty(item, 'sender', { enumerable: false, value: sender, writable: false });
-				Object.defineProperty(item, 'senderId', { enumerable: true, value: senderId, writable: false });
-				if (/^message_like$/i.test(item.type)) {
-					let admirerId = typeof item.liker == 'object' ? item.liker.id : item.liker || item.likerId;
-					let admirer = this.users.cache.get(admirerId) || await this.users.fetch(admirerId);
-					Object.defineProperty(item, 'admirer', { enumerable: false, value: admirer, writable: false });
-					Object.defineProperty(item, 'admirerId', { enumerable: true, value: admirerId, writable: false });
-					let messageId = typeof item.message == 'object' ? item.message.id : item.message || item.messageId;
-					let message = dialogue.messages.cache.get(messageId) || await dialogue.messages.fetch(messageId);
-					Object.defineProperty(item, 'message', { enumerable: false, value: message, writable: false });
-					Object.defineProperty(item, 'messageId', { enumerable: true, value: messageId, writable: false });
-					message && message._patch({ likesCount: item.likes });
-					this.emit('messageReactionAdd', item);
-					continue
-				}
-				let message = new Message(item, dialogue);
-				if (this.constructor.sharedGroups.has(dialogue.id) && this.constructor.lastMessageId.get(dialogue.id) === message.id) continue;
-				this.constructor.lastMessageId.set(dialogue.id, message.id);
-				if (message.likes > 1 && message.createdAt > lastMessageTimestamp) continue;
-				let blocked = this.user.contacts.blocked.has(message.author.id);
-				blocked && (message.author.blocked = true);
-				this.emit('messageCreate', message, blocked)
-			}
 			break;
 		case Opcodes.OPEN_CHANNELS_CHANGED:
 			if (!payload) break; // channel not found
@@ -256,8 +160,9 @@ export default class extends EventEmitter {
 				this.channels.add(channel),
 				this.emit('channelCreate', channel);
 			break;
-		case Opcodes.MARKED_AS_READ:
+		case Opcodes.ACK:
 			this._outgoing.delete(payload.id);
+			this.emit('ack', payload);
 			break;
 		case Opcodes.PONG:
 			this.ping = Date.now() - this.#pingTimestamp;
@@ -276,8 +181,130 @@ export default class extends EventEmitter {
 		}
 	}
 
+	async #handleMessage(data, { channelId }) {
+		if (channelId == this.user.channelId) {
+			data.hasOwnProperty('blocked') && (data.type = 'blocked');
+			if (data.hasOwnProperty('blocked')) {
+				let userId = (data.by || this.user.id) ?? null;
+				let user = (userId && this.users.cache.get(userId) || await this.users.fetch(userId)) ?? null;
+				Object.defineProperty(data, 'userId', { enumerable: true, value: userId, writable: userId === null });
+				Object.defineProperty(data, 'user', { enumerable: false, value: user, writable: user === null });
+				let receiverId = (data.whom || this.user.id) ?? null;
+				let receiver = (receiverId && this.users.cache.get(receiverId) || await this.users.fetch(receiverId)) ?? null;
+				Object.defineProperty(data, 'receiverId', { enumerable: true, value: receiverId, writable: receiverId === null });
+				Object.defineProperty(data, 'receiver', { enumerable: false, value: receiver, writable: receiver === null });
+				if (data.receiverId === this.user.id) {
+					this.user.blockedBy[data.blocked ? 'add' : 'delete'](data.userId);
+					this.emit((data.blocked ? '' : 'un') + 'blocked', data.user)  // relationshipUpdate?
+				} else {
+					this.user.contacts.blocked[data.blocked ? 'add' : 'delete'](data.receiverId);
+					this.emit('user' + (data.blocked ? 'B' : 'Unb') + 'locked', data.receiver)
+				}
+				return
+			} else if (typeof data.type == 'string') {
+				data.hasOwnProperty('dialogueId') && Object.defineProperty(data, 'dialogue', { enumerable: false, value: await this.dialogues.fetch(data.dialogueId), writable: false });
+				data.hasOwnProperty('senderId') && Object.defineProperty(data, 'sender', { enumerable: false, value: await this.users.fetch(data.senderId), writable: false });
+				switch(data.type.toLowerCase()) {
+				case 'join_notification':
+					return this.emit('channelMemberAdd', dialogue, user);
+				case 'mate.event.request':
+					let entry = new FriendRequest(data, this.user.friends);
+					this.user.friends.pending.incoming.set(entry.id, entry);
+					return this.emit('friendRequest', entry);
+				case 'message_like':
+					// this.emit('clientMessageLiked');
+					break;
+				case 'private_notification':
+					if (data.hasOwnProperty('message') && data.hasOwnProperty('objectId')) {
+						break;
+					}
+					data.hasOwnProperty('gift') && this.emit('giftReceived', data);
+					this.emit('notification', data);
+					return;
+				default:
+					// if (data.hasOwnProperty())
+					console.warn('unknown private notification', data);
+					return this.emit('debug', { data, type: 'UNKNOWN_MESSAGE' })
+				}
+			}
+		}
+
+		let dialogueId = ((typeof data.dialogue == 'object' ? data.dialogue.id : data.dialogue) || data.dialogueId || data.did || data.deleteChat || (channelId !== this.user.channelId && channelId)) ?? null;
+		let dialogue = (dialogueId && (this.dialogues.cache.get(dialogueId) || await this.dialogues.fetch(dialogueId).then(async dialogue => {
+			/^(group|public)$/i.test(dialogue.type) && await dialogue.members.fetchActive();
+			// await dialogue.members.fetch(); // fetch active members only?? // make sure type is group
+			return dialogue
+		}).catch(err => {
+			if (this.listenerCount('error') > 0) {
+				this.emit('error', err);
+			} else {
+				throw err
+			}
+		}))) ?? null;
+		if (!dialogue) {
+			console.warn("Dialogue not found:", data);
+			return
+		} else if (data.deleteChat) {
+			this.emit('channelBanAdd', dialogue);
+			return
+		}
+		Object.defineProperty(data, 'dialogue', { enumerable: false, value: dialogue, writable: dialogue === null });
+		Object.defineProperty(data, 'dialogueId', { enumerable: true, value: dialogueId, writable: dialogueId === null });
+		if (data.giftname || data.giftName) {
+			let message = new GiftMessage(data, dialogue);
+			this.emit('messageCreate', message);
+			if (message.victim.id == this.user.id) {
+				this.emit('giftMessageCreate', message);
+			}
+			return
+		}
+		let senderId = ((typeof data.sender == 'object' ? data.sender.id : data.sender) || data.senderId) ?? null;
+		let sender = (senderId && (this.users.cache.get(senderId) || await this.users.fetch(senderId).catch(err => {
+			console.warn('sender not found???', senderId, data)
+			if (this.listenerCount('error') > 0) {
+				this.emit('error', err);
+			}
+			return null
+		}))) ?? null;
+		Object.defineProperty(data, 'sender', { enumerable: false, value: sender, writable: sender === null });
+		Object.defineProperty(data, 'senderId', { enumerable: true, value: senderId, writable: senderId === null });
+		// check if message id is present to see if an action occurred on a message
+		let messageId = ((typeof data.message == 'object' ? data.message.id : !data.receiver && data.message || data.objectId) || data.messageId || data.mid) ?? null;
+		if (messageId !== null && (!data.createdAt || data.createdAt <= this.constructor.lastMessageTimestamp.get(dialogueId))) {
+			let message = (messageId && (dialogue.messages.cache.get(messageId) || await dialogue.messages.fetch(messageId)) || (data.update && new Message(data, dialogue))) ?? null;
+			message && message._patch(data, true);
+			Object.defineProperty(data, 'message', { enumerable: false, value: message, writable: message === null });
+			Object.defineProperty(data, 'messageId', { enumerable: true, value: messageId, writable: messageId === null });
+			if (data.update) {
+				message && message._patch({ updatedAt: data.createdAt });
+				this.emit('messageUpdate', message);
+				if (message.originalContent !== message.content && /^\*{5}$/.test(message.content)) {
+					this.emit('messageDelete', message);
+					dialogue.messages.cache.delete(message.id);
+				}
+			} else if (/^message_like$/i.test(data.type)) {
+				let admirerId = ((typeof data.liker == 'object' ? data.liker.id : data.liker) || data.likerId) ?? null;
+				let admirer = (admirerId && (this.users.cache.get(admirerId) || await this.users.fetch(admirerId))) ?? null;
+				Object.defineProperty(data, 'admirer', { enumerable: false, value: admirer, writable: admirer === null });
+				Object.defineProperty(data, 'admirerId', { enumerable: true, value: admirerId, writable: admirerId === null });
+				this.emit('messageReactionAdd', data);
+			} else if (data.hasOwnProperty('type')) {
+				console.log('unrecognized action', data)
+			}
+			return
+		}
+		let message = new Message(data, dialogue);
+		if (this.constructor.sharedGroups.has(dialogueId) && this.constructor.lastMessageId.get(dialogueId) === message.id) return;
+		this.constructor.lastMessageTimestamp.set(dialogueId, message.createdTimestamp);
+		this.constructor.lastMessageId.set(dialogue.id, message.id);
+		let blocked = this.user.contacts.blocked.has(message.author.id);
+		blocked && (message.author.blocked = true);
+		this.emit('messageCreate', message, blocked);
+	}
+
 	openChannel(channelId) {
 		// if (this.constructor.sharedGroups.has(channelId)) return;
+		if (this.channels.has(channelId)) return;
 		this.queueChannels.add(channelId);
 		this.constructor.sharedGroups.add(channelId);
 		this.sendCommand(Opcodes.NAVIGATE, {
@@ -293,8 +320,8 @@ export default class extends EventEmitter {
 	}
 
 	closeChannel(channelId) {
-		this.channels.delete(channelId);
 		this.queueChannels.delete(channelId);
+		if (!this.channels.delete(channelId)) return;
 		this.sendCommand(Opcodes.NAVIGATE, {
 			channels: Array(Array.from(this.channels.values()), Array.from(this.queueChannels.values())).flat().map(channelId => ({
 				channelId,
@@ -326,10 +353,10 @@ export default class extends EventEmitter {
 		}
 
 		let data = await this.requests.attachToken(token);
+		this.user = new ClientUser(data, { client: this });
+		this.users.cache.set(this.user.id, this.user);
 		await this.#connect(async socket => {
 			typeof listener == 'function' && this.once('ready', listener);
-			this.user = new ClientUser(data, { client: this });
-			this.users.cache.set(this.user.id, this.user);
 			await this.user.friends.fetch();
 			await this.user.contacts.fetchBlocked();
 			for (let entry of await Promise.all(data.favorites.map(item => {
@@ -340,23 +367,30 @@ export default class extends EventEmitter {
 				this.user.favorites.cache.set(entry.id, entry);
 			}
 
-			this.#reconnectAttempts > 0 && console.log(this.user);
-			this.sendCommand(Opcodes.INIT, {
-				channels: [{
-					channelId: this.user.channelId,
+			this.queueChannels.add(this.user.channelId);
+			let groups = await this.groups.fetchActive();
+			for (let channelId of groups.keys()) {
+				this.queueChannels.add(channelId);
+			}
+
+			this.sendCommand(Opcodes["INIT" + (this.queueChannels.size > 1 ? '' : "_AND_ISOLATE")], {
+				channels: Array.from(this.queueChannels.values()).flat().map(channelId => ({
+					channelId,
 					offset: ''
-				}],
+				})),
 				deactivatedChannels: [],
 				sessionId: token,
 				verbose: true
 			});
-			let pingInterval = setInterval(() => {
-				if (Date.now() - this.#pingTimestamp > 6e4) {
+			let pingInterval = this.#pubnub || setInterval(() => {
+				if (Date.now() - this.#pingTimestamp > 3e4) {
 					clearInterval(pingInterval);
+					this.emit('stale');
 					this.emit('timeout');
 					if (this.#reconnectAttempts++ > this.maxReconnectAttempts) {
 						throw new Error("Connection timed out! Failed to reconnect. Max reconnect attempts reached.");
 					}
+					this.#reconnectAttempts > 1 && (this.#connectionId = null);
 					this.reconnect()
 				}
 			})

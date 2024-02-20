@@ -32,14 +32,6 @@ export default class GiftMessage extends BaseStructure {
 		data = this.constructor.convert(data);
 		for (let key in data) {
 			switch (key) {
-			case 'accessories':
-				this.author.avatar ||= {};
-				this.author.avatar[key] = new Set(data[key]);
-				break;
-			case 'avatar':
-				this.author[key] ||= {};
-				this.author[key].id = data[key];
-				break;
 			case 'dialogue':
 				if (typeof data[key] == 'object') {
 					if (this.dialogue instanceof Dialogue) {

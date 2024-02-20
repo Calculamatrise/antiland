@@ -22,23 +22,17 @@ export default class {
 				this._patch({ createdAt: data[key] });
 				break;
 			case 'createdAt':
+			case 'updatedAt':
 				if (this[key] !== null) break;
 				if (typeof data[key] == 'object' && data[key] != null) {
 					this._patch({ [key]: data[key].iso });
 					break;
 				}
 				Object.defineProperty(this, key, { value: new Date(data[key]), writable: true });
-				Object.defineProperty(this, 'createdTimestamp', {
-					value: this.createdAt.getTime(),
+				Object.defineProperty(this, key.replace(/[A-Z].+/, '') + 'Timestamp', {
+					value: this[key].getTime(),
 					writable: true
 				});
-				break;
-			case 'updatedAt':
-				if (typeof data[key] == 'object' && data[key] != null) {
-					this._patch({ [key]: data[key].iso });
-					break;
-				}
-				this[key] = new Date(data[key])
 				break;
 			case 'objectId':
 				this._patch({ id: data[key] });

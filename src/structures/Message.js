@@ -21,6 +21,8 @@ export default class Message extends Structure {
 		let isDialogue = dialogue instanceof Dialogue;
 		Object.defineProperties(this, {
 			dialogue: { value: isDialogue ? dialogue : null, writable: !isDialogue },
+			edits: { value: null, writable: true },
+			originalContent: { value: null, writable: true },
 			reference: { value: null, writable: true }
 		});
 		this._patch(data);
@@ -31,9 +33,9 @@ export default class Message extends Structure {
 		return this.dialogue.founderId === this.client.user.id || this.dialogue.admins.has(this.client.user.id)
 	}
 
-	_patch(data) {
+	_patch(data, shallowPatch) {
 		if (typeof data != 'object' || data == null) return;
-		super._patch(...arguments);
+		shallowPatch || super._patch(...arguments);
 		for (let key in data) {
 			switch (key) {
 			case 'avatar':
@@ -62,6 +64,7 @@ export default class Message extends Structure {
 			case 'blessed':
 				this[key] = data[key];
 				break;
+			case 'likes':
 			case 'likesCount':
 				this.likes = data[key];
 				this.reactions.set('❤️', data[key]);
@@ -106,7 +109,11 @@ export default class Message extends Structure {
 				break;
 			case 'message': // [sticker=svd2021:3]
 			case 'text':
+				if (data[key] === this.id) break;
+				this.content !== null && (this.edits === null && Object.defineProperty(this, 'edits', { value: [], writable: false }),
+				this.edits.push(this.content));
 				this.content = data[key];
+				this.originalContent === null && Object.defineProperty(this, 'originalContent', { value: data[key], writable: false })
 			}
 		}
 	}

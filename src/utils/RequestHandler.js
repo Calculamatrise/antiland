@@ -19,7 +19,7 @@ export default class {
 	}
 
 	async attachToken(token) {
-		return this.request("functions/v2:profile.me", {
+		return this.constructor.request("functions/v2:profile.me", {
 			method: 'POST'
 		}, token).then(data => {
 			data.auth && data.auth.sessionToken && (this.#sessionToken = data.auth.sessionToken);
@@ -54,7 +54,7 @@ export default class {
 					appId: "fUEmHsDqbr9v73s4JBx0CwANjDJjoMcDFlrGqgY5",
 					server: "https://mobile-elb.antich.at",
 					version: 10001
-				}, data.parse)
+				}, data.parse, { pubnub: data.pubnub })
 			})
 		}
 		return this.config

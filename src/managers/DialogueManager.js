@@ -59,17 +59,8 @@ export default class DialogueManager extends BaseManager {
 	leave(dialogueId) {
 		this.client.closeChannel(dialogueId);
 		return this.client.requests.post("functions/v2:chat.leave", { dialogueId }).then(result => {
-			if (result) {
-				this.cache.delete(dialogueId);
-				this.client.groups.cache.delete(dialogueId);
-				for (let user of this.client.users.cache.values()) {
-					if (!user.dmChannel) continue;
-					if (user.dmChannel.id == dialogueId) {
-						user.dmChannel = null;
-						break;
-					}
-				}
-			}
+			result && (this.cache.delete(dialogueId),
+			this.client.groups.cache.delete(dialogueId));
 			return result
 		})
 	}
