@@ -176,7 +176,7 @@ export default class extends EventEmitter {
 			}, 1e4 /* 6e4 */);
 			break;
 		default:
-			console.log('unrecognized opcode', data);
+			console.warn('unrecognized opcode', data);
 			this.emit('debug', { message, type: 'UNKNOWN_OPCODE' })
 		}
 	}
@@ -272,7 +272,7 @@ export default class extends EventEmitter {
 		let messageId = ((typeof data.message == 'object' ? data.message.id : !data.receiver && data.message || data.objectId) || data.messageId || data.mid) ?? null;
 		if (messageId !== null && (!data.createdAt || data.createdAt <= this.constructor.lastMessageTimestamp.get(dialogueId))) {
 			let message = (messageId && (dialogue.messages.cache.get(messageId) || await dialogue.messages.fetch(messageId)) || (data.update && new Message(data, dialogue))) ?? null;
-			message && message._patch(data, true);
+			data.update && message && message._patch(data, true);
 			Object.defineProperty(data, 'message', { enumerable: false, value: message, writable: message === null });
 			Object.defineProperty(data, 'messageId', { enumerable: true, value: messageId, writable: messageId === null });
 			if (data.update) {
@@ -283,13 +283,14 @@ export default class extends EventEmitter {
 					dialogue.messages.cache.delete(message.id);
 				}
 			} else if (/^message_like$/i.test(data.type)) {
+				message && message._patch(data, true);
 				let admirerId = ((typeof data.liker == 'object' ? data.liker.id : data.liker) || data.likerId) ?? null;
 				let admirer = (admirerId && (this.users.cache.get(admirerId) || await this.users.fetch(admirerId))) ?? null;
 				Object.defineProperty(data, 'admirer', { enumerable: false, value: admirer, writable: admirer === null });
 				Object.defineProperty(data, 'admirerId', { enumerable: true, value: admirerId, writable: admirerId === null });
 				this.emit('messageReactionAdd', data);
 			} else if (data.hasOwnProperty('type')) {
-				console.log('unrecognized action', data)
+				console.warn('unrecognized action', data)
 			}
 			return
 		}
@@ -373,7 +374,7 @@ export default class extends EventEmitter {
 				this.queueChannels.add(channelId);
 			}
 
-			this.sendCommand(Opcodes["INIT" + (this.queueChannels.size > 1 ? '' : "_AND_ISOLATE")], {
+			this.sendCommand(Opcodes[this.queueChannels.size > 1 ? "INIT" : "AUTH"], {
 				channels: Array.from(this.queueChannels.values()).flat().map(channelId => ({
 					channelId,
 					offset: ''

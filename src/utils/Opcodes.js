@@ -1,7 +1,7 @@
 export default {
 	PING: 0,
 	PONG: 1,
-	INIT_AND_ISOLATE: 2,
+	AUTH: 2,
 	AUTH_SUCCESS: 3,
 	AUTH_FAILURE: 4,
 	NAVIGATE: 5,
