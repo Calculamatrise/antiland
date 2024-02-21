@@ -67,7 +67,6 @@ export default class PubNubBroker extends EventEmitter {
 			this.send(JSON.stringify(Object.assign({}, data, { type: Opcodes.AUTH })));
 		case Opcodes.OPEN_CHANNELS_CHANGED:
 			for (let { channelId } of payload.channels || []) {
-				if (channelId === this.#client.user.channelId) continue;
 				this.channels.add(channelId);
 				this.subscribe(channelId)
 			}
@@ -83,7 +82,7 @@ export default class PubNubBroker extends EventEmitter {
 			tt: this.#tt.get(channelId) ?? 0,
 			tr: this.#tr.get(channelId) ?? 0,
 			uuid: this.#client.user.id,
-			pnsdk: 'PubNub-JS-Web/7.5.0-imp'
+			pnsdk: 'nodejs/antiland'
 		});
 		let data = await fetch(this.#baseURL + channelId + "/0?" + params.toString()).then(r => r.json());
 		for (let key in data.t) {
