@@ -67,10 +67,11 @@ export default class PubNubBroker extends EventEmitter {
 			this.send(JSON.stringify(Object.assign({}, data, { type: Opcodes.AUTH })));
 		case Opcodes.OPEN_CHANNELS_CHANGED:
 			for (let { channelId } of payload.channels || []) {
-				this.channels.add(channelId);
-				this.subscribe(channelId)
+				this.channels.add(channelId),
+				this.subscribe(channelId);
 			}
 			for (let { channelId } of payload.deactivatedChannels || []) {
+				this.unsubscribe(channelId),
 				this.channels.delete(channelId)
 			}
 		}
