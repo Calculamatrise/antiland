@@ -121,7 +121,7 @@ export default class ClientUser extends User {
 		return this
 	}
 
-	async fetchContentSettings() {
+	async fetchContentSettings({ force } = {}) {
 		if (!force && this.contentSettings) {
 			return this.contentSettings;
 		}
@@ -188,7 +188,7 @@ export default class ClientUser extends User {
 	 * @param {string} [options.gender]
 	 * @returns {Promise<this>}
 	 */
-	setGenderAndAage({ age, gender }) {
+	setGenderAndAge({ age, gender }) {
 		return this.client.requests.post("functions/v2:profile.setGenderAndAge", {
 			birthDate: age ?? this.age,
 			gender: gender || this.gender
@@ -291,9 +291,9 @@ export default class ClientUser extends User {
 		}).then(this._patch.bind(this))
 	}
 
-	setHumanLink(login) {
+	setHumanLink(vanity) {
 		return this.client.requests.post("functions/v2:profile.setHumanLink", {
-			humanLink: login ?? this.login
+			humanLink: vanity ?? this.login
 		}).then(this._patch.bind(this))
 	}
 

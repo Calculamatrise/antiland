@@ -7,13 +7,13 @@ export default class PubNubBroker extends EventEmitter {
 	#domain = "ps.pndsn.com";
 	#pubnub = null;
 	#subscriptions = new Map();
-	#tr = new Map();
-	#tt = new Map();
-	channels = new Set();
 	constructor(client) {
 		super();
 		this.#client = client;
-		this.connect()
+		this.connect();
+		Object.defineProperty(this, 'channels', {
+			value: this.#subscriptions.keys.bind(this.#subscriptions)
+		})
 	}
 
 	#handleMessage(data, { channelId } = {}) {
@@ -45,7 +45,6 @@ export default class PubNubBroker extends EventEmitter {
 
 	destroy() {
 		this.close();
-		this.channels.clear();
 		this.removeAllListeners()
 	}
 
@@ -65,23 +64,40 @@ export default class PubNubBroker extends EventEmitter {
 			break;
 		case Opcodes.INIT:
 			this.send(JSON.stringify(Object.assign({}, data, { type: Opcodes.AUTH })));
-		case Opcodes.OPEN_CHANNELS_CHANGED:
+		case Opcodes.NAVIGATE:
+			let added = new Set();
+			let dropped = new Set();
 			for (let { channelId } of payload.channels || []) {
-				this.channels.add(channelId),
 				this.subscribe(channelId);
+				added.add(channelId)
 			}
 			for (let { channelId } of payload.deactivatedChannels || []) {
-				this.unsubscribe(channelId),
-				this.channels.delete(channelId)
+				this.unsubscribe(channelId);
+				dropped.add(channelId)
 			}
+			this.emit('message', JSON.stringify({
+				payload: {
+					diff: {
+						added: Array.from(added),
+						dropped: Array.from(dropped)
+					}
+				},
+				type: Opcodes.SUBSCRIPTIONS
+			}))
 		}
 	}
 
-	async subscribe(channelId) {
+	/**
+	 * Unsubscribe from a channel
+	 * @param {string} channelId
+	 * @returns {Promise<void>}
+	 */
+	async subscribe(channelId, recurse) {
+		let subscription = this.#subscriptions.get(channelId) || {};
 		let params = new URLSearchParams({
 			heartbeat: 300,
-			tt: this.#tt.get(channelId) ?? 0,
-			tr: this.#tr.get(channelId) ?? 0,
+			tt: subscription.tt ?? 0,
+			tr: subscription.tr ?? 0,
 			uuid: this.#client.user.id,
 			pnsdk: 'nodejs/antiland'
 		});
@@ -89,13 +105,13 @@ export default class PubNubBroker extends EventEmitter {
 		for (let key in data.t) {
 			switch(key) {
 			case 'r':
-				this.#tr.set(channelId, data.t[key]);
-				break;
 			case 't':
-				this.#tt.set(channelId, data.t[key])
+				subscription['t' + key] = data.t[key]
 			}
 		}
-		this.subscribe(channelId);
+		if (recurse && !this.#subscriptions.has(channelId)) return;
+		this.#subscriptions.set(channelId, subscription);
+		this.subscribe(channelId, true);
 		for (let message of data.m) {
 			this.#handleMessage(message, { channelId })
 		}
@@ -104,17 +120,11 @@ export default class PubNubBroker extends EventEmitter {
 	/**
 	 * Unsubscribe from a channel
 	 * @param {string} [channelId]
-	 * @returns {Promise<boolean>}
+	 * @returns {boolean}
 	 */
 	unsubscribe(channelId = null) {
 		if (typeof channelId !== null) {
-			let timeout = this.#subscriptions.get(channelId);
-			return timeout && (clearTimeout(timeout),
-			this.#subscriptions.delete(channelId))
-		}
-
-		for (let timeout of this.#subscriptions.values()) {
-			clearTimeout(timeout);
+			return this.#subscriptions.delete(channelId)
 		}
 
 		this.#subscriptions.clear();

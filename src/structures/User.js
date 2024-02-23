@@ -153,7 +153,6 @@ export default class User extends BaseStructure {
 
 	createDM() {
 		return this.client.requests.post("functions/v2:chat.createPrivate", {
-			createIfNotExists,
 			userId: this.id
 		}).then(data => {
 			return Object.defineProperty(this, 'dmChannel', {

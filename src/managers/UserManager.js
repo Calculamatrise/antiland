@@ -96,7 +96,7 @@ export default class extends BaseManager {
 	 * @param {boolean} [options.createIfNotExists] 
 	 * @returns {Promise<Dialogue>}
 	 */
-	async fetchPrivateChat(user, { createIfNotExists = false } = {}) {
+	async fetchDM(user, { createIfNotExists = false } = {}) {
 		let userId = typeof user == 'object' ? user.id : user;
 		if (this.client.user.blockedBy.has(userId)) {
 			throw new Error("You are blocked by this user.");
@@ -113,17 +113,21 @@ export default class extends BaseManager {
 	}
 
 	/**
-	 * Start a private chat with a random user
-	 * @returns {Promise<Dialogue>}
+	 * Find a random user profile
+	 * @param {Iterable} [lastUsers]
+	 * @param {object} [options]
+	 * @param {boolean} [options.unique] Whether to filter old randoms
+	 * @returns {Promise<User>}
 	 */
-	newRandom() {
-		return this.client.requests.post("functions/v2:chat.newRandom", {
-			lastUsers: Array.from(this.#randomCache || [])
+	random(lastUsers, { unique } = {}) {
+		if (lastUsers instanceof Object && !Array.isArray(lastUsers)) return this.random(null, lastUsers);
+		return this.client.requests.post("functions/v2:profile.random", {
+			lastUsers: Array.from(lastUsers || (unique && this.#randomCache) || [])
 		}).then(data => {
-			let dialogue = new Dialogue(data, this.client);
+			let entry = new User(data, this.client);
 			this.#randomCache ||= new Set();
-			this.#randomCache.add(dialogue.friend.id);
-			return dialogue
+			this.#randomCache.add(entry.id);
+			return entry
 		})
 	}
 

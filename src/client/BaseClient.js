@@ -31,6 +31,7 @@ export default class extends EventEmitter {
 	maxReconnectAttempts = 3;
 	ping = 0;
 	requests = new RequestHandler();
+	user = null;
 
 	/**
 	 * @param {object} [options]
@@ -149,7 +150,7 @@ export default class extends EventEmitter {
 				}))
 			}, true);
 			break;
-		case Opcodes.OPEN_CHANNELS_CHANGED:
+		case Opcodes.SUBSCRIPTIONS:
 			if (!payload) break; // channel not found
 			for (let channel of payload.diff.dropped)
 				this.queueChannels.delete(channel),
@@ -303,7 +304,7 @@ export default class extends EventEmitter {
 		this.emit('messageCreate', message, blocked);
 	}
 
-	openChannel(channelId) {
+	subscribe(channelId) {
 		// if (this.constructor.sharedGroups.has(channelId)) return;
 		if (this.channels.has(channelId)) return;
 		this.queueChannels.add(channelId);
@@ -320,7 +321,7 @@ export default class extends EventEmitter {
 		});
 	}
 
-	closeChannel(channelId) {
+	unsubscribe(channelId) {
 		this.queueChannels.delete(channelId);
 		if (!this.channels.delete(channelId)) return;
 		this.sendCommand(Opcodes.NAVIGATE, {

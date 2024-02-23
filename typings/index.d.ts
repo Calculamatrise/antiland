@@ -7,6 +7,7 @@ import GroupManager from "../src/managers/GroupManager";
 import StickerManager from "../src/managers/StickerManager";
 import UserManager from "../src/managers/UserManager";
 
+import ClientUser from "../src/structures/ClientUser";
 import Dialogue from "../src/structures/Dialogue";
 import Message from "../src/structures/Message";
 import User from "../src/structures/User";
@@ -20,21 +21,14 @@ export class Client extends EventEmitter {
 	public dialogues: DialogueManager;
 	public groups: GroupManager;
 	public stickers: StickerManager;
+	public user: ClientUser;
 	public users: UserManager;
 	public constructor(options?: ClientOptions);
-	public closeChannel(channelId: string): undefined;
 	public destroy(): this;
-	public editMessage(messageId: string, content: string): Promise<Message?>;
-	public likeMessage(messageId: string): Promise<Message?>;
-	public openChannel(channelId: string): undefined;
-	public sendAnySticker(dialogueId: string, stickerId: string, options: { reference: string | { id: string } }): Promise<object>;
-	public sendMedia(dialogueId: string, mediaURL: string, options: { reference: string | { id: string } }): Promise<object>;
-	public sendMessage(dialogueId: string, imageURL: string, options: { reference: string | { id: string } }): Promise<object>;
-	public sendSticker(dialogueId: string, stickerId: string, options: { reference: string | { id: string } }): Promise<object>;
-	public unsendMessage(messageId: string): Promise<boolean>;
-	public login(asr: string | { username: string, password: string }): this;
+	public login(token: string | { username: string, password: string }): this;
 	public reconnect(): this;
-	public get user(): User;
+	public subscribe(channelId: string): undefined;
+	public unsubscribe(channelId: string): undefined;
 
 	public on<Event extends keyof ClientEvents>(event: Event, listener: (...args: ClientEvents[Event]) => void): this;
 	public once<Event extends keyof ClientEvents>(event: Event, listener: (...args: ClientEvents[Event]) => void): this;
@@ -74,33 +68,6 @@ export interface ClientEvents {
 export interface ClientOptions {
 	debug?: boolean,
 	maxReconnectAttempts?: number
-}
-
-export enum Events {
-	Blocked = 'blocked',
-	ChannelBanAdd = 'channelBanAdd',
-	ChannelBanRemove = 'channelBanRemove',
-	ChannelCreate = 'channelCreate',
-	ChannelDelete = 'channelDelete',
-	ChannelMemberAdd = 'channelMemberAdd',
-	// ChannelMemberRemove = 'channelMemberRemove',
-	ChannelUpdate = 'channelUpdate',
-	ClientReady = 'ready',
-	Debug = 'debug',
-	Error = 'error',
-	FriendRequestCreate = 'friendRequestCreate',
-	// FriendRequestDelete = 'friendRequestDelete',
-	GiftMessageCreate = 'giftMessageCreate',
-	MessageCreate = 'messageCreate',
-	MessageDelete = 'messageDelete',
-	MessageReactionAdd = 'messageReactionAdd',
-	MessageUpdate = 'messageUpdate',
-	Ping = 'ping',
-	Raw = 'raw',
-	Unblocked = 'unblocked',
-	UserBlocked = 'userBlocked',
-	UserUnblocked = 'userUnblocked',
-	Warn = 'warn'
 }
 
 export enum ActivityTypes {
@@ -177,6 +144,33 @@ export enum ChatSetupFlags {
 export enum ChatSetupFlags {
 	KARMA = 'karma',
 	TOKENS = 'tokens'
+}
+
+export enum Events {
+	Blocked = 'blocked',
+	ChannelBanAdd = 'channelBanAdd',
+	ChannelBanRemove = 'channelBanRemove',
+	ChannelCreate = 'channelCreate',
+	ChannelDelete = 'channelDelete',
+	ChannelMemberAdd = 'channelMemberAdd',
+	// ChannelMemberRemove = 'channelMemberRemove',
+	ChannelUpdate = 'channelUpdate',
+	ClientReady = 'ready',
+	Debug = 'debug',
+	Error = 'error',
+	FriendRequestCreate = 'friendRequestCreate',
+	// FriendRequestDelete = 'friendRequestDelete',
+	GiftMessageCreate = 'giftMessageCreate',
+	MessageCreate = 'messageCreate',
+	MessageDelete = 'messageDelete',
+	MessageReactionAdd = 'messageReactionAdd',
+	MessageUpdate = 'messageUpdate',
+	Ping = 'ping',
+	Raw = 'raw',
+	Unblocked = 'unblocked',
+	UserBlocked = 'userBlocked',
+	UserUnblocked = 'userUnblocked',
+	Warn = 'warn'
 }
 
 export enum MessageTypes {

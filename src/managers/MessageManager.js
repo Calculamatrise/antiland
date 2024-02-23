@@ -16,6 +16,7 @@ export default class MessageManager extends BaseManager {
 	}
 
 	async fetch(id, { cache, force, limit = 100, since } = {}) {
+		if (id instanceof Object) return this.fetch(null, id);
 		if (!force && this.cache.size > 0) {
 			if (!id) {
 				return this.cache;
