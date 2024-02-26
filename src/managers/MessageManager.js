@@ -74,7 +74,7 @@ export default class MessageManager extends BaseManager {
 	 * @param {number} [options.max]
 	 * @param {number} [options.maxProcessed]
 	 * @param {number} [options.time]
-	 * @returns {Promise<Map>}
+	 * @returns {Promise<Map<string, Message>>}
 	 */
 	await({ errors, filter, idle, max, maxProcessed, time } = {}) {
 		let counter = 0;

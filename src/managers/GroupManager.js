@@ -42,6 +42,7 @@ export default class GroupManager extends DialogueManager {
 	 * @returns {Promise<Array<Group>>}
 	 */
 	search(query, { limit } = {}) {
+		if (query instanceof Object) return this.search(null, query);
 		return this.client.requests.post("functions/v2:chat.search", {
 			search: query
 		}).then(entries => {
@@ -53,23 +54,6 @@ export default class GroupManager extends DialogueManager {
 			}
 			return groups
 		});
-	}
-
-	/**
-	 * Block a dialogue - unsure what this does
-	 * @param {string} dialogueId
-	 * @returns {Promise<boolean>}
-	 */
-	block(dialogueId) {
-		return this.client.requests.post("functions/v2:chat.block", {
-			dialogueId
-		}).then(result => {
-			if (result && this.cache.has(dialogueId)) {
-				let dialogue = this.cache.get(dialogueId);
-				dialogue.blocked = true;
-			}
-			return result
-		})
 	}
 
 	/**
@@ -112,17 +96,15 @@ export default class GroupManager extends DialogueManager {
 	}
 
 	/**
-	 * Edit a group chat
+	 * Send invites to mates
 	 * @param {string} dialogueId
-	 * @param {function} callback
-	 * @returns {Promise<Group>}
+	 * @param {string} mateIds
+	 * @returns {Promise<boolean>}
 	 */
-	async update(dialogueId, callback) {
-		if (typeof callback != 'function') {
-			throw new TypeError("Callback must be of type: function")
-		}
-		return this.fetch(dialogueId).then(dialogue => {
-			return this.edit(dialogueId, callback(dialogue))
+	invite(dialogueId, mateIds) {
+		return this.client.requests.post(`functions/v2:chat.addMatesToGroup`, {
+			dialogueId,
+			mateIds: Array.from(new Set(mateIds)).map(m => typeof m == 'object' ? m.id : m)
 		})
 	}
 
@@ -142,15 +124,17 @@ export default class GroupManager extends DialogueManager {
 	}
 
 	/**
-	 * Send invites to mates
+	 * Edit a group chat
 	 * @param {string} dialogueId
-	 * @param {string} mateIds
-	 * @returns {Promise<boolean>}
+	 * @param {function} callback
+	 * @returns {Promise<Group>}
 	 */
-	addMatesToGroup(dialogueId, mateIds) {
-		return this.client.requests.post(`functions/v2:chat.addMatesToGroup`, {
-			dialogueId,
-			mateIds: Array.from(new Set(mateIds)).map(m => typeof m == 'object' ? m.id : m)
+	async update(dialogueId, callback) {
+		if (typeof callback != 'function') {
+			throw new TypeError("Callback must be of type: function")
+		}
+		return this.fetch(dialogueId).then(dialogue => {
+			return this.edit(dialogueId, callback(dialogue))
 		})
 	}
 }

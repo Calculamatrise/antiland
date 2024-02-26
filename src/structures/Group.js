@@ -19,6 +19,7 @@ export default class Group extends Dialogue {
 			}
 		}
 		super(...arguments, true);
+		Object.defineProperty(this, 'humanLink', { value: null, writable: true });
 		this._patch(data);
 		this.id !== null && this.hasOwnProperty('client') && this.client.groups.cache.set(this.id, this)
 	}
@@ -36,6 +37,7 @@ export default class Group extends Dialogue {
 				this[key] = new Set(data[key]);
 				break;
 			case 'description':
+			case 'humanLink':
 			case 'minKarma':
 				this[key] = data[key];
 				break;
@@ -53,20 +55,6 @@ export default class Group extends Dialogue {
 	}
 
 	/**
-	 * Send a complaint about a user
-	 * @param {string} userId
-	 * @param {string} messageId
-	 * @returns {Promise<boolean>}
-	 */
-	sendComplaint(userId, messageId) {
-		return this.client.requests.post("functions/v2:chat.mod.sendComplaint", {
-			dialogueId: this.id,
-			userId,
-			messageId
-		}).then(r => r.bon)
-	}
-
-	/**
 	 * Add a chat moderator
 	 * @protected requires founder permissions
 	 * @param {string} userId
@@ -78,6 +66,32 @@ export default class Group extends Dialogue {
 			dialogueId: this.id,
 			userId
 		}).then(r => r && (this.admins.add(userId), r))
+	}
+
+	async edit(options = {}) {
+		if (typeof options != 'object') return this;
+		if (options.hasOwnProperty('humanLink') && options.humanLink !== this.humanLink) {
+			await this.sethumanLink(options.humanLink);
+			delete options.humanLink;
+		}
+		if (options.hasOwnProperty('mood') && options.mood !== this.mood) {
+			await this.setMood(options.mood);
+			delete options.mood;
+		}
+		if (options.hasOwnProperty('name') && options.name !== this.name) {
+			await this.setName(options.name);
+			delete options.name;
+		}
+		if (Object.keys(options) > 1) {
+			// check if any changes have been made
+			await this.setInfo(options);
+		} else if (options.hasOwnProperty('filters')) {
+			let oldEntry = JSON.stringify(Array.from(this.options.filters).sort((a, b) => a > b ? 1 : -1));
+			let newEntry = JSON.stringify(Array.from(options.filters).sort((a, b) => a > b ? 1 : -1));
+			oldEntry !== newEntry && await this.setFilters(options.filters);
+			delete options.filters;
+		}
+		return this
 	}
 
 	/**
@@ -105,12 +119,27 @@ export default class Group extends Dialogue {
 	}
 
 	/**
+	 * Send a complaint about a user
+	 * @param {string} userId
+	 * @param {string} messageId
+	 * @returns {Promise<boolean>}
+	 */
+	sendComplaint(userId, messageId) {
+		return this.client.requests.post("functions/v2:chat.mod.sendComplaint", {
+			dialogueId: this.id,
+			userId,
+			messageId
+		}).then(r => r.bon)
+	}
+
+	/**
 	 * Set a vanity URL
 	 * @param {string} humanLink
 	 * @returns {Promise<Group>}
 	 */
 	async setHumanLink(humanLink) {
 		this.#throwFounder();
+		if (humanLink === null) return this.unsetHumanLink();
 		return this.client.requests.post("functions/v2:chat.mod.setHumanLink", {
 			dialogueId: this.id,
 			humanLink
@@ -196,6 +225,19 @@ export default class Group extends Dialogue {
 		})
 	}
 
+	async update(options) {
+		return this.edit(Object.assign({
+			categories: this.categories,
+			filters: Array.from(this.options.filters),
+			historyLength: this.options.historyLength,
+			humanLink: this.humanLink,
+			minKarma: this.minKarma,
+			mood: this.mood,
+			name: this.name,
+			setup: Array.from(this.options.setup)
+		}, options))
+	}
+
 	/**
 	 * Update chat filters for this dialogue
 	 * @param {function} callback
@@ -206,5 +248,18 @@ export default class Group extends Dialogue {
 			throw new TypeError("Callback must be of type: function")
 		}
 		return this.setFilters(callback(new Set(this.options.filters)))
+	}
+
+	async updateInfo(callback) {
+		if (typeof callback != 'function') {
+			throw new TypeError("Callback must be of type: function")
+		}
+		return this.setInfo(callback({
+			categories: this.categories,
+			filters: Array.from(this.options.filters),
+			historyLength: this.options.historyLength,
+			minKarma: this.minKarma,
+			setup: Array.from(this.options.setup)
+		}))
 	}
 }

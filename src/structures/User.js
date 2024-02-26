@@ -142,7 +142,7 @@ export default class User extends BaseStructure {
 		return "https://gfx.antiland.com/avatars/" + this.avatar.id
 	}
 
-	checkRating({ force } = {}) {
+	async checkRating({ force } = {}) {
 		if (!force && this.averageRating !== null) {
 			return this.averageRating
 		}
@@ -163,7 +163,7 @@ export default class User extends BaseStructure {
 		})
 	}
 
-	fetchDM({ createIfNotExists = false }) {
+	async fetchDM({ createIfNotExists = false }) {
 		if (!createIfNotExists && this.dmChannel) {
 			return this.dmChannel;
 		}
@@ -181,6 +181,12 @@ export default class User extends BaseStructure {
 				return null
 			}
 			throw err
+		})
+	}
+
+	isPaired() {
+		return this.client.requests.post("functions/v2:contact.mate.isPaired", {
+			userId: this.id
 		})
 	}
 

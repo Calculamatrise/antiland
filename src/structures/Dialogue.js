@@ -5,7 +5,7 @@ import User from "./User.js";
 
 export default class Dialogue extends BaseStructure {
 	messages = new MessageManager(this);
-	constructor(data, options) {
+	constructor(data, options, isGroup) {
 		if (data instanceof Object && options instanceof Object && options.hasOwnProperty('client')) {
 			let id = data.id || data.objectId;
 			let entry = options.client.dialogues.cache.get(id);
@@ -15,6 +15,9 @@ export default class Dialogue extends BaseStructure {
 			}
 		}
 		super(...arguments);
+		Object.defineProperties({
+			[isGroup ? 'founder' : 'friend']: { value: null, writable: true }
+		});
 		this.id !== null && this.hasOwnProperty('client') && this.client.dialogues.cache.set(this.id, this)
 	}
 
@@ -38,7 +41,8 @@ export default class Dialogue extends BaseStructure {
 				break;
 			case 'founder':
 			case 'friend':
-				this[key] = new User(data[key], this);
+				if (this[key] !== null) break;
+				Object.defineProperty(key, { value: new User(data[key], this), writable: false })
 				break;
 			case 'lastMessage':
 				this[key] = new Message(data[key], this);

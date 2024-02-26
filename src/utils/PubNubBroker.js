@@ -101,7 +101,14 @@ export default class PubNubBroker extends EventEmitter {
 			uuid: this.#client.user.id,
 			pnsdk: 'nodejs/antiland'
 		});
-		let data = await fetch(this.#baseURL + channelId + "/0?" + params.toString()).then(r => r.json());
+		let data = await fetch(this.#baseURL + channelId + "/0?" + params.toString()).then(r => r.json()).catch(err => {
+			if (this.listenerCount('error') > 0) {
+				return this.emit('error', err);
+			} else if (this.#client.listenerCount('error') > 0) {
+				return this.#client.emit('error', err);
+			}
+			throw err
+		});
 		for (let key in data.t) {
 			switch(key) {
 			case 'r':

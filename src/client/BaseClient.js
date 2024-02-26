@@ -17,7 +17,7 @@ export default class extends EventEmitter {
 	static lastMessageTimestamp = new Map();
 	#connectionId = null;
 	#reconnectAttempts = 0;
-	#clientVersion = "nodejs/0.0.0-gamma";
+	#clientVersion = "nodejs/antiland";
 	#host = "ps.anti.land";
 	#url = "wss://" + this.#host + "/v1/";
 	#fallback = false;

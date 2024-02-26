@@ -2,7 +2,8 @@ import BaseManager from "./BaseManager.js";
 import Member from "../structures/Member.js";
 
 export default class MemberManager extends BaseManager {
-	async fetch(id, { force } = {}) {
+	async fetch(id, { active, force } = {}) {
+		if (active) return this.fetchActive(...arguments);
 		if (!force && this.cache.size > 0) {
 			if (this.cache.has(id)) {
 				return this.cache.get(id);
@@ -57,33 +58,6 @@ export default class MemberManager extends BaseManager {
 	}
 
 	/**
-	 * Check if client can ban
-	 * @param {object} [options]
-	 * @param {boolean} [options.force]
-	 * @returns {Promise<boolean>}
-	 */
-	async canIBan({ force } = {}) {
-		if (!force && (this.client.founder.id === this.client.client.user.id || this.client.admins.has(this.client.client.user.id))) {
-			return true
-		}
-		return this.client.client.requests.post("functions/v2:chat.mod.canIBan", {
-			dialogueId: this.client.id
-		}).then(r => r && (this.client.admins.add(this.client.client.user.id), r))
-	}
-
-	/**
-	 * Invite friends to join
-	 * @param {Iterable} mateIds
-	 * @returns {Promise<unknown>}
-	 */
-	invite(mateIds) {
-		return this.client.client.requests.post(`functions/v2:chat.addMatesToGroup`, {
-			dialogueId: this.client.id,
-			mateIds: Array.from(new Set(mateIds)).map(m => typeof m == 'object' ? m.id : m)
-		})
-	}
-
-	/**
 	 * Ban a user
 	 * @protected moderation endpoint for moderators
 	 * @param {string} userId 
@@ -114,6 +88,33 @@ export default class MemberManager extends BaseManager {
 			}
 			return res.banned && (this.client.bans.cache.set(userId, res.info),
 			res.info)
+		})
+	}
+
+	/**
+	 * Check if client can ban
+	 * @param {object} [options]
+	 * @param {boolean} [options.force]
+	 * @returns {Promise<boolean>}
+	 */
+	async canIBan({ force } = {}) {
+		if (!force && (this.client.founder.id === this.client.client.user.id || this.client.admins.has(this.client.client.user.id))) {
+			return true
+		}
+		return this.client.client.requests.post("functions/v2:chat.mod.canIBan", {
+			dialogueId: this.client.id
+		}).then(r => r && (this.client.admins.add(this.client.client.user.id), r))
+	}
+
+	/**
+	 * Invite friends to join
+	 * @param {Iterable} mateIds
+	 * @returns {Promise<unknown>}
+	 */
+	invite(mateIds) {
+		return this.client.client.requests.post(`functions/v2:chat.addMatesToGroup`, {
+			dialogueId: this.client.id,
+			mateIds: Array.from(new Set(mateIds || this.client.user.friends.cache.keys())).map(m => typeof m == 'object' ? m.id : m)
 		})
 	}
 

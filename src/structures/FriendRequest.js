@@ -1,11 +1,6 @@
 import BaseStructure from "./BaseStructure.js";
 
 export default class FriendRequest extends BaseStructure {
-	constructor(data) {
-		super(...arguments, true);
-		this._patch(data);
-	}
-
 	_patch(data) {
 		if (typeof data != 'object' || data == null) return;
 		super._patch(...arguments);
@@ -34,12 +29,6 @@ export default class FriendRequest extends BaseStructure {
 		return this.client.client.requests.post("functions/v2:contact.mate.accept", {
 			userId: this.id
 		}) // then cache (this.client is friendManager, fetch and add user to the cache)
-	}
-
-	isPaired() {
-		return this.client.client.requests.post("functions/v2:contact.mate.isPaired", {
-			userId: this.id
-		})
 	}
 
 	reject() {

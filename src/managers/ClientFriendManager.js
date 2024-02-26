@@ -16,6 +16,7 @@ export default class extends FriendManager {
 			}
 		}
 
+		// if id is present, use isPaired to check individual users
 		return this.client.client.requests.post("functions/v2:contact.mate.list").then(data => {
 			if (data.awaiting.length > 0) {
 				for (let item of data.awaiting) {

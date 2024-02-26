@@ -35,7 +35,7 @@ export default class ContactManager extends BaseManager {
 	}
 
 	/**
-	 * Add friend
+	 * Add a contact
 	 * @param {User|string} user 
 	 * @returns {Promise<object>}
 	 */
@@ -43,7 +43,7 @@ export default class ContactManager extends BaseManager {
 		let id = typeof user == 'object' ? user.id : user;
 		return this.client.client.requests.post("functions/v2:friend.add", { id }).then(r => {
 			return r && this.cache.set(id, this.client.client.users.cache.get(id));
-		}) // then cache in outgoing requests
+		})
 	}
 
 	/**

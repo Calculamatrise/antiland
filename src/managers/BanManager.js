@@ -20,20 +20,6 @@ export default class BanManager extends BaseManager {
 	}
 
 	/**
-	 * Submit an appeal request
-	 * @returns {Promise<Dialogue>}
-	 */
-	async appeal() {
-		return this.client.client.requests.post("functions/v2:chat.mod.appealClubBan", {
-			dialogueId: this.client.id
-		}).then(data => {
-			let entry = new Dialogue(data.appealRoom, this.client);
-			this.client.client.dialogues.cache.set(entry.id, entry);
-			return entry
-		})
-	}
-
-	/**
 	 * Ban a user
 	 * @protected moderation endpoint for moderators
 	 * @param {string} userId 
@@ -65,6 +51,20 @@ export default class BanManager extends BaseManager {
 			}
 			return res.baned && (this.cache.set(userId, res.info),
 			res.info)
+		})
+	}
+
+	/**
+	 * Submit an appeal request
+	 * @returns {Promise<Dialogue>}
+	 */
+	async appeal() {
+		return this.client.client.requests.post("functions/v2:chat.mod.appealClubBan", {
+			dialogueId: this.client.id
+		}).then(data => {
+			let entry = new Dialogue(data.appealRoom, this.client);
+			this.client.client.dialogues.cache.set(entry.id, entry);
+			return entry
 		})
 	}
 

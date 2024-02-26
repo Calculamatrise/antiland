@@ -1,12 +1,55 @@
 import BaseManager from "./BaseManager.js";
-import CallRoom from "../structures/Room.js";
+import CallRoom from "../structures/CallRoom.js";
 
 export default class CallManager extends BaseManager {
 	incoming = new Set();
+	outgoing = new Set();
+
+	/**
+	 * Accept an incoming call
+	 * @param {string} callerId
+	 * @returns {Promise<CallRoom>}
+	 */
+	accept(callerId) {
+		return this.client.requests.post("functions/v2:call.accept", { callerId })
+	}
+
+	/**
+	 * Cancel an outgoing call
+	 * @returns {Promise<unknown>}
+	 */
+	cancel(guestId) {
+		return this.client.requests.post("functions/v2:call.cancel", { guestId })
+	}
+
+	/**
+	 * Give the call a rating
+	 * @param {string} callId
+	 * @param {number?} rating
+	 * @param {object} [options]
+	 * @param {string} [options.comments]
+	 * @returns {Promise<unknown>}
+	 */
+	rate(callId, rating, { comments } = {}) {
+		return this.client.requests.post("functions/v2:call.rate", {
+			id: callId,
+			score: rating | 0,
+			comments: comments || null
+		})
+	}
+
+	/**
+	 * Accept an incoming call
+	 * @param {string} callerId
+	 * @returns {Promise<unknown>}
+	 */
+	reject(callerId) {
+		return this.client.requests.post("functions/v2:call.reject", { callerId })
+	}
 
 	/**
 	 * Start a call
-	 * @returns {Promise<object>}
+	 * @returns {Promise<CallRoom>}
 	 */
 	async start(guestId) {
 		let guest = await this.client.users.fetch(guestId);
@@ -21,46 +64,5 @@ export default class CallManager extends BaseManager {
 			this.cache.set(room.id, room);
 			return room
 		})
-	}
-
-	/**
-	 * Cancel an outgoing call
-	 * @returns {Promise<unknown>}
-	 */
-	cancel(guestId) {
-		return this.client.requests.post("functions/v2:call.cancel", { guestId })
-	}
-
-	/**
-	 * Accept an incoming call
-	 * @param {string} callerId
-	 * @returns {Promise<unknown>}
-	 */
-	accept(callerId) {
-		return this.client.requests.post("functions/v2:call.accept", { callerId })
-	}
-
-	/**
-	 * Give the call a rating
-	 * @param {number?} rating
-	 * @param {object} [options]
-	 * @param {string} [options.comments]
-	 * @returns {Promise<unknown>}
-	 */
-	rate(rating, { comments }) {
-		return this.client.requests.post("functions/v2:call.rate", {
-			id: this.id,
-			score: rating ?? 0,
-			comments: comments || null
-		})
-	}
-
-	/**
-	 * Accept an incoming call
-	 * @param {string} callerId
-	 * @returns {Promise<unknown>}
-	 */
-	reject(callerId) {
-		return this.client.requests.post("functions/v2:call.reject", { callerId })
 	}
 }

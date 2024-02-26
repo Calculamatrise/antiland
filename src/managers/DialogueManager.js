@@ -20,7 +20,22 @@ export default class DialogueManager extends BaseManager {
 		})
 	}
 
-	edit(dialogueId, options) {}
+	/**
+	 * Block a dialogue - unsure what this does
+	 * @param {string} dialogueId
+	 * @returns {Promise<boolean>}
+	 */
+	block(dialogueId) {
+		return this.client.requests.post("functions/v2:chat.block", {
+			dialogueId
+		}).then(result => {
+			if (result && this.cache.has(dialogueId)) {
+				let dialogue = this.cache.get(dialogueId);
+				dialogue.blocked = true;
+			}
+			return result
+		})
+	}
 
 	/**
 	 * Edit the contents of an existing message

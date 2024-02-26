@@ -7,6 +7,7 @@ export default class GiftMessage extends BaseStructure {
 	author = new User(null, this);
 	avatar = { id: 2002 };
 	content = null;
+	dialogueId = null;
 	victim = new User(null, this);
 	get iconId() {
 		return this.constructor.icon(this.artifactName)
@@ -22,6 +23,10 @@ export default class GiftMessage extends BaseStructure {
 			}
 		}
 		super(...arguments, true);
+		Object.defineProperties(this, {
+			avatar: { enumerable: false, writable: false },
+			dialogue: { value: null, writable: true }
+		});
 		this._patch(data);
 		this.id !== null && dialogue.messages.cache.set(this.id, this)
 	}
@@ -38,13 +43,14 @@ export default class GiftMessage extends BaseStructure {
 						this.dialogue._patch(data[key]);
 						break;
 					}
-					this.dialogue = new Dialogue(data[key], this);
+					if (this[key] !== null) break;
+					Object.defineProperty(this, key, { value: new Dialogue(data[key], this), writable: false })
 					break;
 				}
 			case 'dialogueId':
-				// check private chats and group chats // this.client.users // this.client.groups
-				this.dialogue = this.client.dialogues.cache.get(data[key]?.id ?? data[key]) || new Dialogue({ id: data[key] }, this);
 				this.dialogueId = data[key];
+				if (this.dialogue !== null) break;
+				Object.defineProperty(this, key, { value: this.client.dialogues.cache.get(data[key]?.id ?? data[key]) || new Dialogue({ id: data[key] }, this), writable: false })
 				break;
 			case 'giftname':
 				this.artifactName = data[key];

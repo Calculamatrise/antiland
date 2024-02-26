@@ -1,39 +1,36 @@
 import BaseManager from "./BaseManager.js";
-import User from "../structures/User.js";
 
 export default class FavoriteManager extends BaseManager {
-	async fetch({ force } = {}) {
+	async fetch(id, { force } = {}) {
 		if (!force && this.cache.size > 0) {
-			return this.cache
+			if (id && this.cache.has(id)) {
+				return this.cache.get(id);
+			} else if (!id) {
+				return this.cache;
+			}
 		}
 
 		return this.client.client.requests.post("functions/v2:profile.me").then(async data => {
-			for (let item of data.favorites) {
-				let entry = await this.client.client.dialogues.fetch(item).then(dialogue => {
-					return dialogue && dialogue.friend;
-				}).catch(err => this.users.fetch(item).catch(err => !1));
+			for (let channelId of data.favorites) {
+				let entry = await this.client.client.dialogues.fetch(channelId).catch(err => this.users.fetch(channelId).then(user => user.fetchDM()).catch(err => !1));
 				if (!entry) continue;
 				this.cache.set(entry.id, entry);
 			}
-			return this.cache
+			return id ? this.cache.get(id) ?? null : this.cache
 		});
 	}
 
 	/**
-	 * Add friend
-	 * @param {User|string} user 
+	 * Add a chat to your favourites
+	 * @param {string} channelId
 	 * @returns {Promise<object>}
 	 */
-	async add(user) {
-		let id = typeof user == 'object' ? user.id : user;
-		if (!this.cache.has(id)) {
-			let entry = await this.client.client.users.fetch(id);
+	async add(channelId) {
+		if (channelId instanceof Object) return this.add(channelId.dmChannel !== void 0 ? await channelId.fetchDM().then(c => c.id) : channelId.id);
+		if (!this.cache.has(channelId)) {
+			let entry = await this.client.client.dialogues.fetch(channelId);
 			if (!entry) {
-				throw new Error("User not found!");
-			}
-			let privateChat = await entry.getPrivateChat();
-			if (!privateChat) {
-				throw new Error("Private chat with user not found!");
+				throw new Error("Dialogue not found!");
 			}
 			this.cache.set(entry.id, entry);
 			await this.backup();
@@ -43,24 +40,22 @@ export default class FavoriteManager extends BaseManager {
 
 	/**
 	 * Backup favourites
-	 * @param {Map|Array|object} [favorites]
+	 * @returns {ClientUser}
 	 */
-	async backup(favorites) {
-		for (let item of Array.from(this.cache.values()).filter(item => !item.dialogueId)) {
-			await item.getPrivateChat();
-		}
+	async backup() {
 		return this.client.client.requests.post("functions/v2:profile.backup", {
-			favorites: favorites || Array.from(this.cache.values()).map(entry => entry.dialogueId ?? entry.id)
+			favorites: Array.from(this.cache.values()).map(entry => entry.id)
 		}).then(this.client._patch.bind(this.client))
 	}
 
 	/**
-	 * Remove friend
-	 * @param {User|string} user 
+	 * Remove a chat from your favourites
+	 * @param {string} channelId
 	 * @returns {Promise<object>}
 	 */
-	async remove(user) {
-		let id = typeof user == 'object' ? user.id : user;
-		return this.cache.delete(id) && (await this.backup(), !0)
+	async remove(channelId) {
+		if (channelId instanceof Object) return this.add(channelId.dmChannel !== void 0 ? await channelId.fetchDM().then(c => c.id) : channelId.id);
+		this.cache.has(channelId) && await this.backup();
+		return this.cache.delete(channelId)
 	}
 }
