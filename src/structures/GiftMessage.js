@@ -50,7 +50,7 @@ export default class GiftMessage extends BaseStructure {
 			case 'dialogueId':
 				this.dialogueId = data[key];
 				if (this.dialogue !== null) break;
-				Object.defineProperty(this, key, { value: this.client.dialogues.cache.get(data[key]?.id ?? data[key]) || new Dialogue({ id: data[key] }, this), writable: false })
+				Object.defineProperty(this, 'dialogue', { value: this.client.dialogues.cache.get(data[key]?.id ?? data[key]) || new Dialogue({ id: data[key] }, this), writable: false })
 				break;
 			case 'giftname':
 				this.artifactName = data[key];
