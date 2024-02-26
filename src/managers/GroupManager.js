@@ -12,7 +12,7 @@ export default class GroupManager extends DialogueManager {
 			for (let item of entries.filter(({ type }) => /^private$/i.test(type))) {
 				let entry = new Dialogue(item, this);
 				this.client.dialogues.cache.set(entry.id, entry);
-				if (!this.client.user.favorites.cache.has(entry.friend.id)) {
+				if (!this.client.user.favorites.cache.has(entry.friendId)) {
 					this.client.user.messages.set(entry.id, entry);
 				}
 			}

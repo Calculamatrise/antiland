@@ -14,10 +14,9 @@ export default class Dialogue extends BaseStructure {
 				return entry
 			}
 		}
-		super(...arguments);
-		Object.defineProperties({
-			[isGroup ? 'founder' : 'friend']: { value: null, writable: true }
-		});
+		super(...arguments, true);
+		Object.defineProperty(this, isGroup ? 'founder' : 'friend', { value: null, writable: true });
+		this._patch(data);
 		this.id !== null && this.hasOwnProperty('client') && this.client.dialogues.cache.set(this.id, this)
 	}
 
@@ -33,6 +32,8 @@ export default class Dialogue extends BaseStructure {
 				this.id ??= data[key];
 			case 'badgeColor':
 			case 'flags':
+			case 'founderId':
+			case 'friendId':
 			case 'lastMessage':
 			case 'name':
 			case 'subType':
@@ -41,8 +42,9 @@ export default class Dialogue extends BaseStructure {
 				break;
 			case 'founder':
 			case 'friend':
+				this._patch({ [key + 'Id']: typeof data[key] == 'object' ? data[key] : data[key] });
 				if (this[key] !== null) break;
-				Object.defineProperty(key, { value: new User(data[key], this), writable: false })
+				Object.defineProperty(this, key, { value: new User(data[key], this), writable: false })
 				break;
 			case 'lastMessage':
 				this[key] = new Message(data[key], this);

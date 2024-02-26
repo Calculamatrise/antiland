@@ -1,29 +1,29 @@
 {
-    "name": "antiland",
-    "alias": "@Calculamatrise/antiland",
-    "version": "0.0.5",
-    "author": "Calculamatrise",
-    "description": "An app to communicacte with the AntiLand API",
-    "directories": {
-        "bin": "bin",
-        "lib": "src"
-    },
-    "bin": "bin/index.js",
-    "main": "src/index.js",
-    "types": "typings/index.d.ts",
-    "files": [
-        "bin",
-        "src",
-        "typings"
-    ],
-    "license": "GNU General Public License v3.0-or-later",
-    "preferGlobal": true,
-    "repository": {
-        "type": "git",
-        "url": "git://github.com/Calculamatrise/antiland.git"
-    },
-    "type": "module",
-    "dependencies": {
-        "ws": "^8.16.0"
-    }
+	"name": "antiland",
+	"alias": "@Calculamatrise/antiland",
+	"version": "0.0.5-delta",
+	"author": "Calculamatrise",
+	"description": "An app to communicacte with the AntiLand API",
+	"directories": {
+		"bin": "bin",
+		"lib": "src"
+	},
+	"bin": "bin/index.js",
+	"main": "src/index.js",
+	"types": "typings/index.d.ts",
+	"files": [
+		"bin",
+		"src",
+		"typings"
+	],
+	"license": "GNU General Public License v3.0-or-later",
+	"preferGlobal": true,
+	"repository": {
+		"type": "git",
+		"url": "git://github.com/Calculamatrise/antiland.git"
+	},
+	"type": "module",
+	"dependencies": {
+		"ws": "^8.16.0"
+	}
 }

@@ -364,7 +364,7 @@ export default class extends EventEmitter {
 			for (let entry of await Promise.all(data.favorites.map(item => {
 				return this.dialogues.fetch(item).then(dialogue => {
 					return dialogue && (dialogue.friend || dialogue.founder);
-				}).catch(err => this.users.fetch(item))
+				}).catch(err => this.users.fetch(item).then(user => user.fetchDM()).catch(err => null))
 			})).then(entries => entries.filter(entry => entry))) {
 				this.user.favorites.cache.set(entry.id, entry);
 			}
