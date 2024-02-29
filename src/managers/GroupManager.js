@@ -111,15 +111,11 @@ export default class GroupManager extends DialogueManager {
 	/**
 	 * Join a group chat
 	 * @param {string} dialogueId
-	 * @returns {Promise<Group>}
+	 * @returns {Promise<boolean>}
 	 */
 	join(dialogueId) {
 		return this.client.requests.post(`functions/v2:chat.joinGroup`, {
 			dialogueId
-		}).then(item => {
-			let entry = new Group(item, this);
-			this.cache.set(entry.id, entry);
-			return entry
 		})
 	}
 

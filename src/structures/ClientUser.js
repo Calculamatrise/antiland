@@ -14,6 +14,8 @@ export default class ClientUser extends User {
 	friends = new ClientFriendManager(this);
 	hexAccentColor = null;
 	messages = new Map(); // private message manager
+	// settings = {}; /* add user settings, content settings,
+	// security settings, minkarma, etc.?? */
 	stickers = new ClientStickerManager(this);
 	tasks = new TaskManager(this);
 	constructor(data) {
@@ -78,7 +80,7 @@ export default class ClientUser extends User {
 				this[key] = new Set(data[key]);
 				break;
 			case 'contentSettings':
-				this[key] = new Map(Object.entries(data[key]));
+				this[key] = Object.assign({}, this[key], data[key]);
 				break;
 			// case 'favorites':
 			// 	for (let item of data[key]) {}
@@ -121,23 +123,35 @@ export default class ClientUser extends User {
 		return this
 	}
 
+	/**
+	 * Fetch content settings
+	 * @param {object} [options]
+	 * @param {boolean} [options.force]
+	 * @returns {Promise<object>}
+	 */
 	async fetchContentSettings({ force } = {}) {
 		if (!force && this.contentSettings) {
 			return this.contentSettings;
 		}
-		return this.client.requests.post("functions/v2:profile.me.contentSettings").then(r => {
-			console.log(r) // cache settings // this._patch;
-			return r
+		return this.client.requests.post("functions/v2:profile.me.contentSettings").then(res => {
+			this._patch({ contentSettings: res });
+			return this.contentSettings
 		})
 	}
 
+	/**
+	 * Fetch security settings
+	 * @param {object} [options]
+	 * @param {boolean} [options.force]
+	 * @returns {Promise<object>}
+	 */
 	async fetchSecuritySettings({ force } = {}) {
 		if (!force && this.settings) {
 			return this.settings;
 		}
-		return this.client.requests.post("functions/v2:profile.me.security").then(r => {
-			console.log(r) // cache settings // this._patch;
-			return r
+		return this.client.requests.post("functions/v2:profile.me.security").then(res => {
+			this._patch({ security: res });
+			return this.security
 		})
 	}
 
@@ -155,26 +169,47 @@ export default class ClientUser extends User {
 		})
 	}
 
+	/**
+	 * Get your human link
+	 * @param {options} [options]
+	 * @param {boolean} [options.force]
+	 * @returns {Promise<string>}
+	 */
 	async getHumanLink({ force } = {}) {
-		if (force || !this.humanLink) {
-			this.humanLink = await this.client.requests.post("functions/v2:profile.getHumanLink").then(r => r.link)
+		if (!force && this.humanLink) {
+			return this.humanLink;
 		}
-		return this.humanLink
+		return this.client.requests.post("functions/v2:profile.getHumanLink").then(({ link }) => this.humanLink = link)
 	}
 
+	/**
+	 * Purchase a free super-power trial with karma
+	 * @returns {Promise<unknown>}
+	 */
 	purchaseSuperPowers() {
 		return this.client.requests.post("functions/v2:purchase.spTrial").then(r => {
-			console.log(r)
+			this.client.debug && console.log(r);
+			this.client.emit('debug', { event: "PurchaseSPTrial", result: r });
 			return r
 		})
 	}
 
+	/**
+	 * Set your accessories
+	 * @param {Iterable} accessories
+	 * @returns {Promise<ClientUser>}
+	 */
 	setAccessories(accessories) {
 		return this.client.requests.post("functions/v2:profile.setAccessories", {
 			accessories: Array.from(accessories || this.avatar.accessories)
 		}).then(this._patch.bind(this))
 	}
 
+	/**
+	 * Set your avatar
+	 * @param {number} avatarId
+	 * @returns {Promise<ClientUser>}
+	 */
 	setAvatar(avatarId) {
 		return this.client.requests.post("functions/v2:profile.setAvatar", {
 			avatar: avatarId ?? this.avatar.id
@@ -211,6 +246,11 @@ export default class ClientUser extends User {
 		}).then(this._patch.bind(this))
 	}
 
+	/**
+	 * Set your mood?
+	 * @param {string} mood
+	 * @returns {Promise<unknown>}
+	 */
 	setMood(mood) {
 		return this.client.requests.post("functions/v2:profile.setMood", {
 			mood: mood ?? this.mood
@@ -220,6 +260,11 @@ export default class ClientUser extends User {
 		})
 	}
 
+	/**
+	 * Set your account password
+	 * @param {string} password
+	 * @returns {Promise<boolean>}
+	 */
 	setPassword(password) {
 		return this.client.requests.post("functions/v2:profile.setPassword", {
 			password
@@ -250,6 +295,16 @@ export default class ClientUser extends User {
 		}).then(this._patch.bind(this))
 	}
 
+	/**
+	 * Configure your super-powers
+	 * @param {object} [options]
+	 * @param {boolean} [options.blessed]
+	 * @param {boolean} [options.doubleKarma]
+	 * @param {boolean} [options.hideVisits]
+	 * @param {boolean} [options.highlightPrivates]
+	 * @param {boolean} [options.showOnline]
+	 * @returns {Promise<ClientUser>}
+	 */
 	setSuperPowers({ blessed, doubleKarma, hideVisits, highlightPrivates, showOnline } = {}) {
 		return this.client.requests.post("functions/v2:profile.setSPSettings", Object.assign({}, this.superPowers, {
 			blessed,
@@ -260,6 +315,11 @@ export default class ClientUser extends User {
 		})).then(this._patch.bind(this))
 	}
 
+	/**
+	 * Set user data
+	 * @param {object} [options]
+	 * @returns {Promise<ClientUser>}
+	 */
 	setUserData(options) {
 		return this.client.requests.post("functions/v2:profile.setUserData", options).then(this._patch.bind(this))
 	}
@@ -285,18 +345,32 @@ export default class ClientUser extends User {
 		}, options)).then(this._patch.bind(this))
 	}
 
+	/**
+	 * Update your private channel ID
+	 * @param {boolean} rollback
+	 * @returns {Promise<ClientUser>}
+	 */
 	updatePrivateChannel(rollback) {
 		return this.client.requests.post("functions/v2:profile.updatePrivateChannel", {
 			rollback: Boolean(rollback)
 		}).then(this._patch.bind(this))
 	}
 
+	/**
+	 * Set a vanity URL for your profile
+	 * @param {string} vanity
+	 * @returns {Promise<ClientUser>}
+	 */
 	setHumanLink(vanity) {
 		return this.client.requests.post("functions/v2:profile.setHumanLink", {
 			humanLink: vanity ?? this.login
 		}).then(this._patch.bind(this))
 	}
 
+	/**
+	 * Unset the vanity URL for your profile
+	 * @returns {Promise<unknown>}
+	 */
 	unsetHumanLink() {
 		return this.client.requests.post("functions/v2:profile.unsetHumanLink")
 	}

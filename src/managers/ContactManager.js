@@ -75,7 +75,7 @@ export default class ContactManager extends BaseManager {
 	 * @param {boolean} [options.force]
 	 * @returns {Promise<boolean>}
 	 */
-	isBlocked(user, { force } = {}) {
+	async isBlocked(user, { force } = {}) {
 		let userId = typeof user == 'object' ? user.id : user;
 		if (!force && this.blocked.has(userId)) {
 			return true;
@@ -92,7 +92,7 @@ export default class ContactManager extends BaseManager {
 	 * @param {boolean} [options.force]
 	 * @returns {Promise<boolean>}
 	 */
-	isClientBlocked(user, { force } = {}) {
+	async isClientBlocked(user, { force } = {}) {
 		let userId = typeof user == 'object' ? user.id : user;
 		if (!force && this.client.client.user.blockedBy.has(userId)) {
 			return true;

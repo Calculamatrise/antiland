@@ -1,6 +1,7 @@
 import BaseManager from "./BaseManager.js";
 import Dialogue from "../structures/Dialogue.js";
 import Group from "../structures/Group.js";
+// import Message from "../structures/Message.js";
 
 export default class DialogueManager extends BaseManager {
 	async fetch(id, { force } = {}) {
@@ -58,10 +59,7 @@ export default class DialogueManager extends BaseManager {
 	 * @returns {Promise<Iterable<object>>}
 	 */
 	async history(dialogueId, { force } = {}) {
-		let dialogue = this.cache.get(dialogueId);
-		if (!dialogue) {
-			dialogue = await this.fetch(dialogueId);
-		}
+		let dialogue = this.cache.get(dialogueId) || await this.fetch(dialogueId);
 		return dialogue.messages.fetch({ force })
 	}
 
@@ -111,16 +109,18 @@ export default class DialogueManager extends BaseManager {
 		}, reference && Object.assign({
 			replyToId: reference.id
 		}, reference.content && {
-			text: '>>> ' + reference.content?.replace(/^(?=>).+\n/, '').replace(/(.{36})..+/, "$1…") + '\n' + content
-		}))).then(data => {
+			text: '>>> ' + reference.content?.replace(/^(?=>).+\n/, '').replace(/(.{40})..+/, "$1…") + '\n' + content
+		}))).then(async data => {
 			if (data.flags === 3) {
 				throw new Error(data.text);
-			} else if (data && attachments && attachments.length > 0) {
-				return Promise.all(attachments.map(attachment => {
-					return this.sendMedia(attachment.url)
-				})).then(results => results.concat(data))
+			} else if (attachments && attachments.length > 0) {
+				return Object.assign(data, {
+					attachments: await Promise.all(attachments.map(attachment => {
+						return this.sendMedia(attachment.url)
+					}))
+				})
 			}
-			return data // new Message() ?
+			return data // new Message(data, await this.fetch(dialogueId))
 		})
 	}
 
@@ -140,10 +140,7 @@ export default class DialogueManager extends BaseManager {
 	 * @returns {Promise<number>} Number of likes
 	 */
 	sendLove(messageId) {
-		return this.client.requests.post("functions/v2:chat.message.love", { messageId }).then(r => {
-			console.log(r);
-			return r
-		})
+		return this.client.requests.post("functions/v2:chat.message.love", { messageId })
 	}
 
 	/**

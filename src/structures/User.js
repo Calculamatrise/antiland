@@ -142,6 +142,12 @@ export default class User extends BaseStructure {
 		return "https://gfx.antiland.com/avatars/" + this.avatar.id
 	}
 
+	/**
+	 * Check the user ratings for this user
+	 * @param {object} [options]
+	 * @param {boolean} [options.force]
+	 * @returns {Promise<number>}
+	 */
 	async checkRating({ force } = {}) {
 		if (!force && this.averageRating !== null) {
 			return this.averageRating
@@ -151,6 +157,10 @@ export default class User extends BaseStructure {
 		}).then(r => this.averageRating = r)
 	}
 
+	/**
+	 * Create a DM with this user
+	 * @returns {Promise<Dialogue>}
+	 */
 	createDM() {
 		return this.client.requests.post("functions/v2:chat.createPrivate", {
 			userId: this.id
@@ -163,7 +173,13 @@ export default class User extends BaseStructure {
 		})
 	}
 
-	async fetchDM({ createIfNotExists = false }) {
+	/**
+	 * Fetch an active DM, or create a DM with this user
+	 * @param {object} [options]
+	 * @param {boolean} [options.createIfNotExists]
+	 * @returns {Promise<Dialogue>}
+	 */
+	async fetchDM({ createIfNotExists = false } = {}) {
 		if (!createIfNotExists && this.dmChannel) {
 			return this.dmChannel;
 		}
@@ -184,12 +200,31 @@ export default class User extends BaseStructure {
 		})
 	}
 
-	isPaired() {
+	/**
+	 * Check if this user is a friend of the client user
+	 * @param {object} [options]
+	 * @param {boolean} [options.force]
+	 * @returns {Promise<boolean>}
+	 */
+	async isPaired({ force } = {}) {
+		if (!force && this.client.user.friends.cache.has(this.id)) {
+			return true;
+		}
 		return this.client.requests.post("functions/v2:contact.mate.isPaired", {
 			userId: this.id
-		})
+		}).then(r => r === 'paired')
 	}
 
+	/**
+	 * Send a message to this user
+	 * @param {string} content
+	 * @param {object} [options]
+	 * @param {Iterable} [options.attachments]
+	 * @param {string} [options.content]
+	 * @param {object|Message} [options.reference]
+	 * @param {string} [options.referenceId]
+	 * @returns {Promise<Message>}
+	 */
 	send() {
 		return this.fetchDM({ createIfNotExists: true }).then(dmChannel => {
 			return dmChannel.send(...arguments)

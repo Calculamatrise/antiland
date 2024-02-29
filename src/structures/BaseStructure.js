@@ -39,7 +39,7 @@ export default class {
 				break;
 			case 'id':
 			case 'type':
-				this[key] = data[key];
+				this[key] = data[key]
 			}
 		}
 	}

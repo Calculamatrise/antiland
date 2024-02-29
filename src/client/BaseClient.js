@@ -35,12 +35,18 @@ export default class extends EventEmitter {
 
 	/**
 	 * @param {object} [options]
+	 * @param {boolean} [options.fallback] whether to fallback to a pubnub connection
 	 * @param {number} [options.maxReconnectAttempts]
+	 * @param {boolean} [options.pubnub] prefer pubnub
 	 */
 	constructor(options) {
 		super();
+		Object.defineProperty(this, 'debug', { value: false, writable: true });
 		for (let key in options) {
 			switch(key.toLowerCase()) {
+			case 'debug':
+				this.debug = options[key];
+				break;
 			case 'fallback':
 				this.#fallback = Boolean(options[key]);
 				break;
@@ -208,6 +214,15 @@ export default class extends EventEmitter {
 				switch(data.type.toLowerCase()) {
 				case 'join_notification':
 					return this.emit('channelMemberAdd', dialogue, user);
+				case 'karmaTask.event.progress':
+					switch(data.body.task.id) {
+					case 'karmaTask.dailyBonus':
+						console.log(data.body.task.reward);
+						return this.emit('taskComplete', data.body.task);
+					default:
+						console.warn('unknown karma task', data.body);
+						return this.emit('debug', { data: data.body, type: 'UNKNOWN_KARMA_TASK' })
+					}
 				case 'mate.event.request':
 					let entry = new FriendRequest(data, this.user.friends);
 					this.user.friends.pending.incoming.set(entry.id, entry);

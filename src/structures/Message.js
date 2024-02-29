@@ -1,8 +1,8 @@
-import Structure from "./BaseStructure.js";
+import BaseStructure from "./BaseStructure.js";
 import Dialogue from "./Dialogue.js";
 import User from "./User.js";
 
-export default class Message extends Structure {
+export default class Message extends BaseStructure {
 	author = new User(null, this);
 	content = null;
 	dialogueId = null;
@@ -118,23 +118,47 @@ export default class Message extends Structure {
 		}
 	}
 
+	/**
+	 * Delete this message
+	 * @returns {Promise<Message>}
+	 */
 	delete() {
 		return this.client.requests.post("functions/v2:chat.message.delete", {
 			messageId: this.id
+		}).then(res => {
+			if (!res) {
+				throw new Error("Something went wrong! Failed to delete message.");
+			}
+			return this
 		})
 	}
 
+	/**
+	 * Edit the contents of this message
+	 * @returns {Promise<Message>}
+	 */
 	edit(text) {
 		return this.client.requests.post("functions/v2:chat.message.changeText", {
 			messageId: this.id,
 			text
-		}).then(r => {
-			console.log(r);
-			return r
+		}).then(res => {
+			if (!res) {
+				throw new Error("Something went wrong! Failed to edit message.");
+			}
+			this.client.debug && console.log(res);
+			this.client.emit('debug', { event: "editMessage", result: res });
+			return this._patch(res)
 		})
 	}
 
-	fetchLovers(id, { force } = {}) {
+	/**
+	 * Fetch the users that sent love to this message
+	 * @param {string} id
+	 * @param {object} [options]
+	 * @param {boolean} [options.force]
+	 * @returns {Promise<string|Map<string, User>>}
+	 */
+	async fetchLovers(id, { force } = {}) {
 		if (!force && this.lovers && this.lovers.size > 0) {
 			if (this.lovers.has(id)) {
 				return this.lovers.get(id);
@@ -154,26 +178,77 @@ export default class Message extends Structure {
 		})
 	}
 
+	/**
+	 * Send love to the author for this message
+	 * @returns {Promise<Message>}
+	 */
 	like() {
 		return this.client.requests.post("functions/v2:chat.message.love", {
 			messageId: this.id
+		}).then(result => {
+			(this.lovers ||= new Map()).set(this.client.user.id, this.client.user);
+			return this._patch({ likesCount: result })
 		})
 	}
 
-	reply(content) {
+	/**
+	 * Reply to this message
+	 * @param {string} content
+	 * @param {object} [options]
+	 * @param {Iterable} [options.attachments]
+	 * @returns {Promise<Message>}
+	 */
+	async reply({ attachments, content } = {}) {
+		if (typeof content != 'object') return this.reply(Object.assign(...Array.prototype.slice.call(arguments, 1), { content }));
 		return this.client.requests.post("functions/v2:chat.message.sendText", {
 			dialogueId: this.dialogueId,
 			replyToId: this.id,
-			text: '>>> ' + this.content.replace(/^(?=>).+\n/, '') + '\n' + content
-		}).then(r => {
-			// new Message(r);
-			return r
+			text: '>>> ' + this.content.replace(/^(?=>).+\n/, '').replace(/(.{40})..+/, "$1…") + '\n' + content
+		}).then(async data => {
+			if (data.flags === 3) {
+				throw new Error(data.text);
+			} else if (attachments && attachments.length > 0) {
+				return Object.assign(data, {
+					attachments: await Promise.all(attachments.map(attachment => {
+						return this.sendMedia(attachment.url)
+					}))
+				})
+			}
+			return new this.constructor(data, this.dialogue)
 		})
 	}
 
-	translate() {
+	/**
+	 * Reply to this message with a media file
+	 * @param {string} mediaURL
+	 * @returns {Promise<Message>}
+	 */
+	async replyWithMedia(mediaURL) {
+		let contentType = 'image';
+		let dataURI = await fetch(mediaURL).then(r => {
+			contentType = r.headers.get('content-type');
+			return r.arrayBuffer()
+		}).then(r => btoa(new Uint8Array(r).reduce((data, byte) => data + String.fromCharCode(byte), '')));
+		return this.client.requests.post("functions/v2:chat.message.send" + (/^image/i.test(contentType) ? 'Photo' : 'Video'), {
+			body: dataURI,
+			dialogueId: this.dialogueId,
+			replyToId: this.id
+		}).then(data => {
+			if (data.flags === 3) {
+				throw new Error(data.text);
+			}
+			return new this.constructor(data, this.dialogue)
+		})
+	}
+
+	/**
+	 * Translate this message
+	 * @param {string} [locale] preferred locale
+	 * @returns {Promise<string>}
+	 */
+	translate(locale = 'en') {
 		return this.client.requests.post("functions/v2:chat.message.translate", {
-			lang: 'en',
+			lang: locale,
 			messageId: this.id,
 			persist: false,
 			text: this.content

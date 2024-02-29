@@ -95,6 +95,16 @@ export default class Group extends Dialogue {
 	}
 
 	/**
+	 * Join this chat
+	 * @returns {Promise<boolean>}
+	 */
+	join() {
+		return this.client.requests.post("functions/v2:chat.joinGroup", {
+			dialogueId: this.id
+		})
+	}
+
+	/**
 	 * Remove a chat moderator
 	 * @protected requires founder permissions
 	 * @param {string} userId
