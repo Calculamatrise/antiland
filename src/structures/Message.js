@@ -198,7 +198,7 @@ export default class Message extends BaseStructure {
 	 * @param {Iterable} [options.attachments]
 	 * @returns {Promise<Message>}
 	 */
-	async reply(content, { attachments, content } = {}) {
+	async reply({ attachments, content } = {}) {
 		if (typeof arguments[0] != 'object') return this.reply(Object.assign(...Array.prototype.slice.call(arguments, 1), { content: arguments[0] }));
 		return this.client.requests.post("functions/v2:chat.message.sendText", {
 			dialogueId: this.dialogueId,
