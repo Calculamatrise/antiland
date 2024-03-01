@@ -67,7 +67,7 @@ export default class extends BaseManager {
 	 * @param {boolean} [options.force]
 	 * @returns {Promise<boolean>}
 	 */
-	checkPrivateBlocked(user, { force } = {}) {
+	async checkPrivateBlocked(user, { force } = {}) {
 		let userId = typeof user == 'object' ? user.id : user;
 		if (!force && this.client.user.blockedBy.has(userId)) {
 			return true;

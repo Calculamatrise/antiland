@@ -15,6 +15,10 @@ export default class MessageManager extends BaseManager {
 		}
 	}
 
+	get manageable() {
+		return this.client.manageable || this.client.admins.has(this.client.client.user.id)
+	}
+
 	async fetch(id, { cache, force, limit = 100, since } = {}) {
 		if (id instanceof Object) return this.fetch(null, id);
 		if (!force && this.cache.size > 0) {
@@ -53,16 +57,6 @@ export default class MessageManager extends BaseManager {
 
 	create() {
 		return this.client.send(...arguments)
-	}
-
-	get manageable() {
-		return this.client.manageable || this.client.admins.has(this.client.client.user.id)
-	}
-
-	#throwAdmin() {
-		if (this.client.founderId !== this.client.client.user.id && !this.client.admins.has(this.client.client.user.id)) {
-			throw new Error("Insufficient privileges.");
-		}
 	}
 
 	/**
@@ -146,8 +140,9 @@ export default class MessageManager extends BaseManager {
 			return this.bulkDelete({ limit: arguments[0] });
 		} else if (typeof arguments[0] == 'object' && typeof arguments[0][Symbol.iterator] == 'function') {
 			return this.bulkDelete(Array.from(arguments[0].values()));
+		} else if (!this.manageable) {
+			throw new Error("Insufficient privileges.");
 		}
-		this.#throwAdmin();
 		if (Array.isArray(arguments[0])) {
 			for (let message of arguments[0]) {
 				await this.delete(typeof message == 'object' ? message.id : message);
@@ -187,7 +182,9 @@ export default class MessageManager extends BaseManager {
 		if (this.cache.has(messageId)) {
 			let entry = this.cache.get(messageId);
 			if (entry.author.id !== this.client.client.user.id || !this.client.options.setup?.has('OWN_MSG_REMOVE_ALLOWED')) {
-				this.#throwAdmin();
+				if (!this.manageable) {
+					throw new Error("Insufficient privileges.");
+				}
 				return this.client.client.requests.post("functions/v2:chat.mod.deleteMessage", {
 					dialogueId: this.client.id,
 					messageId
@@ -226,13 +223,14 @@ export default class MessageManager extends BaseManager {
 
 	/**
 	 * Translate a message
-	 * @param {string} message
-	 * @returns {Promise<object?>}
+	 * @param {string|Message|object} message
+	 * @param {string} [locale]
+	 * @returns {Promise<string>}
 	 */
-	async translate(message) {
+	async translate(message, locale = 'en') {
 		message = typeof message == 'object' ? message : await this.fetch(message);
 		return this.client.client.requests.post("functions/v2:chat.message.translate", {
-			lang: 'en',
+			lang: locale,
 			messageId: message.id,
 			persist: false,
 			text: message.content

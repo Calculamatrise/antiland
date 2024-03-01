@@ -21,8 +21,8 @@ export default class TaskManager extends BaseManager {
 	 * Check progress for a task
 	 * @returns {Promise<object>}
 	 */
-	checkProgress(taskId, { force, reset } = {}) {
-		if (this.cache.has(taskId)) {
+	async checkProgress(taskId, { force, reset } = {}) {
+		if (!force && this.cache.has(taskId)) {
 			return this.cache.get(taskId)
 		}
 		return this.client.client.requests.post("functions/v2:karmaTasks.checkProgress", {

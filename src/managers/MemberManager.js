@@ -2,31 +2,48 @@ import BaseManager from "./BaseManager.js";
 import Member from "../structures/Member.js";
 
 export default class MemberManager extends BaseManager {
-	async fetch(id, { active, force } = {}) {
-		if (active) return this.fetchActive(...arguments);
-		if (!force && this.cache.size > 0) {
+	get manageable() {
+		return this.client.manageable || this.client.moderators.cache.has(this.client.client.user.id)
+	}
+
+	/**
+	 * Fetch group members
+	 * @param {string} id
+	 * @param {object} [options]
+	 * @param {boolean} [options.active]
+	 * @param {boolean} [options.force]
+	 * @param {number} [options.page]
+	 * @returns {Promise<Member>}
+	 */
+	async fetch({ active, force, id, page } = {}) {
+		if (typeof arguments[0] == 'string') return this.fetch(Object.assign({}, arguments[1], { id: arguments[0] }));
+		else if (active) return this.fetchActive(...arguments);
+		else if (!force && this.cache.size > 0) {
 			if (this.cache.has(id)) {
 				return this.cache.get(id);
 			} else if (!id) {
 				return this.cache;
 			}
 		}
-
+		page ??= 0;
 		return this.client.client.requests.post("functions/v2:chat.getMembers", {
 			dialogueId: this.client.id,
-			page: 0,
+			page,
 			search: null
-		}).then(entries => {
-			for (let item of entries) {
+		}).then(res => {
+			for (let item of res.members) {
 				let entry = new Member(item, this.client);
 				this.cache.set(entry.id, entry);
 			}
-			return id ? this.cache.get(id) ?? null : this.cache
+			return id ? this.cache.get(id) ?? (res.isLastPage ? null : this.fetch(Object.assign(arguments[0], { page: 1 + page }))) : this.cache
 		})
 	}
 
 	/**
 	 * Fetch active users in the chat
+	 * @param {string} id
+	 * @param {object} [options]
+	 * @param {boolean} [options.force]
 	 * @returns {Promise<object>}
 	 */
 	async fetchActive(id, { force } = {}) {
@@ -51,21 +68,20 @@ export default class MemberManager extends BaseManager {
 		})
 	}
 
-	#throwAdmin() {
-		if ((!this.client.founder || this.client.client.user.id !== this.client.founder.id) && !this.client.admins.has(this.client.client.user.id)) {
-			throw new Error("Insufficient privileges.");
-		}
-	}
-
 	/**
 	 * Ban a user
 	 * @protected moderation endpoint for moderators
-	 * @param {string} userId 
+	 * @param {string} userId
+	 * @param {object} [options]
+	 * @param {boolean} [options.force]
+	 * @param {string} [options.messageId]
+	 * @param {string} [options.reason]
 	 * @returns {Promise<object>}
 	 */
 	async ban(userId, { force, messageId, reason = "No reason provided." } = {}) {
-		this.#throwAdmin();
-		if (!force && this.client.bans.cache.has(userId)) {
+		if (!this.manageable) {
+			throw new Error("Insufficient privileges.");
+		} else if (!force && this.client.bans.cache.has(userId)) {
 			return this.client.bans.cache.get(userId);
 		}
 		return this.client.client.requests.post("functions/v2:chat.mod.ban", {
@@ -99,7 +115,7 @@ export default class MemberManager extends BaseManager {
 	 */
 	async canIBan({ force } = {}) {
 		if (!force && (this.client.founder.id === this.client.client.user.id || this.client.admins.has(this.client.client.user.id))) {
-			return true
+			return true;
 		}
 		return this.client.client.requests.post("functions/v2:chat.mod.canIBan", {
 			dialogueId: this.client.id
@@ -125,8 +141,9 @@ export default class MemberManager extends BaseManager {
 	 * @returns {Promise<object>}
 	 */
 	async unban(userId, { force } = {}) {
-		this.#throwAdmin();
-		if (!force && !this.client.bans.cache.has(userId)) {
+		if (!this.manageable) {
+			throw new Error("Insufficient privileges.");
+		} else if (!force && !this.client.bans.cache.has(userId)) {
 			return true;
 		}
 		return this.client.client.users.fetch(userId).then(user => {

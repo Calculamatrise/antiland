@@ -14,8 +14,8 @@ export default class User extends BaseStructure {
 	karma = null;
 	minKarma = null;
 	username = null;
-	constructor(data, options) {
-		if (data instanceof Object && options instanceof Object && options.hasOwnProperty('client')) {
+	constructor(data, options, isMember) {
+		if (!isMember && data instanceof Object && options instanceof Object && options.hasOwnProperty('client')) {
 			let id = data.id || data.objectId;
 			let entry = options.client.users.cache.get(id);
 			if (entry) {
@@ -29,7 +29,7 @@ export default class User extends BaseStructure {
 			dmChannel: { value: null, writable: true },
 			humanLink: { value: null, writable: true }
 		});
-		this._patch(data);
+		isMember || this._patch(data);
 		this.id !== null && this.hasOwnProperty('client') && this.client.users.cache.set(this.id, this)
 	}
 
@@ -171,6 +171,20 @@ export default class User extends BaseStructure {
 			}),
 			this.dmChannel
 		})
+	}
+
+	/**
+	 * Fetch this user
+	 * @param {boolean} [force]
+	 * @returns {Promise<this>}
+	 */
+	async fetch(force) {
+		if (!force && !Object.values(this).includes(null)) {
+			return this;
+		}
+		return this.client.requests.post("functions/v2:profile.byId", {
+			userId: this.id
+		}).then(this._patch.bind(this))
 	}
 
 	/**

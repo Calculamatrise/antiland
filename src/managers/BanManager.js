@@ -2,7 +2,7 @@ import BaseManager from "./BaseManager.js";
 import Dialogue from "../structures/Dialogue.js";
 
 export default class BanManager extends BaseManager {
-	fetch(id, { force } = {}) {
+	async fetch(id, { force } = {}) {
 		if (!force && this.cache.has(id)) {
 			return this.cache.get(id);
 		}
@@ -22,7 +22,11 @@ export default class BanManager extends BaseManager {
 	/**
 	 * Ban a user
 	 * @protected moderation endpoint for moderators
-	 * @param {string} userId 
+	 * @param {string} userId
+	 * @param {object} [options]
+	 * @param {boolean} [options.force]
+	 * @param {string} [options.messageId]
+	 * @param {string} [options.reason]
 	 * @returns {Promise<object>}
 	 */
 	async add(userId, { force, messageId, reason = "No reason provided." } = {}) {
@@ -72,7 +76,7 @@ export default class BanManager extends BaseManager {
 	 * Unan a user
 	 * @protected moderation endpoint for moderators
 	 * @param {string} userId 
-	 * @returns {Promise<object>}
+	 * @returns {Promise<boolean>}
 	 */
 	async remove(userId, { force } = {}) {
 		if (!this.client.founder || this.client.client.user.id !== this.client.founder.id) {

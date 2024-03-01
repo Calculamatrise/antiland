@@ -1,6 +1,8 @@
 import Dialogue from "./Dialogue.js";
 import BanManager from "../managers/BanManager.js";
 import MemberManager from "../managers/MemberManager.js";
+import ModeratorManager from "../managers/ModeratorManager.js";
+import Member from "./Member.js";
 
 export default class Group extends Dialogue {
 	bans = new BanManager(this);
@@ -9,6 +11,7 @@ export default class Group extends Dialogue {
 	founderId = null;
 	members = new MemberManager(this); // participants
 	minKarma = null;
+	moderators = new ModeratorManager(this);
 	constructor(data, options) {
 		if (data instanceof Object && options instanceof Object && options.hasOwnProperty('client')) {
 			let id = data.id || data.objectId;
@@ -33,6 +36,11 @@ export default class Group extends Dialogue {
 		super._patch(...arguments);
 		for (let key in data) {
 			switch (key) {
+			case 'admins':
+				for (let userId of data[key]) {
+					this.moderators.cache.set(userId, new Member({ id: userId }, this));
+				}
+				break;
 			case 'categories':
 				this[key] = new Set(data[key]);
 				break;
@@ -42,30 +50,22 @@ export default class Group extends Dialogue {
 				this[key] = data[key];
 				break;
 			case 'founder':
-				this.founderId = data[key].id
+				this.founderId = data[key].id;
+				break;
+			case 'mood':
+				this[key] ||= {};
+				for (let prop in data[key]) {
+					switch(prop) {
+					case 'idx':
+						this[key].id = data[key][prop];
+						break;
+					default:
+						this[key][prop] = data[key][prop];
+					}
+				}
 			}
 		}
 		return this
-	}
-
-	#throwFounder() {
-		if (!this.manageable) {
-			throw new Error("You must be the founder to perform this action.");
-		}
-	}
-
-	/**
-	 * Add a chat moderator
-	 * @protected requires founder permissions
-	 * @param {string} userId
-	 * @returns {Promise<boolean>}
-	 */
-	async addModerator(userId) {
-		this.#throwFounder();
-		return this.client.requests.post("functions/v2:chat.mod.add", {
-			dialogueId: this.id,
-			userId
-		}).then(r => r && (this.admins.add(userId), r))
 	}
 
 	async edit(options = {}) {
@@ -104,27 +104,9 @@ export default class Group extends Dialogue {
 		})
 	}
 
-	/**
-	 * Remove a chat moderator
-	 * @protected requires founder permissions
-	 * @param {string} userId
-	 * @returns {Promise<boolean>}
-	 */
-	async removeModerator(userId) {
-		this.#throwFounder();
-		return this.client.requests.post("functions/v2:chat.mod.delete", {
-			dialogueId: this.id,
-			userId
-		}).then(r => r && this.admins.delete(userId))
-	}
-
 	resetSpamReport() {
-		// this.#throwFounder();
 		return this.client.requests.post("functions/v2:chat.resetSpamReport", {
 			dialogueId: this.id
-		}).then(r => {
-			console.log(r);
-			return r
 		})
 	}
 
@@ -148,7 +130,9 @@ export default class Group extends Dialogue {
 	 * @returns {Promise<Group>}
 	 */
 	async setHumanLink(humanLink) {
-		this.#throwFounder();
+		if (!this.manageable) {
+			throw new Error("You must be the founder to perform this action.");
+		}
 		if (humanLink === null) return this.unsetHumanLink();
 		return this.client.requests.post("functions/v2:chat.mod.setHumanLink", {
 			dialogueId: this.id,
@@ -162,7 +146,9 @@ export default class Group extends Dialogue {
 	 * @returns {Promise<Group>}
 	 */
 	async setFilters(filters) {
-		this.#throwFounder();
+		if (!this.manageable) {
+			throw new Error("You must be the founder to perform this action.");
+		}
 		return this.client.requests.post("functions/v2:chat.mod.setFilters", {
 			dialogueId: this.id,
 			filters: Array.from(filters || this.options.filters)
@@ -180,14 +166,16 @@ export default class Group extends Dialogue {
 	 * @returns {Promise<Group>}
 	 */
 	async setInfo({ categories, filters, historyLength, minKarma, setup } = {}) {
-		this.#throwFounder();
+		if (!this.manageable) {
+			throw new Error("You must be the founder to perform this action.");
+		}
 		return this.client.requests.post("functions/v2:chat.mod.setInfo", {
 			dialogueId: this.id,
 			categories: Array.from(categories || this.categories || []),
 			filters: Array.from(filters || this.options.filters || []),
 			historyLength: historyLength ?? this.options.historyLength,
 			minKarma: minKarma ?? this.minKarma,
-			setup: Array.from(setup || this.options.setup)
+			setup: Array.from(setup || this.options.setup || [])
 		}).then(this._patch.bind(this))
 	}
 
@@ -195,17 +183,16 @@ export default class Group extends Dialogue {
 	 * Set the mood
 	 * @protected requires founder permissions
 	 * @param {string} mood
-	 * @returns {Promise<boolean>}
+	 * @returns {Promise<Group>}
 	 */
 	async setMood(mood) {
-		this.#throwFounder();
+		if (!this.manageable) {
+			throw new Error("You must be the founder to perform this action.");
+		}
 		return this.client.requests.post("functions/v2:chat.mod.setMood", {
 			dialogueId: this.id,
 			mood
-		}).then(r => {
-			console.log(r)
-			return r
-		})
+		}).then(this._patch.bind(this))
 	}
 
 	/**
@@ -214,7 +201,9 @@ export default class Group extends Dialogue {
 	 * @returns {Promise<Group>}
 	 */
 	async setName(name) {
-		this.#throwFounder();
+		if (!this.manageable) {
+			throw new Error("You must be the founder to perform this action.");
+		}
 		return this.client.requests.post("functions/v2:chat.mod.setName", {
 			dialogueId: this.id,
 			name
@@ -226,7 +215,9 @@ export default class Group extends Dialogue {
 	 * @returns {Promise<Group>}
 	 */
 	async unsetHumanLink() {
-		this.#throwFounder();
+		if (!this.manageable) {
+			throw new Error("You must be the founder to perform this action.");
+		}
 		return this.client.requests.post("functions/v2:chat.mod.unsetHumanLink", {
 			dialogueId: this.id
 		}).then(r => {

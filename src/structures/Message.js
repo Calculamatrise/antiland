@@ -1,4 +1,5 @@
 import BaseStructure from "./BaseStructure.js";
+import LoverManager from "../managers/LoverManager.js";
 import Dialogue from "./Dialogue.js";
 import User from "./User.js";
 
@@ -6,7 +7,7 @@ export default class Message extends BaseStructure {
 	author = new User(null, this);
 	content = null;
 	dialogueId = null;
-	reactions = new Map();
+	lovers = new LoverManager(this);
 	referenceId = null;
 	constructor(data, dialogue) {
 		if (data instanceof Object && dialogue instanceof Object && dialogue.hasOwnProperty('messages')) {
@@ -54,8 +55,7 @@ export default class Message extends BaseStructure {
 					break;
 				}
 			case 'dialogueId':
-				if (this[key] !== null) break;
-				Object.defineProperty(this, 'dialogue', { value: new Dialogue({ id: data[key] }, this), writable: false });
+				this.dialogue === null && Object.defineProperty(this, 'dialogue', { value: new Dialogue({ id: data[key] }, this), writable: false });
 				this.dialogueId = data[key];
 				break;
 			// case 'color':
@@ -67,8 +67,6 @@ export default class Message extends BaseStructure {
 			case 'likes':
 			case 'likesCount':
 				this.likes = data[key];
-				this.reactions.set('❤️', data[key]);
-				data[key] > 1 && this.reactions.set('❤️', data[key]);
 				break;
 			case 'media':
 				let media = data[key];
@@ -152,30 +150,15 @@ export default class Message extends BaseStructure {
 	}
 
 	/**
-	 * Fetch the users that sent love to this message
-	 * @param {string} id
-	 * @param {object} [options]
-	 * @param {boolean} [options.force]
-	 * @returns {Promise<string|Map<string, User>>}
+	 * Fetch this message
+	 * @param {boolean} [force]
+	 * @returns {Promise<this>}
 	 */
-	async fetchLovers(id, { force } = {}) {
-		if (!force && this.lovers && this.lovers.size > 0) {
-			if (this.lovers.has(id)) {
-				return this.lovers.get(id);
-			} else if (!id) {
-				return this.lovers;
-			}
+	fetch(force) {
+		if (!force && !Object.values(this).includes(null)) {
+			return this;
 		}
-		return this.client.requests.post("functions/v2:chat.message.getLovers", {
-			messageId: this.id
-		}).then(entries => {
-			this.lovers ||= new Map();
-			for (let item of entries) {
-				let entry = new User(item, this.client);
-				this.lovers.set(entry.id, entry);
-			}
-			return id ? this.lovers.get(id) ?? null : this.lovers
-		})
+		return this.dialogue.messages.fetch(this.id, { force }).then(this._patch.bind(this))
 	}
 
 	/**
@@ -203,16 +186,14 @@ export default class Message extends BaseStructure {
 		return this.client.requests.post("functions/v2:chat.message.sendText", {
 			dialogueId: this.dialogueId,
 			replyToId: this.id,
-			text: '>>> ' + this.content.replace(/^(?=>).+\n/, '').replace(/(.{40})..+/, "$1…") + '\n' + content
-		}).then(async data => {
+			text: '>>> ' + this.content.replace(/^(?=>).+\n/, '').replace(/^(.{40})(.|\n)+/, "$1…") + '\n' + content
+		}).then(data => {
 			if (data.flags === 3) {
 				throw new Error(data.text);
 			} else if (attachments && attachments.length > 0) {
-				return Object.assign(data, {
-					attachments: await Promise.all(attachments.map(attachment => {
-						return this.sendMedia(attachment.url)
-					}))
-				})
+				return Promise.all(attachments.map(attachment => {
+					return this.sendMedia(attachment.url)
+				})).then(attachments => Object.assign(data, { attachments }))
 			}
 			return new this.constructor(data, this.dialogue)
 		})

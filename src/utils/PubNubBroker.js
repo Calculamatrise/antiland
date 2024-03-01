@@ -119,6 +119,7 @@ export default class PubNubBroker extends EventEmitter {
 		if (recurse && !this.#subscriptions.has(channelId)) return;
 		this.#subscriptions.set(channelId, subscription);
 		this.subscribe(channelId, true);
+		if (!data.m || data.m.length < 1) return;
 		for (let message of data.m) {
 			this.#handleMessage(message, { channelId })
 		}

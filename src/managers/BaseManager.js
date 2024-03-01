@@ -10,7 +10,7 @@ export default class {
 		Object.defineProperty(this, 'client', { value: client })
 	}
 
-	fetch(key, { force } = {}) {
+	async fetch(key, { force } = {}) {
 		if (!force && this.cache.has(key)) {
 			return this.cache.get(key);
 		}

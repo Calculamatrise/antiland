@@ -213,7 +213,7 @@ export default class extends EventEmitter {
 				data.hasOwnProperty('senderId') && Object.defineProperty(data, 'sender', { enumerable: false, value: await this.users.fetch(data.senderId), writable: false });
 				switch(data.type.toLowerCase()) {
 				case 'join_notification':
-					return this.emit('channelMemberAdd', dialogue, user);
+					return this.emit('channelMemberAdd', data.dialogue, data.sender || data);
 				case 'karmaTask.event.progress':
 					switch(data.body.task.id) {
 					case 'karmaTask.dailyBonus':

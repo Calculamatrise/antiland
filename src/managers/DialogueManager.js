@@ -69,7 +69,7 @@ export default class DialogueManager extends BaseManager {
 	 * @returns {Promise<unknown>}
 	 */
 	leave(dialogueId) {
-		this.client.closeChannel(dialogueId);
+		this.client.unsubscribe(dialogueId);
 		return this.client.requests.post("functions/v2:chat.leave", { dialogueId }).then(result => {
 			result && (this.cache.delete(dialogueId),
 			this.client.groups.cache.delete(dialogueId));
@@ -108,8 +108,8 @@ export default class DialogueManager extends BaseManager {
 			text: content
 		}, reference && Object.assign({
 			replyToId: reference.id
-		}, reference.content && {
-			text: '>>> ' + reference.content?.replace(/^(?=>).+\n/, '').replace(/(.{40})..+/, "$1…") + '\n' + content
+		}, typeof reference.content == 'string' && {
+			text: '>>> ' + reference.content.replace(/^(?=>).+\n/, '').replace(/^(.{40})(.|\n)+/, "$1…") + '\n' + content
 		}))).then(async data => {
 			if (data.flags === 3) {
 				throw new Error(data.text);

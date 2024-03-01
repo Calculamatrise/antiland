@@ -43,4 +43,6 @@ export default class {
 			}
 		}
 	}
+
+	async fetch() { return this }
 }

@@ -16,7 +16,7 @@ export default class Dialogue extends BaseStructure {
 		}
 		super(...arguments, true);
 		Object.defineProperty(this, isGroup ? 'founder' : 'friend', { value: null, writable: true });
-		this._patch(data);
+		isGroup || this._patch(data);
 		this.id !== null && this.hasOwnProperty('client') && this.client.dialogues.cache.set(this.id, this)
 	}
 
@@ -71,6 +71,20 @@ export default class Dialogue extends BaseStructure {
 
 	get url() {
 		return "https://anti.land/g/" + this.id
+	}
+
+	/**
+	 * Fetch this dialogue
+	 * @param {boolean} [force]
+	 * @returns {Promise<this>}
+	 */
+	async fetch(force) {
+		if (!force && !Object.values(this).includes(null)) {
+			return this;
+		}
+		return this.client.requests.post("functions/v2:chat.byId", {
+			dialogueId: this.id
+		}).then(this._patch.bind(this))
 	}
 
 	leave() {

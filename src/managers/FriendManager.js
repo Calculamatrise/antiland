@@ -14,7 +14,7 @@ export default class FriendManager extends BaseManager {
 		return this.client.client.requests.post("functions/v2:contact.mate.listByUser", {
 			userId: this.client.id
 		}).then(({ mates }) => {
-			for (let item in mates) {
+			for (let item of mates) {
 				let entry = new User(item, this.client);
 				this.cache.set(entry.id, entry);
 			}
