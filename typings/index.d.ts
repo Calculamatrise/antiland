@@ -1,6 +1,6 @@
 import EventEmitter from "events";
 
-import { ActivityTypes, ArtifactTypes, Categories, ChatFilters, ChatFlags, ChatMoods, ChatSetupFlags, Events, MessageTypes } from "../src";
+import { ActivityTypes, ArtifactTypes, ChannelFlags, Categories, ChatFilters, ChatMoods, ChatSetupFlags, Events, MessageTypes } from "../src";
 import CallManager from "../src/managers/CallManager";
 import DialogueManager from "../src/managers/DialogueManager";
 import GroupManager from "../src/managers/GroupManager";
@@ -96,24 +96,7 @@ export enum Categories {
 	Fashion = 'vogue'
 }
 
-export enum ChannelTypes {
-	GROUP = 'GROUP',
-	PRIVATE = 'PRIVATE',
-	PUBLIC = 'PUBLIC'
-}
-
-export enum ChatFilters {
-	DENY_ANY_OTHER_LINKS = 'DENY_ANY_OTHER_LINKS',
-	DENY_PHOTO = 'DENY_PHOTO',
-	DENY_SEX_TEXT_CONTENT = 'DENY_SEX_TEXT_CONTENT',
-	DENY_STICKERS = 'DENY_STICKERS',
-	DENY_SWEARING_TEXT_CONTENT = 'DENY_SWEARING_TEXT_CONTENT',
-	DENY_TEXT = 'DENY_TEXT',
-	DENY_VIDEO = 'DENY_VIDEO',
-	DENY_YOUTUBE_LINKS = 'DENY_YOUTUBE_LINKS'
-}
-
-export enum ChatFlags {
+export enum ChannelFlags {
 	REMOVED = 1,
 	SHOW_SAFE_CONTENT_ONLY = 2,
 	TEEN = 4,
@@ -131,6 +114,24 @@ export enum ChatFlags {
 	OWN_MSG_REMOVE_ENABLED = 16384
 }
 
+export enum ChannelTypes {
+	CHANNEL = 'CHANNEL', // readonly
+	GROUP = 'GROUP',
+	PRIVATE = 'PRIVATE',
+	PUBLIC = 'PUBLIC'
+}
+
+export enum ChatFilters {
+	DENY_ANY_OTHER_LINKS = 'DENY_ANY_OTHER_LINKS',
+	DENY_PHOTO = 'DENY_PHOTO',
+	DENY_SEX_TEXT_CONTENT = 'DENY_SEX_TEXT_CONTENT',
+	DENY_STICKERS = 'DENY_STICKERS',
+	DENY_SWEARING_TEXT_CONTENT = 'DENY_SWEARING_TEXT_CONTENT',
+	DENY_TEXT = 'DENY_TEXT',
+	DENY_VIDEO = 'DENY_VIDEO',
+	DENY_YOUTUBE_LINKS = 'DENY_YOUTUBE_LINKS'
+}
+
 export enum ChatMoods {
 	CHAT_MOOD_1 = 'cm1',
 	CHAT_MOOD_2 = 'cm2',
@@ -138,7 +139,8 @@ export enum ChatMoods {
 }
 
 export enum ChatSetupFlags {
-	ALLOW_MESSAGE_DELETE = 'OWN_MSG_REMOVE_ALLOWED'
+	ALLOW_MESSAGE_DELETE = 'OWN_MSG_REMOVE_ALLOWED',
+	DENY_BON_REMOVE = 'BON_REMOVE_DISABLED'
 }
 
 export enum ChatSetupFlags {

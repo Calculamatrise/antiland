@@ -5,14 +5,16 @@ export default class MessageManager extends BaseManager {
 	constructor() {
 		super(...arguments);
 		let maxCacheSize = (this.client.options && (this.client.options.configuredHistoryLength ?? this.client.options.historyLength)) ?? 50;
-		this.cache.set = function() {
-			if (this.size >= maxCacheSize) {
-				for (let entry of Array.from(this.values()).sort((a, b) => a.createdAt - b.createdAt).slice(0, 4)) {
-					this.delete(entry.id);
+		Object.defineProperty(this.cache, 'set', {
+			value() {
+				if (this.size >= maxCacheSize) {
+					for (let entry of Array.from(this.values()).sort((a, b) => a.createdAt - b.createdAt).slice(0, 4)) {
+						this.delete(entry.id);
+					}
 				}
+				return Map.prototype.set.apply(this, arguments);
 			}
-			return Map.prototype.set.apply(this, arguments);
-		}
+		})
 	}
 
 	get manageable() {
@@ -53,10 +55,6 @@ export default class MessageManager extends BaseManager {
 			}
 			return id ? this.cache.get(id) ?? null : this.cache
 		})
-	}
-
-	create() {
-		return this.client.send(...arguments)
 	}
 
 	/**
@@ -169,6 +167,10 @@ export default class MessageManager extends BaseManager {
 			}
 			return result
 		})
+	}
+
+	create() {
+		return this.client.send(...arguments)
 	}
 
 	/**

@@ -214,9 +214,9 @@ export default class extends EventEmitter {
 				switch(data.type.toLowerCase()) {
 				case 'join_notification':
 					return this.emit('channelMemberAdd', data.dialogue, data.sender || data);
-				case 'karmaTask.event.progress':
-					switch(data.body.task.id) {
-					case 'karmaTask.dailyBonus':
+				case 'karmatask.event.progress':
+					switch(data.body.task.id.toLowerCase()) {
+					case 'karmatask.dailyBonus':
 						console.log(data.body.task.reward);
 						return this.emit('taskComplete', data.body.task);
 					default:

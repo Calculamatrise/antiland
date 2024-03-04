@@ -43,11 +43,12 @@ export default class ModeratorManager extends BaseManager {
 			dialogueId: this.client.id,
 			userId
 		}).then(async res => {
-			if (res) {
+			if (res.includes(userId) && !this.cache.has(userId)) {
 				let member = await this.client.members.fetch(userId);
 				this.cache.set(member.id, member);
 			}
-			return res
+			this.client._patch({ admins: res });
+			return this.cache.has(userId)
 		})
 	}
 
@@ -55,7 +56,7 @@ export default class ModeratorManager extends BaseManager {
 	 * Remove a chat moderator
 	 * @protected requires founder permissions
 	 * @param {string} userId
-	 * @returns {Promise<Array<string>>} New list of moderators
+	 * @returns {Promise<boolean>}
 	 */
 	async remove(userId) {
 		if (!this.manageable) {
@@ -67,10 +68,11 @@ export default class ModeratorManager extends BaseManager {
 			dialogueId: this.client.id,
 			userId
 		}).then(res => {
-			if (res && this.cache.has(userId)) {
+			if (!res.includes(userId) && this.cache.has(userId)) {
 				this.cache.delete(userId);
 			}
-			return res
+			this.client._patch({ admins: res });
+			return !this.cache.has(userId)
 		})
 	}
 }

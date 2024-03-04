@@ -37,7 +37,8 @@ export default class Group extends Dialogue {
 		for (let key in data) {
 			switch (key) {
 			case 'admins':
-				for (let userId of data[key]) {
+				if (typeof data[key] != 'object' || typeof data[key][Symbol.iterator] != 'function') break;
+				for (let userId of data[key].filter(userId => !this.moderators.cache.has(userId))) {
 					this.moderators.cache.set(userId, new Member({ id: userId }, this));
 				}
 				break;
@@ -50,7 +51,7 @@ export default class Group extends Dialogue {
 				this[key] = data[key];
 				break;
 			case 'founder':
-				this.founderId = data[key].id;
+				this.founderId = typeof data[key] ? data[key].id : data[key];
 				break;
 			case 'mood':
 				this[key] ||= {};
@@ -158,20 +159,22 @@ export default class Group extends Dialogue {
 	/**
 	 * Set the info for the group chat
 	 * @param {string} [options]
-	 * @param {Set|Array} [options.categories]
-	 * @param {string} [options.filters]
-	 * @param {string} [options.historyLength]
+	 * @param {Array<string>} [options.blockedWords]
+	 * @param {Array<string>} [options.categories]
+	 * @param {Array<string>} [options.filters]
+	 * @param {number} [options.historyLength]
 	 * @param {number} [options.minKarma]
-	 * @param {string} [options.setup]
+	 * @param {Array<string>} [options.setup]
 	 * @returns {Promise<Group>}
 	 */
-	async setInfo({ categories, filters, historyLength, minKarma, setup } = {}) {
+	async setInfo({ blockedWords, categories, filters, historyLength, minKarma, setup } = {}) {
 		if (!this.manageable) {
 			throw new Error("You must be the founder to perform this action.");
 		}
 		return this.client.requests.post("functions/v2:chat.mod.setInfo", {
 			dialogueId: this.id,
 			categories: Array.from(categories || this.categories || []),
+			customBlockedWords: Array.from(blockedWords || this.options.customBlockedWords || []).join(','),
 			filters: Array.from(filters || this.options.filters || []),
 			historyLength: historyLength ?? this.options.historyLength,
 			minKarma: minKarma ?? this.minKarma,

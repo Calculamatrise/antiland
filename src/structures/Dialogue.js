@@ -1,9 +1,12 @@
 import BaseStructure from "./BaseStructure.js";
+import ChannelFlagsBitField from "../utils/ChannelFlagsBitField.js";
 import MessageManager from "../managers/MessageManager.js";
 import Message from "./Message.js";
 import User from "./User.js";
+import ChatFlags from "../utils/ChannelFlags.js";
 
 export default class Dialogue extends BaseStructure {
+	flags = new ChannelFlagsBitField();
 	messages = new MessageManager(this);
 	constructor(data, options, isGroup) {
 		if (data instanceof Object && options instanceof Object && options.hasOwnProperty('client')) {
@@ -15,7 +18,10 @@ export default class Dialogue extends BaseStructure {
 			}
 		}
 		super(...arguments, true);
-		Object.defineProperty(this, isGroup ? 'founder' : 'friend', { value: null, writable: true });
+		Object.defineProperties(this, {
+			[isGroup ? 'founder' : 'friend']: { value: null, writable: true },
+			lastMessage: { value: null, writable: true }
+		});
 		isGroup || this._patch(data);
 		this.id !== null && this.hasOwnProperty('client') && this.client.dialogues.cache.set(this.id, this)
 	}
@@ -31,18 +37,19 @@ export default class Dialogue extends BaseStructure {
 			case 'channelId':
 				this.id ??= data[key];
 			case 'badgeColor':
-			case 'flags':
 			case 'founderId':
 			case 'friendId':
-			case 'lastMessage':
 			case 'name':
 			case 'subType':
 			case 'title':
 				this[key] = data[key];
 				break;
+			case 'flags':
+				this[key].bitfield = data[key];
+				break;
 			case 'founder':
 			case 'friend':
-				this._patch({ [key + 'Id']: typeof data[key] == 'object' ? data[key] : data[key] });
+				this._patch({ [key + 'Id']: typeof data[key] == 'object' ? data[key].id : data[key] });
 				if (this[key] !== null) break;
 				Object.defineProperty(this, key, { value: new User(data[key], this), writable: false })
 				break;

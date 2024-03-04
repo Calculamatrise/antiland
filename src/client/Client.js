@@ -18,7 +18,7 @@ export default class Client extends BaseClient {
 	 * @param {boolean} [options.force]
 	 * @returns {Promise<object>}
 	 */
-	fetchPurchases({ force } = {}) {
+	async fetchPurchases({ force } = {}) {
 		if (!force && this.iaps) {
 			return this.iaps;
 		}
