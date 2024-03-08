@@ -87,6 +87,7 @@ export default class extends EventEmitter {
 			throw new Error("Session token not found!");
 		}
 		this.emit('reconnecting');
+		!this.#pubnub && this.#reconnectAttempts === this.maxReconnectAttempts - 1 && this.#fallback && (this.#pubnub = true);
 		return this.login(config._SessionToken)
 	}
 
