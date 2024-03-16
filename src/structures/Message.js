@@ -70,17 +70,16 @@ export default class Message extends BaseStructure {
 				this.likes = data[key];
 				break;
 			case 'media':
-				let media = data[key];
-				this.media = {}
-				for (let key in media) {
-					switch (key) {
+				this[key] ||= {};
+				for (let prop in data[key]) {
+					switch (prop) {
 					case 'source':
 					case 'url':
-						this.media.url = media[key];
+						this[key].url = data[key][prop];
 						break;
 					case 'thumb':
 					case 'thumbUrl':
-						this.media.thumb = media[key];
+						this[key].thumb = data[key][prop];
 					}
 				}
 				break;
@@ -90,7 +89,12 @@ export default class Message extends BaseStructure {
 				this.dialogue !== null && Object.defineProperty(this, 'reference', { value: new Message({ id: data[key] }, this.dialogue), writable: false });
 				break;
 			case 'sender':
-				this.author = new User(data[key], this);
+				let user = new User(data[key], this);
+				if (this.author.id !== null && this.author.id !== user.id) {
+					this.lovers.cache.set(user.id, user);
+					break;
+				}
+				this.author = user;
 				break;
 			case 'senderId':
 				let author = this.client.users.cache.get(data[key]);
@@ -155,7 +159,7 @@ export default class Message extends BaseStructure {
 	 * @param {boolean} [force]
 	 * @returns {Promise<this>}
 	 */
-	fetch(force) {
+	async fetch(force) {
 		if (!force && !Object.values(this).includes(null)) {
 			return this;
 		}
