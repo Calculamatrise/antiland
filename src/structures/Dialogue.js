@@ -100,12 +100,6 @@ export default class Dialogue extends BaseStructure {
 		})
 	}
 
-	ping() {
-		return this.client.requests.post("functions/v2:chat.presence.ping", {
-			dialogueId: this.id
-		})
-	}
-
 	rating() {
 		return this.client.requests.post("functions/v2:chat.rating", {
 			dialogueId: this.id
@@ -117,9 +111,10 @@ export default class Dialogue extends BaseStructure {
 	 * @param {string|object} content
 	 * @param {object} [options]
 	 * @param {Iterable<object>} [options.attachments]
+	 * @param {boolean} [options.prependReference] whether to quote the reference message in your message
 	 * @param {Message|string} [options.reference]
 	 */
-	send(content, { attachments, reference } = {}) {
+	send(content, { attachments, prependReference, reference } = {}) {
 		if (typeof content == 'object' && content !== null) {
 			return this.send(content.content, content);
 		} else if (!content) {
@@ -130,10 +125,11 @@ export default class Dialogue extends BaseStructure {
 		return this.client.requests.post("functions/v2:chat.message.sendText", Object.assign({
 			dialogueId: this.id,
 			text: content
-		}, reference ? {
-			replyToId: reference.id,
-			text: '>>> ' + reference.content?.replace(/^(?=>).+\n/, '').replace(/(.{36})..+/, "$1…") + '\n' + content
-		} : null)).then(data => {
+		}, reference && Object.assign({
+			replyToId: reference.id
+		}, prependReference && typeof reference.content == 'string' && {
+			text: '>>> ' + reference.content.replace(/^(?=>).+\n/, '').replace(/^(.{40})(.|\n)+/, "$1…") + '\n' + content
+		}))).then(data => {
 			if (data.flags === 3) {
 				throw new Error(data.text);
 			} else if (data && attachments && attachments.length > 0) {

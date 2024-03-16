@@ -97,18 +97,19 @@ export default class DialogueManager extends BaseManager {
 	 * @param {string} content
 	 * @param {object} [options]
 	 * @param {Iterable} [options.attachments]
+	 * @param {boolean} [options.prependReference] whether to quote the reference message in your message
 	 * @param {object} [options.reference]
 	 * @param {string} [options.referenceId]
 	 * @returns {Promise<object>}
 	 */
-	send(dialogueId, content, { attachments, reference, referenceId } = {}) {
+	send(dialogueId, content, { attachments, prependReference, reference, referenceId } = {}) {
 		referenceId && (reference = Object.assign({}, reference, { id: referenceId }));
 		return this.client.requests.post("functions/v2:chat.message.sendText", Object.assign({
 			dialogueId,
 			text: content
 		}, reference && Object.assign({
 			replyToId: reference.id
-		}, typeof reference.content == 'string' && {
+		}, prependReference && typeof reference.content == 'string' && {
 			text: '>>> ' + reference.content.replace(/^(?=>).+\n/, '').replace(/^(.{40})(.|\n)+/, "$1…") + '\n' + content
 		}))).then(async data => {
 			if (data.flags === 3) {

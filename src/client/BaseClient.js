@@ -217,7 +217,7 @@ export default class extends EventEmitter {
 					return this.emit('channelMemberAdd', data.dialogue, data.sender || data);
 				case 'karmatask.event.progress':
 					switch(data.body.task.id.toLowerCase()) {
-					case 'karmatask.dailyBonus':
+					case 'karmatask.dailybonus':
 						console.log(data.body.task.reward);
 						return this.emit('taskComplete', data.body.task);
 					default:

@@ -47,11 +47,12 @@ export default class Message extends BaseStructure {
 				if (typeof data[key] == 'object') {
 					if (this.dialogue instanceof Dialogue) {
 						this.dialogue._patch(data[key]);
-						break;
 					} else if (data[key] instanceof Dialogue) {
 						Object.defineProperty(this, key, { value: data[key], writable: false });
+					} else {
+						Object.defineProperty(this, key, { value: new Dialogue(data[key], this), writable: false });
 					}
-					Object.defineProperty(this, key, { value: new Dialogue(data[key], this), writable: false });
+					this.dialogueId === null && this.dialogue.id && (this.dialogueId = this.dialogue.id);
 					break;
 				}
 			case 'dialogueId':
@@ -179,14 +180,15 @@ export default class Message extends BaseStructure {
 	 * @param {string} content
 	 * @param {object} [options]
 	 * @param {Iterable} [options.attachments]
+	 * @param {boolean} [options.prependReference] whether to quote the reference message in your message
 	 * @returns {Promise<Message>}
 	 */
-	async reply({ attachments, content } = {}) {
+	async reply({ attachments, content, prependReference } = {}) {
 		if (typeof arguments[0] != 'object') return this.reply(Object.assign(...Array.prototype.slice.call(arguments, 1), { content: arguments[0] }));
 		return this.client.requests.post("functions/v2:chat.message.sendText", {
 			dialogueId: this.dialogueId,
 			replyToId: this.id,
-			text: '>>> ' + this.content.replace(/^(?=>).+\n/, '').replace(/^(.{40})(.|\n)+/, "$1…") + '\n' + content
+			text: (prependReference ? '>>> ' + this.content.replace(/^(?=>).+\n/, '').replace(/^(.{40})(.|\n)+/, "$1…") + '\n' : '') + content
 		}).then(data => {
 			if (data.flags === 3) {
 				throw new Error(data.text);

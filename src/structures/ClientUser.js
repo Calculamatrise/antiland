@@ -3,6 +3,7 @@ import ClientFriendManager from "../managers/ClientFriendManager.js";
 import ClientStickerManager from "../managers/ClientStickerManager.js";
 import ContactManager from "../managers/ContactManager.js";
 import FavoriteManager from "../managers/FavoriteManager.js";
+import PresenceManager from "../managers/PresenceManager.js";
 import TaskManager from "../managers/TaskManager.js";
 
 export default class ClientUser extends User {
@@ -14,6 +15,7 @@ export default class ClientUser extends User {
 	friends = new ClientFriendManager(this);
 	hexAccentColor = null;
 	messages = new Map(); // private message manager
+	presence = new PresenceManager(this);
 	// settings = {}; /* add user settings, content settings,
 	// security settings, minkarma, etc.?? */
 	stickers = new ClientStickerManager(this);
