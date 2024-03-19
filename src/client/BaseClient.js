@@ -218,7 +218,7 @@ export default class extends EventEmitter {
 				case 'karmatask.event.progress':
 					switch(data.body.task.id.toLowerCase()) {
 					case 'karmatask.dailybonus':
-						console.log(data.body.task.reward);
+						this.user.karma += data.body.task.reward.currencyReward?.price?.karma | 0;
 						return this.emit('taskComplete', data.body.task);
 					default:
 						console.warn('unknown karma task', data.body);

@@ -66,9 +66,10 @@ export default class MessageManager extends BaseManager {
 	 * @param {number} [options.max]
 	 * @param {number} [options.maxProcessed]
 	 * @param {number} [options.time]
+	 * @param {function} [callback]
 	 * @returns {Promise<Map<string, Message>>}
 	 */
-	await({ errors, filter, idle, max, maxProcessed, time } = {}) {
+	await({ errors, filter, idle, max, maxProcessed, time } = {}, callback) {
 		let counter = 0;
 		let processedCounter = 0;
 		let messages = new Map();
@@ -92,13 +93,14 @@ export default class MessageManager extends BaseManager {
 				if (!checkFilter) {
 					idle && idleTimeout.refresh();
 					messages.set(message.id, message);
+					typeof callback == 'function' && callback(message) !== void 0 && (this.client.client.off('messageCreate', listener),
+					resolve(messages));
 					if (++processedCounter >= maxProcessed) {
 						this.client.client.off('messageCreate', listener);
 						if (errors && errors.includes('max')) {
 							reject(messages);
 						}
-						resolve(messages);
-						return;
+						return resolve(messages)
 					}
 				}
 
@@ -107,8 +109,7 @@ export default class MessageManager extends BaseManager {
 					if (errors && errors.includes('max')) {
 						reject(messages);
 					}
-					resolve(messages);
-					return;
+					return resolve(messages)
 				}
 			}
 
@@ -118,7 +119,7 @@ export default class MessageManager extends BaseManager {
 				timeout && clearTimeout(timeout);
 				idleTimeout && clearTimeout(idleTimeout);
 				this.client.client.off('removeListener', removeListener);
-				resolve()
+				resolve(messages)
 			}
 
 			this.client.client.on('removeListener', removeListener)
