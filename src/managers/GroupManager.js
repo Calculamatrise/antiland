@@ -53,7 +53,7 @@ export default class GroupManager extends DialogueManager {
 				groups[item] = entry;
 			}
 			return groups
-		});
+		})
 	}
 
 	/**

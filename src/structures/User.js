@@ -54,7 +54,11 @@ export default class User extends BaseStructure {
 				this[key] = data[key];
 				break;
 			case 'artifacts':
-				this[key] ||= data[key];
+				if (this[key] instanceof Object) {
+					Object.assign(this[key], data[key]);
+					break;
+				}
+				this[key] = data[key];
 				break;
 			case 'avatar': // https://gfx.antiland.com/avatars/8
 			case 'mood':
@@ -115,17 +119,17 @@ export default class User extends BaseStructure {
 				Object.defineProperty(this, key, { value: data[key], writable: false });
 				break;
 			case 'interests':
-				this.interests ||= {};
+				this[key] ||= {};
 				for (let interest in data[key]) {
 					switch (interest) {
 					case 'allow':
 					case 'categories':
-						this.interests.categories = new Set(Array.isArray(data[key][interest]) ? data[key][interest] : data[key][interest].allow);
+						this[key].categories = new Set(Array.isArray(data[key][interest]) ? data[key][interest] : data[key][interest].allow);
 						break;
 					case 'deny':
 						break;
 					default:
-						this.interests[interest] = data[key][interest];
+						this[key][interest] = data[key][interest];
 					}
 				}
 				break;

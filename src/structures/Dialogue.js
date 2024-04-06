@@ -131,13 +131,14 @@ export default class Dialogue extends BaseStructure {
 			text: '>>> ' + reference.content.replace(/^(?=>).+\n/, '').replace(/^(.{40})(.|\n)+/, "$1…") + '\n' + content
 		}))).then(data => {
 			if (data.flags === 3) {
-				throw new Error(data.text);
+				throw new Error(data.text); // ephemeral response
 			} else if (data && attachments && attachments.length > 0) {
 				return Promise.all(attachments.map(attachment => {
 					return this.sendMedia(attachment.url)
 				})).then(results => results.concat(data))
 			}
-			return data
+			this.client._handleMessage(data);
+			return data // this.client._handleMessage(data)
 		})
 	}
 

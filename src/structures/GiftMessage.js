@@ -4,11 +4,10 @@ import User from "./User.js";
 
 export default class GiftMessage extends BaseStructure {
 	artifactName = null;
-	author = new User(null, this);
-	avatar = { id: 2002 };
 	content = null;
 	dialogueId = null;
-	victim = new User(null, this);
+	receiverId = null;
+	senderId = null;
 	get iconId() {
 		return this.constructor.icon(this.artifactName)
 	}
@@ -24,8 +23,10 @@ export default class GiftMessage extends BaseStructure {
 		}
 		super(...arguments, true);
 		Object.defineProperties(this, {
-			avatar: { enumerable: false, writable: false },
-			dialogue: { value: null, writable: true }
+			avatar: { value: { id: 2002 }},
+			dialogue: { value: null, writable: true },
+			receiver: { value: null, writable: true },
+			sender: { value: null, writable: true }
 		});
 		this._patch(data);
 		this.id !== null && dialogue.messages.cache.set(this.id, this)
@@ -34,7 +35,6 @@ export default class GiftMessage extends BaseStructure {
 	_patch(data) {
 		if (typeof data != 'object' || data == null) return;
 		super._patch(...arguments);
-		data = this.constructor.convert(data);
 		for (let key in data) {
 			switch (key) {
 			case 'dialogue':
@@ -42,8 +42,7 @@ export default class GiftMessage extends BaseStructure {
 					if (this.dialogue instanceof Dialogue) {
 						this.dialogue._patch(data[key]);
 						break;
-					}
-					if (this[key] !== null) break;
+					} else if (this[key] !== null) break;
 					Object.defineProperty(this, key, { value: new Dialogue(data[key], this), writable: false })
 					break;
 				}
@@ -58,19 +57,24 @@ export default class GiftMessage extends BaseStructure {
 			// case 'color':
 			case 'hexColor':
 				this.color = parseInt(data[key].replace(/^#/, ''), 16);
-				this.author.color = this.color;
 				this[key] = data[key];
-			case 'blessed':
-				this.author._patch({ [key]: data[key] });
-				break;
 			case 'karma':
 				this[key] = data[key];
+				// this.receiver !== null && this.receiver.patch({ [key]: this.receiver[key] + this[key] });
 				break;
 			case 'receiver':
-				this.victim = new User(data[key], this);
+				this[key] = data[key] instanceof User ? data[key] : new User(data[key], this);
+				break;
+			case 'receiverId':
+				this[key] = data[key];
+				this.receiver === null && (this.receiver = new User({ id: this[key] }));
 				break;
 			case 'sender':
-				this.author = new User(data[key], this);
+				this[key] = data[key] instanceof User ? data[key] : new User(data[key], this);
+				break;
+			case 'senderId':
+				this[key] = data[key];
+				this.sender === null && (this.sender = new User({ id: this[key] }));
 				break;
 			case 'message':
 			case 'text':
@@ -86,67 +90,6 @@ export default class GiftMessage extends BaseStructure {
 
 	iconURL() {
 		return "https://www.antiland.com/chat/gift_" + (this.artifactName ?? 'empty') + "." + this.iconId + ".png"
-	}
-
-	static convert(data) {
-		if (typeof data != 'object' || data == null) return;
-		typeof data.receiver == 'string' && (data.receiver = { id: data.receiver });
-		typeof data.sender == 'string' && (data.sender = { id: data.sender });
-		for (let key in data) {
-			switch (key) {
-			case 'giftSenderId':
-				data.sender ||= {};
-				data.sender.id = data[key];
-				break;
-			case 'receiverId':
-				data.receiver ||= {};
-				data.receiver.id = data[key];
-				break;
-			case 'receiverAcc':
-				data.receiver ||= {};
-				data.receiver.accessories = data[key];
-				break;
-			case 'receiverAva':
-				data.receiver ||= {};
-				data.receiver.avatar = data[key];
-				break;
-			case 'receiverBlessed':
-				data.receiver ||= {};
-				data.receiver.blessed = data[key];
-				break;
-			case 'receiverName':
-				data.receiver ||= {};
-				data.receiver.profileName = data[key];
-				break;
-			case 'senderId':
-				data.sender ||= {};
-				data.sender.accessories = data[key];
-				break;
-			case 'senderAcc':
-				data.sender ||= {};
-				data.sender.accessories = data[key];
-				break;
-			case 'senderAva':
-				data.sender ||= {};
-				data.sender.avatar = data[key];
-				break;
-			case 'senderBlessed':
-				data.sender ||= {};
-				data.sender.blessed = data[key];
-				break;
-			case 'senderName':
-				data.sender ||= {};
-				data.sender.profileName = data[key];
-				break;
-			case 'sendersName':
-				data.title = data[key];
-				break;
-			default:
-				continue
-			}
-			delete data[key]
-		}
-		return data
 	}
 
 	static icon(artifactName) {

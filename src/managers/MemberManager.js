@@ -78,7 +78,7 @@ export default class MemberManager extends BaseManager {
 	 * @param {string} [options.reason]
 	 * @returns {Promise<object>}
 	 */
-	async ban(userId, { force, messageId, reason = "No reason provided." } = {}) {
+	async ban(userId, { force, messageId = 'null', reason = "No reason provided." } = {}) {
 		if (!this.manageable) {
 			throw new Error("Insufficient privileges.");
 		} else if (!force && this.client.bans.cache.has(userId)) {
@@ -89,17 +89,22 @@ export default class MemberManager extends BaseManager {
 			message: messageId,
 			reason,
 			userId
-		}).then(res => {
+		}).then(async res => {
 			if (res.banned) {
 				let createdAt = new Date();
-				let endsAt = new Date(typeof res.info.endsAt == 'object' ? res.info.endsAt.iso : res.info.endsAt);
+				let destroyedAt = new Date(typeof res.info.endsAt == 'object' ? res.info.endsAt.iso : res.info.endsAt);
+				delete res.info.endsAt;
 				Object.defineProperties(res.info, {
+					admin: { value: this.client.client.user },
+					adminId: { value: this.client.client.user.id },
 					createdAt: { value: createdAt },
 					createdTimestamp: { value: createdAt.getTime() },
 					dialogue: { enumerable: false, value: this.client, writable: false },
 					dialogueId: { enumerable: true, value: res.info.dialogue, writable: true },
-					endsAt: { value: endsAt },
-					endsTimestamp: { value: endsAt.getTime() }
+					expiresAt: { value: destroyedAt },
+					expiresTimestamp: { value: destroyedAt.getTime() },
+					receiver: { value: await this.client.client.users.fetch(userId) },
+					receiverId: { enumerable: true, value: userId }
 				});
 			}
 			return res.banned && (this.client.bans.cache.set(userId, res.info),

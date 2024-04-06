@@ -1,4 +1,5 @@
 import BaseManager from "./BaseManager.js";
+import GiftMessage from "../structures/GiftMessage.js";
 import Message from "../structures/Message.js";
 
 export default class MessageManager extends BaseManager {
@@ -39,17 +40,19 @@ export default class MessageManager extends BaseManager {
 				__type: 'Date',
 				iso: since.toISOString()
 			}
-		})).then(async data => {
+		})).then(async ({ messages }) => {
 			if (id) {
-				let message = data.messages.find(message => message.id == id);
-				if (message) {
-					let entry = new Message(message, this.client);
+				let data = messages.find(data => data.id == id);
+				if (data) {
+					await this.client.client.preprocessMessage(data, { channelId: this.client.id });
+					data.giftname && console.log(data)
+					let entry = new Message(data, this.client);
 					cache && this.cache.set(entry.id, entry);
 					return entry;
 				}
 				return null;
 			}
-			for (let item of data.messages.reverse()) {
+			for (let item of messages.reverse()) {
 				let entry = new Message(item, this.client);
 				this.cache.set(entry.id, entry);
 			}

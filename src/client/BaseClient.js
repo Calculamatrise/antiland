@@ -139,7 +139,7 @@ export default class extends EventEmitter {
 		case Opcodes.MESSAGE:
 			this.emit('raw', payload);
 			for (let message of payload.messages) {
-				this.#handleMessage(message, payload).catch(err => {
+				this._handleMessage(message, payload).catch(err => {
 					if (this.listenerCount('error') > 0) {
 						this.emit('error', err);
 					} else {
@@ -189,132 +189,109 @@ export default class extends EventEmitter {
 		}
 	}
 
-	async #handleMessage(data, { channelId }) {
-		if (channelId == this.user.channelId) {
-			data.hasOwnProperty('blocked') && (data.type = 'blocked');
-			if (data.hasOwnProperty('blocked')) {
-				let userId = (data.by || this.user.id) ?? null;
-				let user = (userId && this.users.cache.get(userId) || await this.users.fetch(userId)) ?? null;
-				Object.defineProperty(data, 'userId', { enumerable: true, value: userId, writable: userId === null });
-				Object.defineProperty(data, 'user', { enumerable: false, value: user, writable: user === null });
-				let receiverId = (data.whom || this.user.id) ?? null;
-				let receiver = (receiverId && this.users.cache.get(receiverId) || await this.users.fetch(receiverId)) ?? null;
-				Object.defineProperty(data, 'receiverId', { enumerable: true, value: receiverId, writable: receiverId === null });
-				Object.defineProperty(data, 'receiver', { enumerable: false, value: receiver, writable: receiver === null });
-				if (data.receiverId === this.user.id) {
-					this.user.blockedBy[data.blocked ? 'add' : 'delete'](data.userId);
-					this.emit((data.blocked ? '' : 'un') + 'blocked', data.user)  // relationshipUpdate?
-				} else {
-					this.user.contacts.blocked[data.blocked ? 'add' : 'delete'](data.receiverId);
-					this.emit('user' + (data.blocked ? 'B' : 'Unb') + 'locked', data.receiver)
-				}
-				return
-			} else if (typeof data.type == 'string') {
-				data.hasOwnProperty('dialogueId') && Object.defineProperty(data, 'dialogue', { enumerable: false, value: await this.dialogues.fetch(data.dialogueId), writable: false });
-				data.hasOwnProperty('senderId') && Object.defineProperty(data, 'sender', { enumerable: false, value: await this.users.fetch(data.senderId), writable: false });
-				switch(data.type.toLowerCase()) {
-				case 'join_notification':
-					return this.emit('channelMemberAdd', data.dialogue, data.sender || data);
-				case 'karmatask.event.progress':
-					switch(data.body.task.id.toLowerCase()) {
-					case 'karmatask.dailybonus':
-						this.user.karma += data.body.task.reward.currencyReward?.price?.karma | 0;
-						return this.emit('taskComplete', data.body.task);
-					default:
-						console.warn('unknown karma task', data.body);
-						return this.emit('debug', { data: data.body, type: 'UNKNOWN_KARMA_TASK' })
-					}
-				case 'mate.event.request':
-					let entry = new FriendRequest(data, this.user.friends);
-					this.user.friends.pending.incoming.set(entry.id, entry);
-					return this.emit('friendRequest', entry);
-				case 'message_like':
-					// this.emit('clientMessageLiked');
-					break;
-				case 'private_notification':
-					if (data.hasOwnProperty('message') && data.hasOwnProperty('objectId')) {
-						break;
-					}
-					data.hasOwnProperty('gift') && this.emit('giftReceived', data);
-					this.emit('notification', data);
-					return;
-				default:
-					// if (data.hasOwnProperty())
-					console.warn('unknown private notification', data);
-					return this.emit('debug', { data, type: 'UNKNOWN_MESSAGE' })
-				}
-			}
-		}
-
-		let dialogueId = ((typeof data.dialogue == 'object' ? data.dialogue.id : data.dialogue) || data.dialogueId || data.did || data.deleteChat || (channelId !== this.user.channelId && channelId)) ?? null;
-		let dialogue = (dialogueId && (this.dialogues.cache.get(dialogueId) || await this.dialogues.fetch(dialogueId).then(async dialogue => {
-			/^(group|public)$/i.test(dialogue.type) && await dialogue.members.fetchActive();
-			// await dialogue.members.fetch(); // fetch active members only?? // make sure type is group
-			return dialogue
-		}).catch(err => {
+	async _handleMessage(data) {
+		await this.preprocessMessage(...arguments).catch(err => {
+			console.log('errored', data);
 			if (this.listenerCount('error') > 0) {
 				this.emit('error', err);
 			} else {
 				throw err
 			}
-		}))) ?? null;
-		if (!dialogue) {
+		});
+		if (data.isPrivate) {
+			switch(data.type) {
+			case MessageTypes.BLOCKED_BY:
+				this.user.blockedBy.add(data.senderId);
+				this.emit('blocked', data.sender)  // relationshipUpdate? // clientBlocked
+				return;
+			case MessageTypes.BLOCKED_WHOM:
+				this.user.contacts.blocked.add(data.receiverId);
+				this.emit('userBlocked', data.receiver)  // relationshipUpdate? // blocked
+				return;
+			case MessageTypes.CHANNEL_MEMBER_ADD:
+				return this.emit('channelMemberAdd', data);
+			case MessageTypes.KARMA_TASK_PROGRESS:
+				switch(data.body.task.id.toLowerCase()) {
+				case 'karmatask.dailybonus':
+					this.user.karma += data.body.task.reward.currencyReward?.price?.karma | 0;
+					return this.emit('taskComplete', data.body.task);
+				default:
+					console.warn('unknown karma task', data.body);
+					return this.emit('debug', { data: data.body, type: 'UNKNOWN_KARMA_TASK' })
+				}
+			case MessageTypes.FRIEND_REQUEST_CREATE:
+				let entry = new FriendRequest(data, this.user.friends);
+				this.user.friends.pending.incoming.set(entry.id, entry);
+				return this.emit('friendRequest', entry);
+			case MessageTypes.MESSAGE_LIKE:
+				// this.emit('clientMessageLiked');
+				break;
+			case MessageTypes.PRIVATE_NOTIFICATION:
+				if (data.hasOwnProperty('message') && data.hasOwnProperty('objectId')) {
+					data.type = MessageTypes.PRIVATE_MESSAGE;
+					break;
+				}
+				data.hasOwnProperty('gift') && this.emit('giftReceived', data);
+				this.emit('notification', data);
+				return;
+			case MessageTypes.UNBLOCKED_BY:
+				this.user.blockedBy.remove(data.senderId);
+				this.emit('unblocked', data.sender)  // relationshipUpdate? // clientBlocked
+				return;
+			case MessageTypes.UNBLOCKED_WHOM:
+				this.user.contacts.blocked.remove(data.receiverId);
+				this.emit('userUnblocked', data.receiver)  // relationshipUpdate? // blocked
+				return;
+			default:
+				// if (data.hasOwnProperty())
+				console.warn('unknown private notification', data);
+				return this.emit('debug', { data, type: 'UNKNOWN_MESSAGE' })
+			}
+		}
+		if (!data.dialogue) {
 			console.warn("Dialogue not found:", data);
 			return
 		} else if (data.deleteChat) {
-			this.emit('channelBanAdd', dialogue);
+			this.emit('channelBanAdd', data.dialogue);
 			return
 		}
-		Object.defineProperty(data, 'dialogue', { enumerable: false, value: dialogue, writable: dialogue === null });
-		Object.defineProperty(data, 'dialogueId', { enumerable: true, value: dialogueId, writable: dialogueId === null });
-		if (data.giftname || data.giftName) {
-			let message = new GiftMessage(data, dialogue);
+		if (data.type === MessageTypes.GIFT_MESSAGE || data.giftname || data.giftName) {
+			let message = new GiftMessage(data, data.dialogue);
 			this.emit('messageCreate', message);
-			if (message.victim.id == this.user.id) {
-				this.emit('giftMessageCreate', message);
-			}
+			message.receiverId == this.user.id && this.emit('giftMessageCreate', message);
 			return
 		}
-		let senderId = ((typeof data.sender == 'object' ? data.sender.id : data.sender) || data.senderId) ?? null;
-		let sender = (senderId && (this.users.cache.get(senderId) || await this.users.fetch(senderId).catch(err => {
-			console.warn('sender not found???', senderId, data)
-			if (this.listenerCount('error') > 0) {
-				this.emit('error', err);
-			}
-			return null
-		}))) ?? null;
-		Object.defineProperty(data, 'sender', { enumerable: false, value: sender, writable: sender === null });
-		Object.defineProperty(data, 'senderId', { enumerable: true, value: senderId, writable: senderId === null });
 		// check if message id is present to see if an action occurred on a message
-		let messageId = ((typeof data.message == 'object' ? data.message.id : !data.receiver && data.message || data.objectId) || data.messageId || data.mid) ?? null;
-		if (messageId !== null && (!data.createdAt || data.createdAt <= this.constructor.lastMessageTimestamp.get(dialogueId))) {
-			let message = (messageId && (dialogue.messages.cache.get(messageId) || await dialogue.messages.fetch(messageId)) || (data.update && new Message(data, dialogue))) ?? null;
-			data.update && message && message._patch(data, true);
-			Object.defineProperty(data, 'message', { enumerable: false, value: message, writable: message === null });
-			Object.defineProperty(data, 'messageId', { enumerable: true, value: messageId, writable: messageId === null });
-			if (data.update) {
-				message && message._patch({ updatedAt: data.createdAt });
-				this.emit('messageUpdate', message);
-				if (message.originalContent !== message.content && /^\*{5}$/.test(message.content)) {
-					this.emit('messageDelete', message);
-					dialogue.messages.cache.delete(message.id);
-				}
-			} else if (/^message_like$/i.test(data.type)) {
-				message && message._patch(data, true);
-				let admirerId = ((typeof data.liker == 'object' ? data.liker.id : data.liker) || data.likerId) ?? null;
-				let admirer = (admirerId && (this.users.cache.get(admirerId) || await this.users.fetch(admirerId))) ?? null;
-				Object.defineProperty(data, 'admirer', { enumerable: false, value: admirer, writable: admirer === null });
-				Object.defineProperty(data, 'admirerId', { enumerable: true, value: admirerId, writable: admirerId === null });
+		if (data.messageId !== null && (!data.createdAt || data.createdAt <= this.constructor.lastMessageTimestamp.get(data.dialogueId))) {
+			data.update && data.message && data.message._patch(data, true);
+			switch(data.type) {
+			case MessageTypes.MESSAGE:
+			case MessageTypes.PRIVATE_MESSAGE:
+				break;
+			case MessageTypes.MESSAGE_LIKE:
+				data.message && data.message._patch(data, true);
 				this.emit('messageReactionAdd', data);
-			} else if (data.hasOwnProperty('type')) {
-				console.warn('unrecognized action', data)
+				return;
+			case MessageTypes.MESSAGE_DELETE:
+				let temp = data.message || new Message(data, data.dialogue);
+				temp._patch({ updatedAt: data.createdAt });
+				data.dialogue.messages.cache.delete(temp.id);
+				this.emit('messageDelete', temp);
+				return;
+			case MessageTypes.MESSAGE_UPDATE:
+				temp = data.message || new Message(data, data.dialogue);
+				temp._patch({ updatedAt: data.createdAt });
+				this.emit('messageUpdate', temp);
+				return;
+			default:
+				console.warn('unrecognized action', data);
+				return;
 			}
-			return
 		}
-		let message = new Message(data, dialogue);
-		if (this.constructor.sharedGroups.has(dialogueId) && this.constructor.lastMessageId.get(dialogueId) === message.id) return;
-		this.constructor.lastMessageTimestamp.set(dialogueId, message.createdTimestamp);
-		this.constructor.lastMessageId.set(dialogue.id, message.id);
+		let message = new Message(data, data.dialogue);
+		if (this.constructor.sharedGroups.has(data.dialogueId) && this.constructor.lastMessageId.get(data.dialogueId) === message.id) return;
+		this.constructor.lastMessageTimestamp.set(data.dialogueId, message.createdTimestamp);
+		this.constructor.lastMessageId.set(data.dialogueId, message.id);
 		let blocked = this.user.contacts.blocked.has(message.author.id);
 		blocked && (message.author.blocked = true);
 		this.emit('messageCreate', message, blocked);
@@ -356,7 +333,7 @@ export default class extends EventEmitter {
 	#parseMessageType(message, channel) {
 		if (channel !== this.user.channelId)
 			return message && "message_like" === message.type ? MessageTypes.LIKE : "profile.emailVerified" === message.type ? MessageTypes.EMAIL_VERIFIED : void 0;
-		return "join_notification" === message.type ? MessageTypes.JOIN : "private_notification" === message.type || message.update || message.giftname ? MessageTypes.PRIVATE : message.whom ? MessageTypes.BLOCKED_WHOM : message.by ? MessageTypes.BLOCKED_BY : "alipay_notification" === message.type ? MessageTypes.ALIPAY : void 0
+		return "join_notification" === message.type ? MessageTypes.JOIN : "private_notification" === message.type || message.update || message.giftname ? MessageTypes.PRIVATE_NOTIFICATION : message.whom ? MessageTypes.BLOCKED_WHOM : message.by ? MessageTypes.BLOCKED_BY : "alipay_notification" === message.type ? MessageTypes.ALIPAY : void 0
 	}
 
 	async login(token, listener) {
@@ -413,5 +390,53 @@ export default class extends EventEmitter {
 				}
 			})
 		})
+	}
+
+	async preprocessMessage(data, { channelId }) {
+		let dialogueId = (data.dialogueId || this.constructor.parseId(data.dialogue) || data.did || data.deleteChat || (channelId !== this.user.channelId && channelId)) || null;
+		let dialogue = (dialogueId !== null && await this.dialogues.fetch(dialogueId)) || null;
+		dialogue !== null && typeof data.dialogue == 'object' && dialogue._patch(data.dialogue);
+		let likerId = (data.likerId || this.constructor.parseId(data.liker)) || null;
+		let liker = (likerId !== null && await this.users.fetch(likerId)) || null;
+		liker !== null && typeof data.liker == 'object' && liker._patch(data.liker);
+		let messageId = (data.messageId || data.objectId || (!data.receiver && this.constructor.parseId(data.message)) || data.mid) || null;
+		dialogue !== null && messageId !== null && messageId !== data.message && (data.text = data.message);
+		let message = (!data.text && dialogue !== null && messageId !== null && messageId !== data.text && await dialogue.messages.fetch(messageId)) || null;
+		message !== null && typeof data.message == 'object' && message._patch(data.message);
+		let receiverId = (data.receiverId || (messageId === null && this.constructor.parseId(data.receiver)) || (data.hasOwnProperty('whom') && (data.whom || this.user.id))) || null;
+		let receiver = (receiverId !== null && await this.users.fetch(receiverId)) || null;
+		receiver !== null && typeof data.receiver == 'object' && (// check for changes ,
+		receiver._patch(data.receiver, /* callback for changed properties? */));
+		let senderId = (data.senderId || this.constructor.parseId(data.sender) || data.sid || (data.hasOwnProperty('by') && (data.by || this.user.id))) || null;
+		let sender = (senderId !== null && await this.users.fetch(senderId)) || null;
+		sender !== null && typeof data.sender == 'object' && (// check for changes ,
+		sender._patch(data.sender, /* callback for changed properties? */));
+		let type = (data.type && data.type.toUpperCase()) || null;
+		type || (data.hasOwnProperty('blocked') && (type = MessageTypes[(data.blocked ? '' : 'UN') + '_' + (data.hasOwnProperty('by') ? 'BY' : 'WHOM')]),
+		data.hasOwnProperty('text') && (type = MessageTypes['MESSAGE' + (data.hasOwnProperty('update') ? ((!message || message.content !== data.text) && /^\*{5}$/.test(data.text) ? '_DELETE' : '_UPDATE') : '')]),
+		data.hasOwnProperty('deleteChat') && (type = MessageTypes.CHANNEL_BAN_CREATE),
+		data.hasOwnProperty('giftname') && (type = MessageTypes.GIFT_MESSAGE));
+		Object.defineProperties(data, Object.assign({
+			dialogue: { enumerable: false, value: dialogue, writable: dialogue !== null },
+			dialogueId: { enumerable: true, value: dialogueId, writable: dialogueId !== null },
+			isPrivate: { value: channelId === this.user.channelId },
+			sender: { enumerable: false, value: sender, writable: sender !== null },
+			senderId: { enumerable: true, value: senderId, writable: senderId !== null },
+			type: { enumerable: true, value: type, writable: type !== null }
+		}, messageId !== null && Object.assign({
+			message: { enumerable: false, value: message, writable: message !== null },
+			messageId: { enumerable: true, value: messageId, writable: messageId !== null }
+		}, type === MessageTypes.MESSAGE_LIKE && {
+			liker: { enumerable: false, value: liker, writable: liker !== null },
+			likerId: { enumerable: true, value: likerId, writable: likerId !== null }
+		}), receiverId !== null && {
+			receiver: { enumerable: false, value: receiver, writable: receiver !== null },
+			receiverId: { enumerable: true, value: receiverId, writable: receiverId !== null },
+		}));
+		return data;
+	}
+
+	static parseId(arbitrary) {
+		return arbitrary instanceof Object ? arbitrary.id : arbitrary;
 	}
 }

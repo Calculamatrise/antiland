@@ -89,17 +89,18 @@ export default class Message extends BaseStructure {
 				this.dialogue !== null && Object.defineProperty(this, 'reference', { value: new Message({ id: data[key] }, this.dialogue), writable: false });
 				break;
 			case 'sender':
-				let user = new User(data[key], this);
-				if (this.author.id !== null && this.author.id !== user.id) {
-					this.lovers.cache.set(user.id, user);
-					break;
-				}
-				this.author = user;
+				let author = data[key] instanceof User ? data[key] : new User(data[key], this);
+				this.author = author;
 				break;
 			case 'senderId':
-				let author = this.client.users.cache.get(data[key]);
-				if (author) {
-					this.author = author;
+				if (/^message_like$/i.test(data.type)) {
+					let liker = new User({ id: data[key] }, this);
+					this.lovers.cache.set(liker.id, liker);
+					break;
+				}
+			case 'messageSenderId':
+				if (this.client.users.cache.has(data[key])) {
+					this.author = this.client.users.cache.get(data[key]);
 					break;
 				}
 				this.author._patch({ id: data[key] });
