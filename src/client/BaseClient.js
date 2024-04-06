@@ -208,8 +208,6 @@ export default class extends EventEmitter {
 				this.user.contacts.blocked.add(data.receiverId);
 				this.emit('userBlocked', data.receiver)  // relationshipUpdate? // blocked
 				return;
-			case MessageTypes.CHANNEL_MEMBER_ADD:
-				return this.emit('channelMemberAdd', data);
 			case MessageTypes.KARMA_TASK_PROGRESS:
 				switch(data.body.task.id.toLowerCase()) {
 				case 'karmatask.dailybonus':
@@ -223,8 +221,9 @@ export default class extends EventEmitter {
 				let entry = new FriendRequest(data, this.user.friends);
 				this.user.friends.pending.incoming.set(entry.id, entry);
 				return this.emit('friendRequest', entry);
+			case MessageTypes.MESSAGE_DELETE:
+			case MessageTypes.MESSAGE_UPDATE:
 			case MessageTypes.MESSAGE_LIKE:
-				// this.emit('clientMessageLiked');
 				break;
 			case MessageTypes.PRIVATE_NOTIFICATION:
 				if (data.hasOwnProperty('message') && data.hasOwnProperty('objectId')) {
@@ -255,7 +254,7 @@ export default class extends EventEmitter {
 			this.emit('channelBanAdd', data.dialogue);
 			return
 		}
-		if (data.type === MessageTypes.GIFT_MESSAGE || data.giftname || data.giftName) {
+		if (data.type === MessageTypes.GIFT_MESSAGE) {
 			let message = new GiftMessage(data, data.dialogue);
 			this.emit('messageCreate', message);
 			message.receiverId == this.user.id && this.emit('giftMessageCreate', message);
@@ -265,6 +264,8 @@ export default class extends EventEmitter {
 		if (data.messageId !== null && (!data.createdAt || data.createdAt <= this.constructor.lastMessageTimestamp.get(data.dialogueId))) {
 			data.update && data.message && data.message._patch(data, true);
 			switch(data.type) {
+			case MessageTypes.CHANNEL_MEMBER_ADD:
+				return this.emit('channelMemberAdd', data);
 			case MessageTypes.MESSAGE:
 			case MessageTypes.PRIVATE_MESSAGE:
 				break;
@@ -399,8 +400,8 @@ export default class extends EventEmitter {
 		let likerId = (data.likerId || this.constructor.parseId(data.liker)) || null;
 		let liker = (likerId !== null && await this.users.fetch(likerId)) || null;
 		liker !== null && typeof data.liker == 'object' && liker._patch(data.liker);
-		let messageId = (data.messageId || data.objectId || (!data.receiver && this.constructor.parseId(data.message)) || data.mid) || null;
-		dialogue !== null && messageId !== null && messageId !== data.message && (data.text = data.message);
+		let messageId = (data.messageId || data.objectId || (!data.receiver && this.constructor.parseId(data.message)) || data.mid || data.id) || null;
+		!data.text && dialogue !== null && messageId !== null && messageId !== data.message && (data.text = data.message);
 		let message = (!data.text && dialogue !== null && messageId !== null && messageId !== data.text && await dialogue.messages.fetch(messageId)) || null;
 		message !== null && typeof data.message == 'object' && message._patch(data.message);
 		let receiverId = (data.receiverId || (messageId === null && this.constructor.parseId(data.receiver)) || (data.hasOwnProperty('whom') && (data.whom || this.user.id))) || null;
@@ -412,25 +413,25 @@ export default class extends EventEmitter {
 		sender !== null && typeof data.sender == 'object' && (// check for changes ,
 		sender._patch(data.sender, /* callback for changed properties? */));
 		let type = (data.type && data.type.toUpperCase()) || null;
-		type || (data.hasOwnProperty('blocked') && (type = MessageTypes[(data.blocked ? '' : 'UN') + '_' + (data.hasOwnProperty('by') ? 'BY' : 'WHOM')]),
+		type || (data.hasOwnProperty('blocked') && (type = MessageTypes[(data.blocked ? '' : 'UN') + 'BLOCKED_' + (data.hasOwnProperty('by') ? 'BY' : 'WHOM')]),
 		data.hasOwnProperty('text') && (type = MessageTypes['MESSAGE' + (data.hasOwnProperty('update') ? ((!message || message.content !== data.text) && /^\*{5}$/.test(data.text) ? '_DELETE' : '_UPDATE') : '')]),
 		data.hasOwnProperty('deleteChat') && (type = MessageTypes.CHANNEL_BAN_CREATE),
 		data.hasOwnProperty('giftname') && (type = MessageTypes.GIFT_MESSAGE));
 		Object.defineProperties(data, Object.assign({
-			dialogue: { enumerable: false, value: dialogue, writable: dialogue !== null },
+			dialogue: { enumerable: true, value: dialogue, writable: dialogue !== null },
 			dialogueId: { enumerable: true, value: dialogueId, writable: dialogueId !== null },
 			isPrivate: { value: channelId === this.user.channelId },
-			sender: { enumerable: false, value: sender, writable: sender !== null },
+			sender: { enumerable: true, value: sender, writable: sender !== null },
 			senderId: { enumerable: true, value: senderId, writable: senderId !== null },
 			type: { enumerable: true, value: type, writable: type !== null }
 		}, messageId !== null && Object.assign({
 			message: { enumerable: false, value: message, writable: message !== null },
 			messageId: { enumerable: true, value: messageId, writable: messageId !== null }
 		}, type === MessageTypes.MESSAGE_LIKE && {
-			liker: { enumerable: false, value: liker, writable: liker !== null },
+			liker: { enumerable: true, value: liker, writable: liker !== null },
 			likerId: { enumerable: true, value: likerId, writable: likerId !== null }
 		}), receiverId !== null && {
-			receiver: { enumerable: false, value: receiver, writable: receiver !== null },
+			receiver: { enumerable: true, value: receiver, writable: receiver !== null },
 			receiverId: { enumerable: true, value: receiverId, writable: receiverId !== null },
 		}));
 		return data;

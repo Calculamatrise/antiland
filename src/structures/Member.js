@@ -5,6 +5,7 @@ export default class Member extends User {
 	position = null;
 	priority = null;
 	constructor(data, dialogue) {
+		if (data instanceof Member) return data;
 		if (data instanceof Object && dialogue instanceof Object && dialogue.hasOwnProperty('messages')) {
 			let id = data.id || data.objectId;
 			let entry = dialogue.members.cache.get(id);

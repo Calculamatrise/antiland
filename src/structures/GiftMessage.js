@@ -13,6 +13,7 @@ export default class GiftMessage extends BaseStructure {
 	}
 
 	constructor(data, dialogue) {
+		if (data instanceof GiftMessage) return data;
 		if (dialogue.hasOwnProperty('messages')) {
 			let id = data.id || data.objectId;
 			let entry = dialogue.messages.cache.get(id);
@@ -43,7 +44,7 @@ export default class GiftMessage extends BaseStructure {
 						this.dialogue._patch(data[key]);
 						break;
 					} else if (this[key] !== null) break;
-					Object.defineProperty(this, key, { value: new Dialogue(data[key], this), writable: false })
+					Object.defineProperty(this, key, { value: data[key] instanceof Dialogue ? data[key] : new Dialogue(data[key], this), writable: false })
 					break;
 				}
 			case 'dialogueId':

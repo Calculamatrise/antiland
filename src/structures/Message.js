@@ -10,6 +10,7 @@ export default class Message extends BaseStructure {
 	lovers = new LoverManager(this);
 	referenceId = null;
 	constructor(data, dialogue) {
+		if (data instanceof Message) return data;
 		if (data instanceof Object && dialogue instanceof Object && dialogue.hasOwnProperty('messages')) {
 			let id = data.id || data.objectId;
 			let entry = dialogue.messages.cache.get(id);
@@ -113,11 +114,11 @@ export default class Message extends BaseStructure {
 				break;
 			case 'message': // [sticker=svd2021:3]
 			case 'text':
-				if (data[key] === this.id) break;
-				this.content !== null && (this.edits === null && Object.defineProperty(this, 'edits', { value: [], writable: false }),
+				if (typeof data[key] != 'string' || data[key] === this.id) break;
+				this.content !== null && (this.originalContent === null && Object.defineProperty(this, 'originalContent', { value: this.content, writable: false }),
+				this.edits === null && Object.defineProperty(this, 'edits', { value: [], writable: false }),
 				this.edits.push(this.content));
-				this.content = data[key];
-				this.originalContent === null && Object.defineProperty(this, 'originalContent', { value: data[key], writable: false })
+				this.content = data[key]
 			}
 		}
 	}

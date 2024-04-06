@@ -13,6 +13,7 @@ export default class Group extends Dialogue {
 	minKarma = null;
 	moderators = new ModeratorManager(this);
 	constructor(data, options) {
+		if (data instanceof Group) return data;
 		if (data instanceof Object && options instanceof Object && options.hasOwnProperty('client')) {
 			let id = data.id || data.objectId;
 			let entry = options.client.groups.cache.get(id);
@@ -38,7 +39,7 @@ export default class Group extends Dialogue {
 			switch (key) {
 			case 'admins':
 				if (typeof data[key] != 'object' || typeof data[key][Symbol.iterator] != 'function') break;
-				for (let userId of data[key].filter(userId => !this.moderators.cache.has(userId))) {
+				for (let userId of Array.from(data[key].values()).filter(userId => !this.moderators.cache.has(userId))) {
 					this.moderators.cache.set(userId, new Member({ id: userId }, this));
 				}
 				break;

@@ -121,8 +121,8 @@ export default class DialogueManager extends BaseManager {
 					}))
 				})
 			}
-			this.client._handleMessage(data);
-			return data // new Message(data, await this.fetch(dialogueId)) // this.client._handleMessage(data)
+			this.client._handleMessage(data, { channelId: dialogueId });
+			return data // new Message(data, await this.fetch(dialogueId)) // this.client._handleMessage(data, { channelId: dialogueId })
 		})
 	}
 

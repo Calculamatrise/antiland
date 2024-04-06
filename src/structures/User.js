@@ -15,6 +15,7 @@ export default class User extends BaseStructure {
 	minKarma = null;
 	username = null;
 	constructor(data, options, isMember) {
+		if (data instanceof User) return data;
 		if (!isMember && data instanceof Object && options instanceof Object && options.hasOwnProperty('client')) {
 			let id = data.id || data.objectId;
 			let entry = options.client.users.cache.get(id);

@@ -9,6 +9,7 @@ export default class Dialogue extends BaseStructure {
 	flags = new ChannelFlagsBitField();
 	messages = new MessageManager(this);
 	constructor(data, options, isGroup) {
+		if (data instanceof Dialogue) return data;
 		if (data instanceof Object && options instanceof Object && options.hasOwnProperty('client')) {
 			let id = data.id || data.objectId;
 			let entry = options.client.dialogues.cache.get(id);
@@ -137,8 +138,8 @@ export default class Dialogue extends BaseStructure {
 					return this.sendMedia(attachment.url)
 				})).then(results => results.concat(data))
 			}
-			this.client._handleMessage(data);
-			return data // this.client._handleMessage(data)
+			this.client._handleMessage(data, { channelId: this.id });
+			return data // this.client._handleMessage(data, { channelId: this.id })
 		})
 	}
 
