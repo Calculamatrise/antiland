@@ -55,7 +55,7 @@ export default class Dialogue extends BaseStructure {
 				Object.defineProperty(this, key, { value: new User(data[key], this), writable: false })
 				break;
 			case 'lastMessage':
-				this[key] = new Message(data[key], this);
+				this[key] = new Message(data[key], this, true);
 				break;
 			case 'msgCount':
 				this.messageCount = data[key];

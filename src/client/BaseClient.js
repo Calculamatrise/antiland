@@ -12,7 +12,6 @@ import MessageTypes from "../utils/MessageTypes.js";
 import Opcodes from "../utils/Opcodes.js";
 
 export default class extends EventEmitter {
-	static sharedGroups = new Set();
 	static lastMessageId = new Map();
 	static lastMessageTimestamp = new Map();
 	#connectionId = null;
@@ -28,6 +27,7 @@ export default class extends EventEmitter {
 	_outgoing = new Set(); // use this to guaruntee a response from the server/make promises
 	channels = new Set();
 	queueChannels = new Set();
+	lastMessageId = new Map();
 	maxReconnectAttempts = 3;
 	ping = 0;
 	requests = new RequestHandler();
@@ -159,6 +159,7 @@ export default class extends EventEmitter {
 			break;
 		case Opcodes.SUBSCRIPTIONS:
 			if (!payload) break; // channel not found
+			let subscriptions;
 			for (let channel of payload.diff.dropped)
 				this.queueChannels.delete(channel),
 				this.channels.delete(channel),
@@ -228,6 +229,8 @@ export default class extends EventEmitter {
 			case MessageTypes.PRIVATE_NOTIFICATION:
 				if (data.hasOwnProperty('message') && data.hasOwnProperty('objectId')) {
 					data.type = MessageTypes.PRIVATE_MESSAGE;
+					if (data.messageId === this.lastMessageId.get(data.dialogueId)) return;
+					this.lastMessageId.set(data.dialogueId, data.messageId);
 					break;
 				}
 				data.hasOwnProperty('gift') && this.emit('giftReceived', data);
@@ -254,55 +257,53 @@ export default class extends EventEmitter {
 			this.emit('channelBanAdd', data.dialogue);
 			return
 		}
-		if (data.type === MessageTypes.GIFT_MESSAGE) {
+		// check if message id is present to see if an action occurred on a message
+		let temp;
+		switch(data.type) {
+		case MessageTypes.CHANNEL_MEMBER_ADD:
+			return this.emit('channelMemberAdd', data);
+		case MessageTypes.GIFT_MESSAGE:
 			let message = new GiftMessage(data, data.dialogue);
 			this.emit('messageCreate', message);
 			message.receiverId == this.user.id && this.emit('giftMessageCreate', message);
-			return
-		}
-		// check if message id is present to see if an action occurred on a message
-		if (data.messageId !== null && (!data.createdAt || data.createdAt <= this.constructor.lastMessageTimestamp.get(data.dialogueId))) {
-			data.update && data.message && data.message._patch(data, true);
-			switch(data.type) {
-			case MessageTypes.CHANNEL_MEMBER_ADD:
-				return this.emit('channelMemberAdd', data);
-			case MessageTypes.MESSAGE:
-			case MessageTypes.PRIVATE_MESSAGE:
-				break;
-			case MessageTypes.MESSAGE_LIKE:
-				data.message && data.message._patch(data, true);
-				this.emit('messageReactionAdd', data);
-				return;
-			case MessageTypes.MESSAGE_DELETE:
-				let temp = data.message || new Message(data, data.dialogue);
-				temp._patch({ updatedAt: data.createdAt });
-				data.dialogue.messages.cache.delete(temp.id);
-				this.emit('messageDelete', temp);
-				return;
-			case MessageTypes.MESSAGE_UPDATE:
-				temp = data.message || new Message(data, data.dialogue);
-				temp._patch({ updatedAt: data.createdAt });
-				this.emit('messageUpdate', temp);
-				return;
-			default:
-				console.warn('unrecognized action', data);
+			return;
+		case MessageTypes.MESSAGE:
+		case MessageTypes.PRIVATE_MESSAGE:
+			if (data.message !== null /* data.messageId !== null && (!data.createdAt || data.createdAt <= this.constructor.lastMessageTimestamp.get(data.dialogueId)) */) {
+				data.message._patch(data); // updates message author
 				return;
 			}
+			break;
+		case MessageTypes.MESSAGE_DELETE:
+			data.update && data.message && data.message._patch(data, true);
+			temp = data.message || new Message(data, data.dialogue, true);
+			temp._patch({ updatedAt: data.createdAt });
+			data.dialogue.messages.cache.delete(temp.id);
+			this.emit('messageDelete', temp);
+			return;
+		case MessageTypes.MESSAGE_LIKE:
+			data.message && data.message._patch(data, true);
+			this.emit('messageReactionAdd', data);
+			return;
+		case MessageTypes.MESSAGE_UPDATE:
+			data.update && data.message._patch(data, true);
+			temp = data.message || new Message(data, data.dialogue);
+			temp._patch({ updatedAt: data.createdAt });
+			this.emit('messageUpdate', temp);
+			return;
+		default:
+			console.warn('unrecognized action', data);
+			return;
 		}
 		let message = new Message(data, data.dialogue);
-		if (this.constructor.sharedGroups.has(data.dialogueId) && this.constructor.lastMessageId.get(data.dialogueId) === message.id) return;
-		this.constructor.lastMessageTimestamp.set(data.dialogueId, message.createdTimestamp);
-		this.constructor.lastMessageId.set(data.dialogueId, message.id);
 		let blocked = this.user.contacts.blocked.has(message.author.id);
 		blocked && (message.author.blocked = true);
 		this.emit('messageCreate', message, blocked);
 	}
 
 	subscribe(channelId) {
-		// if (this.constructor.sharedGroups.has(channelId)) return;
 		if (this.channels.has(channelId)) return;
 		this.queueChannels.add(channelId);
-		this.constructor.sharedGroups.add(channelId);
 		this.sendCommand(Opcodes.NAVIGATE, {
 			channels: Array(Array.from(this.channels.values()), Array.from(this.queueChannels.values())).flat().map(channelId => ({
 				channelId,
@@ -401,9 +402,9 @@ export default class extends EventEmitter {
 		let liker = (likerId !== null && await this.users.fetch(likerId)) || null;
 		liker !== null && typeof data.liker == 'object' && liker._patch(data.liker);
 		let messageId = (data.messageId || data.objectId || (!data.receiver && this.constructor.parseId(data.message)) || data.mid || data.id) || null;
-		!data.text && dialogue !== null && messageId !== null && messageId !== data.message && (data.text = data.message);
-		let message = (!data.text && dialogue !== null && messageId !== null && messageId !== data.text && await dialogue.messages.fetch(messageId)) || null;
-		message !== null && typeof data.message == 'object' && message._patch(data.message);
+		!data.text && messageId !== null && messageId !== data.message && (data.text = data.message);
+		let message = (data.text && dialogue !== null && messageId !== null && dialogue.messages.cache.get(messageId)) || null;
+		message !== null && (typeof data.message == 'object' && message._patch(data.message) || data.text && message._patch(data));
 		let receiverId = (data.receiverId || (messageId === null && this.constructor.parseId(data.receiver)) || (data.hasOwnProperty('whom') && (data.whom || this.user.id))) || null;
 		let receiver = (receiverId !== null && await this.users.fetch(receiverId)) || null;
 		receiver !== null && typeof data.receiver == 'object' && (// check for changes ,

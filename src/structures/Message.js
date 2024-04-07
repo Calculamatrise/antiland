@@ -9,7 +9,7 @@ export default class Message extends BaseStructure {
 	dialogueId = null;
 	lovers = new LoverManager(this);
 	referenceId = null;
-	constructor(data, dialogue) {
+	constructor(data, dialogue, ignoreCache) {
 		if (data instanceof Message) return data;
 		if (data instanceof Object && dialogue instanceof Object && dialogue.hasOwnProperty('messages')) {
 			let id = data.id || data.objectId;
@@ -28,7 +28,7 @@ export default class Message extends BaseStructure {
 			reference: { value: null, writable: true }
 		});
 		this._patch(data);
-		this.id !== null && this.hasOwnProperty('client') && dialogue.messages.cache.set(this.id, this)
+		!ignoreCache && this.id !== null && this.hasOwnProperty('client') && dialogue.messages.cache.set(this.id, this)
 	}
 
 	get deletable() {
