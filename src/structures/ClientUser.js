@@ -79,6 +79,7 @@ export default class ClientUser extends User {
 				this.accentColor = parseInt(this.hexAccentColor.replace(/^#/, ''), 16);
 				break;
 			case 'blockedBy':
+				// if blockedBy included 'all', client is in prison.
 				this[key] = new Set(data[key]);
 				break;
 			case 'contentSettings':

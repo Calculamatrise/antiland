@@ -1,5 +1,5 @@
 /**
- * @typedef {object} ChannelTypes
+ * @typedef {object} ChannelType
  * @property {string} CHANNEL channel, readonly
  * @property {string} GROUP group
  * @property {string} PRIVATE private
@@ -7,7 +7,7 @@
  */
 
 /**
- * @type {ChannelTypes}
+ * @type {ChannelType}
  * @ignore
  */
 export default {

@@ -1,5 +1,7 @@
 import { METHODS } from "http";
 
+import AntilandAPIError from "../utils/AntilandAPIError.js";
+
 export default class {
 	static config = null;
 	static domain = "mobile-elb.antich.at";
@@ -81,7 +83,7 @@ export default class {
 			headers.append('X-Parse-Application-Id', config.appId);
 			typeof token == 'string' && headers.append('X-Parse-Session-Token', token);
 		}
-		return fetch("https://" + domain + "/" + path, {
+		return fetch("https://" + domain + "/" + path, options = {
 			headers,
 			body: method.toUpperCase() != 'GET' ? JSON.stringify(Object.assign({}, {
 				version: "web/chat/2.0"
@@ -89,7 +91,11 @@ export default class {
 			method
 		}).then(r => r.json()).then(r => {
 			if (r.error) {
-				throw new Error(typeof r.error == 'object' ? r.error.message : r.error)
+				throw new AntilandAPIError(typeof r.error == 'object' ? r.error.message : r.error, Object.assign({
+					body: options.body,
+					endpoint: path,
+					method: options.method
+				}, typeof r.error == 'object' ? r.error : r))
 			}
 			return r.result ?? r
 		})

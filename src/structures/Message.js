@@ -90,6 +90,11 @@ export default class Message extends BaseStructure {
 				this.dialogue !== null && Object.defineProperty(this, 'reference', { value: new Message({ id: data[key] }, this.dialogue), writable: false });
 				break;
 			case 'sender':
+				if (/^message_like$/i.test(data.type)) {
+					let liker = data[key] instanceof User ? data[key] : new User({ id: data[key] }, this);
+					this.lovers.cache.set(liker.id, liker);
+					break;
+				}
 				let author = data[key] instanceof User ? data[key] : new User(data[key], this);
 				this.author = author;
 				break;

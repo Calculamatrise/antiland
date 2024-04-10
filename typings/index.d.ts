@@ -1,6 +1,6 @@
 import EventEmitter from "events";
 
-import { ActivityTypes, ArtifactTypes, ChannelFlags, Categories, ChatFilters, ChatMoods, ChatSetupFlags, Events, MessageTypes } from "../src";
+import { ActivityType, ArtifactType, ChannelFlags, Category, ChatFilter, ChatMood, ChatSetupFlags, Events, MessageType } from "../src";
 import CallManager from "../src/managers/CallManager";
 import DialogueManager from "../src/managers/DialogueManager";
 import GroupManager from "../src/managers/GroupManager";
@@ -70,7 +70,7 @@ export interface ClientOptions {
 	maxReconnectAttempts?: number
 }
 
-export enum ActivityTypes {
+export enum ActivityType {
 	AWAY = 'AWAY',
 	IDLE = 'IDLE',
 	INVISIBLE = 'INVISIBLE',
@@ -78,7 +78,7 @@ export enum ActivityTypes {
 	ONLINE = 'ONLINE'
 }
 
-export enum ArtifactTypes {
+export enum ArtifactType {
 	ROSE = 'rose',
 	TEDDY = 'teddy',
 	HEART = 'heart',
@@ -86,14 +86,28 @@ export enum ArtifactTypes {
 	TEN_DIAMONDS = 'diamond10'
 }
 
-export enum Categories {
+export enum Category {
 	Adult = 'adult',
 	Auto = 'auto',
 	Books = 'books',
 	Cooking = 'cooking',
 	Depression = 'depression',
 	Family = 'family',
-	Fashion = 'vogue'
+	Fashion = 'vogue',
+	Flirt = 'flirt',
+	Friendship = 'friendship',
+	Health = 'health',
+	Home = 'home',
+	Humor = 'humor',
+	Lifestyle = 'lifestyle',
+	Love = 'love',
+	Movies = 'movies',
+	Photo = 'photo',
+	Psychology = 'psychology',
+	Rude = 'rude',
+	Science = 'science',
+	Sports = 'sports',
+	Travel = 'travel'
 }
 
 export enum ChannelFlags {
@@ -114,14 +128,14 @@ export enum ChannelFlags {
 	OWN_MSG_REMOVE_ENABLED = 16384
 }
 
-export enum ChannelTypes {
+export enum ChannelType {
 	CHANNEL = 'CHANNEL', // readonly
 	GROUP = 'GROUP',
 	PRIVATE = 'PRIVATE',
 	PUBLIC = 'PUBLIC'
 }
 
-export enum ChatFilters {
+export enum ChatFilter {
 	DENY_ANY_OTHER_LINKS = 'DENY_ANY_OTHER_LINKS',
 	DENY_PHOTO = 'DENY_PHOTO',
 	DENY_SEX_TEXT_CONTENT = 'DENY_SEX_TEXT_CONTENT',
@@ -132,7 +146,7 @@ export enum ChatFilters {
 	DENY_YOUTUBE_LINKS = 'DENY_YOUTUBE_LINKS'
 }
 
-export enum ChatMoods {
+export enum ChatMood {
 	CHAT_MOOD_1 = 'cm1',
 	CHAT_MOOD_2 = 'cm2',
 	CHAT_MOOD_3 = 'cm3'
@@ -175,27 +189,26 @@ export enum Events {
 	Warn = 'warn'
 }
 
-export enum MessageTypes {
-	ALIPAY = 'ALIPAY',
-	BLOCKED_BY = 'BLOCKED_BY',
-	BLOCKED_WHOM = 'BLOCKED_WHOM',
-	CHANNEL_BAN_CREATE = 'CHANNEL_BAN_CREATE',
-	CHANNEL_MEMBER_ADD = 'JOIN_NOTIFICATION',
-	EMAIL_VERIFIED = 'EMAIL_VERIFIED',
-	FRIEND_REQUEST_CREATE = 'MATE.EVENT.REQUEST',
-	GIFT_MESSAGE = 'GIFT',
-	JOIN = 'DIALOGUE.MEMBERS.JOINED', // 'JOIN_NOTIFICATION',
-	KARMA_TASK_PROGRESS = 'KARMATASK.EVENT.PROGRESS',
-	MESSAGE = 'MESSAGE',
-	MESSAGE_DELETE = 'MESSAGE_DELETE',
-	MESSAGE_LIKE = 'MESSAGE_LIKE',
-	MESSAGE_UPDATE = 'MESSAGE_UPDATE',
-	PRIVATE_MESSAGE = 'PRIVATE_MESSAGE',
-	PRIVATE_NOTIFICATION = 'PRIVATE_NOTIFICATION',
-	SYSTEM_MESSAGE = 'SYSTEM_MESSAGE',
-	UNBLOCKED_BY = 'UNBLOCKED_BY',
-	UNBLOCKED_WHOM = 'UNBLOCKED_WHOM',
-	USER_BLOCKED = 'USER_BLOCKED'
+export enum MessageType {
+	ALIPAY = 'alipay',
+	BLOCKED_BY = 'blocked',
+	BLOCKED_WHOM = 'blocked',
+	CHANNEL_BAN_CREATE = 'deleteChat',
+	CHANNEL_MEMBER_ADD = 'join_notification',
+	EMAIL_VERIFIED = 'email_verified',
+	FRIEND_REQUEST_CREATE = 'mate.event.request',
+	GIFT_MESSAGE = 'giftname',
+	JOIN = 'dialogue.members.joined',
+	KARMA_TASK_PROGRESS = 'karmatask.event.progress',
+	MESSAGE = 'message',
+	MESSAGE_DELETE = 'update',
+	MESSAGE_LIKE = 'message_like',
+	MESSAGE_UPDATE = 'update',
+	PRIVATE_MESSAGE = 'private_message',
+	PRIVATE_NOTIFICATION = 'private_notification',
+	SYSTEM_MESSAGE = 'giftname?',
+	UNBLOCKED_BY = 'blocked',
+	UNBLOCKED_WHOM = 'blocked'
 }
 
 //#endregion

@@ -147,6 +147,10 @@ export default class User extends BaseStructure {
 		return "https://gfx.antiland.com/avatars/" + this.avatar.id
 	}
 
+	block() {
+		return this,client.user.contacts.block(this.id)
+	}
+
 	/**
 	 * Check the user ratings for this user
 	 * @param {object} [options]

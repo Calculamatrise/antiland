@@ -8,12 +8,10 @@ import FriendRequest from "../structures/FriendRequest.js";
 import GiftMessage from "../structures/GiftMessage.js";
 import Message from "../structures/Message.js";
 
-import MessageTypes from "../utils/MessageTypes.js";
+import MessageType from "../utils/MessageType.js";
 import Opcodes from "../utils/Opcodes.js";
 
 export default class extends EventEmitter {
-	static lastMessageId = new Map();
-	static lastMessageTimestamp = new Map();
 	#connectionId = null;
 	#reconnectAttempts = 0;
 	#clientVersion = "nodejs/antiland";
@@ -27,7 +25,6 @@ export default class extends EventEmitter {
 	_outgoing = new Set(); // use this to guaruntee a response from the server/make promises
 	channels = new Set();
 	queueChannels = new Set();
-	lastMessageId = new Map();
 	maxReconnectAttempts = 3;
 	ping = 0;
 	requests = new RequestHandler();
@@ -159,15 +156,14 @@ export default class extends EventEmitter {
 			break;
 		case Opcodes.SUBSCRIPTIONS:
 			if (!payload) break; // channel not found
-			let subscriptions;
-			for (let channel of payload.diff.dropped)
-				this.queueChannels.delete(channel),
-				this.channels.delete(channel),
-				this.emit('channelDelete', channel);
-			for (let channel of payload.diff.added)
-				this.queueChannels.delete(channel),
-				this.channels.add(channel),
-				this.emit('channelCreate', channel);
+			for (let channelId of payload.diff.dropped)
+				this.queueChannels.delete(channelId),
+				this.channels.delete(channelId),
+				channelId !== this.user.channelId && this.emit('channelDelete', channelId);
+			for (let channelId of payload.diff.added)
+				this.queueChannels.delete(channelId),
+				this.channels.add(channelId),
+				channelId !== this.user.channelId && this.emit('channelCreate', channelId);
 			break;
 		case Opcodes.ACK:
 			this._outgoing.delete(payload.id);
@@ -192,7 +188,7 @@ export default class extends EventEmitter {
 
 	async _handleMessage(data) {
 		await this.preprocessMessage(...arguments).catch(err => {
-			console.log('errored', data);
+			console.log('errored', err.message, data);
 			if (this.listenerCount('error') > 0) {
 				this.emit('error', err);
 			} else {
@@ -201,15 +197,15 @@ export default class extends EventEmitter {
 		});
 		if (data.isPrivate) {
 			switch(data.type) {
-			case MessageTypes.BLOCKED_BY:
+			case MessageType.BLOCKED_BY:
 				this.user.blockedBy.add(data.senderId);
 				this.emit('blocked', data.sender)  // relationshipUpdate? // clientBlocked
 				return;
-			case MessageTypes.BLOCKED_WHOM:
+			case MessageType.BLOCKED_WHOM:
 				this.user.contacts.blocked.add(data.receiverId);
 				this.emit('userBlocked', data.receiver)  // relationshipUpdate? // blocked
 				return;
-			case MessageTypes.KARMA_TASK_PROGRESS:
+			case MessageType.KARMA_TASK_PROGRESS:
 				switch(data.body.task.id.toLowerCase()) {
 				case 'karmatask.dailybonus':
 					this.user.karma += data.body.task.reward.currencyReward?.price?.karma | 0;
@@ -218,29 +214,27 @@ export default class extends EventEmitter {
 					console.warn('unknown karma task', data.body);
 					return this.emit('debug', { data: data.body, type: 'UNKNOWN_KARMA_TASK' })
 				}
-			case MessageTypes.FRIEND_REQUEST_CREATE:
+			case MessageType.FRIEND_REQUEST_CREATE:
 				let entry = new FriendRequest(data, this.user.friends);
 				this.user.friends.pending.incoming.set(entry.id, entry);
 				return this.emit('friendRequest', entry);
-			case MessageTypes.MESSAGE_DELETE:
-			case MessageTypes.MESSAGE_UPDATE:
-			case MessageTypes.MESSAGE_LIKE:
+			case MessageType.MESSAGE_DELETE:
+			case MessageType.MESSAGE_UPDATE:
+			case MessageType.MESSAGE_LIKE:
 				break;
-			case MessageTypes.PRIVATE_NOTIFICATION:
+			case MessageType.PRIVATE_NOTIFICATION:
 				if (data.hasOwnProperty('message') && data.hasOwnProperty('objectId')) {
-					data.type = MessageTypes.PRIVATE_MESSAGE;
-					if (data.messageId === this.lastMessageId.get(data.dialogueId)) return;
-					this.lastMessageId.set(data.dialogueId, data.messageId);
+					data.type = MessageType.PRIVATE_MESSAGE;
 					break;
 				}
 				data.hasOwnProperty('gift') && this.emit('giftReceived', data);
 				this.emit('notification', data);
 				return;
-			case MessageTypes.UNBLOCKED_BY:
+			case MessageType.UNBLOCKED_BY:
 				this.user.blockedBy.remove(data.senderId);
 				this.emit('unblocked', data.sender)  // relationshipUpdate? // clientBlocked
 				return;
-			case MessageTypes.UNBLOCKED_WHOM:
+			case MessageType.UNBLOCKED_WHOM:
 				this.user.contacts.blocked.remove(data.receiverId);
 				this.emit('userUnblocked', data.receiver)  // relationshipUpdate? // blocked
 				return;
@@ -253,39 +247,38 @@ export default class extends EventEmitter {
 		if (!data.dialogue) {
 			console.warn("Dialogue not found:", data);
 			return
-		} else if (data.deleteChat) {
-			this.emit('channelBanAdd', data.dialogue);
-			return
 		}
 		// check if message id is present to see if an action occurred on a message
 		let temp;
 		switch(data.type) {
-		case MessageTypes.CHANNEL_MEMBER_ADD:
+		case MessageType.CHANNEL_BAN_CREATE:
+			return this.emit('channelBanAdd', data);
+		case MessageType.CHANNEL_MEMBER_ADD:
 			return this.emit('channelMemberAdd', data);
-		case MessageTypes.GIFT_MESSAGE:
+		case MessageType.GIFT_MESSAGE:
 			let message = new GiftMessage(data, data.dialogue);
 			this.emit('messageCreate', message);
 			message.receiverId == this.user.id && this.emit('giftMessageCreate', message);
 			return;
-		case MessageTypes.MESSAGE:
-		case MessageTypes.PRIVATE_MESSAGE:
-			if (data.message !== null /* data.messageId !== null && (!data.createdAt || data.createdAt <= this.constructor.lastMessageTimestamp.get(data.dialogueId)) */) {
+		case MessageType.MESSAGE:
+		case MessageType.PRIVATE_MESSAGE:
+			if (data.message !== null) {
 				data.message._patch(data); // updates message author
 				return;
 			}
 			break;
-		case MessageTypes.MESSAGE_DELETE:
+		case MessageType.MESSAGE_DELETE:
 			data.update && data.message && data.message._patch(data, true);
 			temp = data.message || new Message(data, data.dialogue, true);
 			temp._patch({ updatedAt: data.createdAt });
 			data.dialogue.messages.cache.delete(temp.id);
 			this.emit('messageDelete', temp);
 			return;
-		case MessageTypes.MESSAGE_LIKE:
+		case MessageType.MESSAGE_LIKE:
 			data.message && data.message._patch(data, true);
 			this.emit('messageReactionAdd', data);
 			return;
-		case MessageTypes.MESSAGE_UPDATE:
+		case MessageType.MESSAGE_UPDATE:
 			data.update && data.message._patch(data, true);
 			temp = data.message || new Message(data, data.dialogue);
 			temp._patch({ updatedAt: data.createdAt });
@@ -334,8 +327,8 @@ export default class extends EventEmitter {
 
 	#parseMessageType(message, channel) {
 		if (channel !== this.user.channelId)
-			return message && "message_like" === message.type ? MessageTypes.LIKE : "profile.emailVerified" === message.type ? MessageTypes.EMAIL_VERIFIED : void 0;
-		return "join_notification" === message.type ? MessageTypes.JOIN : "private_notification" === message.type || message.update || message.giftname ? MessageTypes.PRIVATE_NOTIFICATION : message.whom ? MessageTypes.BLOCKED_WHOM : message.by ? MessageTypes.BLOCKED_BY : "alipay_notification" === message.type ? MessageTypes.ALIPAY : void 0
+			return message && "message_like" === message.type ? MessageType.LIKE : "profile.emailVerified" === message.type ? MessageType.EMAIL_VERIFIED : void 0;
+		return "join_notification" === message.type ? MessageType.JOIN : "private_notification" === message.type || message.update || message.giftname ? MessageType.PRIVATE_NOTIFICATION : message.whom ? MessageType.BLOCKED_WHOM : message.by ? MessageType.BLOCKED_BY : "alipay_notification" === message.type ? MessageType.ALIPAY : void 0
 	}
 
 	async login(token, listener) {
@@ -364,8 +357,9 @@ export default class extends EventEmitter {
 				this.user.favorites.cache.set(entry.id, entry);
 			}
 
+			// if blockedBy included 'all', client is in prison.
 			this.queueChannels.add(this.user.channelId);
-			let groups = await this.groups.fetchActive();
+			let groups = await this.groups.fetchActive({ force: true });
 			for (let channelId of groups.keys()) {
 				this.queueChannels.add(channelId);
 			}
@@ -396,9 +390,14 @@ export default class extends EventEmitter {
 
 	async preprocessMessage(data, { channelId }) {
 		let dialogueId = (data.dialogueId || this.constructor.parseId(data.dialogue) || data.did || data.deleteChat || (channelId !== this.user.channelId && channelId)) || null;
-		let dialogue = (dialogueId !== null && await this.dialogues.fetch(dialogueId)) || null;
+		let dialogue = (dialogueId !== null && await this.dialogues.fetch(dialogueId).catch(err => {
+			if (err.code !== 141) {
+				throw err;
+			}
+			this.unsubscribe(dialogueId)
+		})) || null;
 		dialogue !== null && typeof data.dialogue == 'object' && dialogue._patch(data.dialogue);
-		let likerId = (data.likerId || this.constructor.parseId(data.liker)) || null;
+		let likerId = (data.likerId || this.constructor.parseId(data.liker) || (data.messageSenderId && (data.senderId || this.constructor.parseId(data.sender)))) || null;
 		let liker = (likerId !== null && await this.users.fetch(likerId)) || null;
 		liker !== null && typeof data.liker == 'object' && liker._patch(data.liker);
 		let messageId = (data.messageId || data.objectId || (!data.receiver && this.constructor.parseId(data.message)) || data.mid || data.id) || null;
@@ -409,15 +408,15 @@ export default class extends EventEmitter {
 		let receiver = (receiverId !== null && await this.users.fetch(receiverId)) || null;
 		receiver !== null && typeof data.receiver == 'object' && (// check for changes ,
 		receiver._patch(data.receiver, /* callback for changed properties? */));
-		let senderId = (data.senderId || this.constructor.parseId(data.sender) || data.sid || (data.hasOwnProperty('by') && (data.by || this.user.id))) || null;
+		let senderId = (data.messageSenderId || data.senderId || this.constructor.parseId(data.sender) || data.sid || (data.hasOwnProperty('by') && (data.by || this.user.id))) || null;
 		let sender = (senderId !== null && await this.users.fetch(senderId)) || null;
 		sender !== null && typeof data.sender == 'object' && (// check for changes ,
 		sender._patch(data.sender, /* callback for changed properties? */));
 		let type = (data.type && data.type.toUpperCase()) || null;
-		type || (data.hasOwnProperty('blocked') && (type = MessageTypes[(data.blocked ? '' : 'UN') + 'BLOCKED_' + (data.hasOwnProperty('by') ? 'BY' : 'WHOM')]),
-		data.hasOwnProperty('text') && (type = MessageTypes['MESSAGE' + (data.hasOwnProperty('update') ? ((!message || message.content !== data.text) && /^\*{5}$/.test(data.text) ? '_DELETE' : '_UPDATE') : '')]),
-		data.hasOwnProperty('deleteChat') && (type = MessageTypes.CHANNEL_BAN_CREATE),
-		data.hasOwnProperty('giftname') && (type = MessageTypes.GIFT_MESSAGE));
+		type || (data.hasOwnProperty('blocked') && (type = MessageType[(data.blocked ? '' : 'UN') + 'BLOCKED_' + (data.hasOwnProperty('by') ? 'BY' : 'WHOM')]),
+		data.hasOwnProperty('text') && (type = MessageType['MESSAGE' + (data.hasOwnProperty('update') ? ((!message || message.content !== data.text) && /^\*{5}$/.test(data.text) ? '_DELETE' : '_UPDATE') : '')]),
+		data.hasOwnProperty('deleteChat') && (type = MessageType.CHANNEL_BAN_CREATE),
+		data.hasOwnProperty('giftname') && (type = MessageType.GIFT_MESSAGE));
 		Object.defineProperties(data, Object.assign({
 			dialogue: { enumerable: true, value: dialogue, writable: dialogue !== null },
 			dialogueId: { enumerable: true, value: dialogueId, writable: dialogueId !== null },
@@ -428,7 +427,7 @@ export default class extends EventEmitter {
 		}, messageId !== null && Object.assign({
 			message: { enumerable: false, value: message, writable: message !== null },
 			messageId: { enumerable: true, value: messageId, writable: messageId !== null }
-		}, type === MessageTypes.MESSAGE_LIKE && {
+		}, type === MessageType.MESSAGE_LIKE && {
 			liker: { enumerable: true, value: liker, writable: liker !== null },
 			likerId: { enumerable: true, value: likerId, writable: likerId !== null }
 		}), receiverId !== null && {
