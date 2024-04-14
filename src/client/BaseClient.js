@@ -397,20 +397,20 @@ export default class extends EventEmitter {
 			this.unsubscribe(dialogueId)
 		})) || null;
 		dialogue !== null && typeof data.dialogue == 'object' && dialogue._patch(data.dialogue);
-		let likerId = (data.likerId || this.constructor.parseId(data.liker) || (data.messageSenderId && (data.senderId || this.constructor.parseId(data.sender)))) || null;
+		let likerId = this.constructor.assertFirst(data.likerId || this.constructor.parseId(data.liker), (data.messageSenderId && (data.senderId || this.constructor.parseId(data.sender))), id => id !== data.messageSenderId) || null;
 		let liker = (likerId !== null && await this.users.fetch(likerId)) || null;
 		liker !== null && typeof data.liker == 'object' && liker._patch(data.liker);
 		let messageId = (data.messageId || data.objectId || (!data.receiver && this.constructor.parseId(data.message)) || data.mid || data.id) || null;
 		!data.text && messageId !== null && messageId !== data.message && (data.text = data.message);
 		let message = (data.text && dialogue !== null && messageId !== null && dialogue.messages.cache.get(messageId)) || null;
-		message !== null && (typeof data.message == 'object' && message._patch(data.message) || data.text && message._patch(data));
+		message !== null && typeof data.message == 'object' && message._patch(data.message);
 		let receiverId = (data.receiverId || (messageId === null && this.constructor.parseId(data.receiver)) || (data.hasOwnProperty('whom') && (data.whom || this.user.id))) || null;
 		let receiver = (receiverId !== null && await this.users.fetch(receiverId)) || null;
 		receiver !== null && typeof data.receiver == 'object' && (// check for changes ,
 		receiver._patch(data.receiver, /* callback for changed properties? */));
 		let senderId = (data.messageSenderId || data.senderId || this.constructor.parseId(data.sender) || data.sid || (data.hasOwnProperty('by') && (data.by || this.user.id))) || null;
 		let sender = (senderId !== null && await this.users.fetch(senderId)) || null;
-		sender !== null && typeof data.sender == 'object' && (// check for changes ,
+		sender !== null && typeof data.sender == 'object' && data.sender.id !== likerId && (// check for changes ,
 		sender._patch(data.sender, /* callback for changed properties? */));
 		let type = (data.type && data.type.toUpperCase()) || null;
 		type || (data.hasOwnProperty('blocked') && (type = MessageType[(data.blocked ? '' : 'UN') + 'BLOCKED_' + (data.hasOwnProperty('by') ? 'BY' : 'WHOM')]),
@@ -434,7 +434,24 @@ export default class extends EventEmitter {
 			receiver: { enumerable: true, value: receiver, writable: receiver !== null },
 			receiverId: { enumerable: true, value: receiverId, writable: receiverId !== null },
 		}));
+		// message !== null && data.text && message._patch(data);
 		return data;
+	}
+
+	static assert(arbitrary, callback = () => !0) {
+		return (callback(arbitrary) && arbitrary) ?? null;
+	}
+
+	static assertAll(...args) {
+		let callback = args.at(-1);
+		typeof callback != 'function' && (callback = () => !0);
+		args.splice(args.indexOf(callback), 1);
+		return args.filter(arbitrary => this.assert(arbitrary, callback));
+	}
+
+	static assertFirst(...args) {
+		let results = this.assertAll(...arguments);
+		return (results.length > 0 && results[0]) ?? null;
 	}
 
 	static parseId(arbitrary) {

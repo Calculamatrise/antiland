@@ -21,6 +21,27 @@ export default class DialogueManager extends BaseManager {
 		})
 	}
 
+	async fetchActive({ force, ignore, limit } = {}) { // add filter option
+		if (!force && this.cache.size > 0) {
+			return this.cache;
+		}
+
+		return this.client.requests.post("functions/v2:chat.my").then(entries => {
+			for (let item of entries.filter(({ type }) => /^private$/i.test(type))) {
+				let entry = new Dialogue(item, this);
+				this.client.dialogues.cache.set(entry.id, entry);
+				if (!this.client.user.favorites.cache.has(entry.friendId)) {
+					this.client.user.messages.set(entry.id, entry);
+				}
+			}
+			for (let item of entries.filter(({ id }) => (!ignore || !ignore.includes(id))).slice(0, limit)) {
+				let entry = new (/^(group|public)$/i.test(item.type) ? Group : Dialogue)(item, this);
+				this.cache.set(entry.id, entry);
+			}
+			return this.cache
+		})
+	}
+
 	/**
 	 * Block a dialogue - unsure what this does
 	 * @param {string} dialogueId

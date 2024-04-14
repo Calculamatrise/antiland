@@ -2,6 +2,7 @@ import BaseStructure from "./BaseStructure.js";
 import LoverManager from "../managers/LoverManager.js";
 import Dialogue from "./Dialogue.js";
 import User from "./User.js";
+import MessageType from "../utils/MessageType.js";
 
 export default class Message extends BaseStructure {
 	author = new User(null, this);
@@ -90,16 +91,15 @@ export default class Message extends BaseStructure {
 				this.dialogue !== null && Object.defineProperty(this, 'reference', { value: new Message({ id: data[key] }, this.dialogue), writable: false });
 				break;
 			case 'sender':
-				if (/^message_like$/i.test(data.type)) {
-					let liker = data[key] instanceof User ? data[key] : new User({ id: data[key] }, this);
-					this.lovers.cache.set(liker.id, liker);
+				let sender = data[key] instanceof User ? data[key] : new User(data[key], this);
+				if (data.type === MessageType.MESSAGE_LIKE) {
+					this.lovers.cache.set(sender.id, sender);
 					break;
 				}
-				let author = data[key] instanceof User ? data[key] : new User(data[key], this);
-				this.author = author;
+				this.author = sender;
 				break;
 			case 'senderId':
-				if (/^message_like$/i.test(data.type)) {
+				if (data.type === MessageType.MESSAGE_LIKE) {
 					let liker = new User({ id: data[key] }, this);
 					this.lovers.cache.set(liker.id, liker);
 					break;
