@@ -83,6 +83,21 @@ export default class extends FriendManager {
 	}
 
 	/**
+	 * Cancel an outgoing friend request
+	 * @param {User|string} user
+	 * @returns {Promise<boolean>}
+	 */
+	cancel(user) {
+		let userId = typeof user == 'object' ? user.id : user;
+		if (!this.pending.outgoing.has(userId)) {
+			throw new Error("You have not sent a friend request to this user.");
+		}
+		return this.client.client.requests.post("functions/v2:contact.mate.reject", { userId }).then(r => {
+			return r && this.pending.outgoing.delete(userId)
+		})
+	}
+
+	/**
 	 * Check if a user is your friend
 	 * @param {User|string} user 
 	 * @returns {Promise<object>}

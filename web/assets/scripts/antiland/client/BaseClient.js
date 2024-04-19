@@ -1,15 +1,14 @@
-import EventEmitter from "events";
-import { WebSocket } from "ws";
+import EventEmitter from "../../EventEmitter.js";
 
 import PubNubBroker from "../utils/PubNubBroker.js";
 import RequestHandler from "../utils/RequestHandler.js";
-import ClientUser from "../structures/ClientUser.js";
-import FriendRequest from "../structures/FriendRequest.js";
-import GiftMessage from "../structures/GiftMessage.js";
-import Message from "../structures/Message.js";
+import ClientUser from "../../../../../src/structures/ClientUser.js";
+import FriendRequest from "../../../../../src/structures/FriendRequest.js";
+import GiftMessage from "../../../../../src/structures/GiftMessage.js";
+import Message from "../../../../../src/structures/Message.js";
 
-import MessageType from "../utils/MessageType.js";
-import Opcodes from "../utils/Opcodes.js";
+import MessageType from "../../../../../src/utils/MessageType.js";
+import Opcodes from "../../../../../src/utils/Opcodes.js";
 
 export default class extends EventEmitter {
 	#connectionId = null;
@@ -66,10 +65,10 @@ export default class extends EventEmitter {
 	#connect(cb) {
 		return new Promise((resolve, reject) => {
 			let socket = this.#pubnub ? new PubNubBroker(this) : new WebSocket(this.#url + "?client=" + this.#clientVersion + (this.#connectionId ? '&connectionId=' + this.#connectionId : ''));
-			socket.on('close', code => (this.#ws = null, this.emit('disconnect', code))),
-			socket.on('error', err => this.maxReconnectAttempts > this.#reconnectAttempts++ ? resolve(this.#fallback && (this.#pubnub = true), this.#connect(cb)) : (this.emit('error', err), reject(err))),
-			socket.on('message', this.#messageListener.bind(this)),
-			socket.on('open', () => (this.#ws = socket, typeof cb == 'function' && cb(socket), resolve(socket)))
+			socket.addEventListener('close', code => (this.#ws = null, this.emit('disconnect', code))),
+			socket.addEventListener('error', err => this.maxReconnectAttempts > this.#reconnectAttempts++ ? resolve(this.#fallback && (this.#pubnub = true), this.#connect(cb)) : (this.emit('error', err), reject(err))),
+			socket.addEventListener('message', event => this.#messageListener(event.data)),
+			socket.addEventListener('open', () => (this.#ws = socket, typeof cb == 'function' && cb(socket), resolve(socket)))
 		})
 	}
 
@@ -238,11 +237,11 @@ export default class extends EventEmitter {
 				this.emit('notification', data);
 				return;
 			case MessageType.UNBLOCKED_BY:
-				this.user.blockedBy.delete(data.senderId);
+				this.user.blockedBy.remove(data.senderId);
 				this.emit('unblocked', data.sender)  // relationshipUpdate? // clientBlocked
 				return;
 			case MessageType.UNBLOCKED_WHOM:
-				this.user.contacts.blocked.delete(data.receiverId);
+				this.user.contacts.blocked.remove(data.receiverId);
 				this.emit('userUnblocked', data.receiver)  // relationshipUpdate? // blocked
 				return;
 			default:
@@ -332,6 +331,12 @@ export default class extends EventEmitter {
 			}],
 			verbose: true
 		});
+	}
+
+	#parseMessageType(message, channel) {
+		if (channel !== this.user.channelId)
+			return message && "message_like" === message.type ? MessageType.LIKE : "profile.emailVerified" === message.type ? MessageType.EMAIL_VERIFIED : void 0;
+		return "join_notification" === message.type ? MessageType.JOIN : "private_notification" === message.type || message.update || message.giftname ? MessageType.PRIVATE_NOTIFICATION : message.whom ? MessageType.BLOCKED_WHOM : message.by ? MessageType.BLOCKED_BY : "alipay_notification" === message.type ? MessageType.ALIPAY : void 0
 	}
 
 	async login(token, listener) {

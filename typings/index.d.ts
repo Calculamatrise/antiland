@@ -1,6 +1,6 @@
 import EventEmitter from "events";
 
-import { ActivityType, ArtifactType, ChannelFlags, Category, ChatFilter, ChatMood, ChatSetupFlags, Events, MessageType } from "../src";
+import { ActivityType, ArtifactType, ChannelFlags, Category, ChannelType, ChatFilter, ChatMood, ChatSetupFlags, Events, MessageType } from "../src";
 import CallManager from "../src/managers/CallManager";
 import DialogueManager from "../src/managers/DialogueManager";
 import GroupManager from "../src/managers/GroupManager";

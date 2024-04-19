@@ -15,6 +15,7 @@
  * @property {string} MESSAGE_UPDATE update
  * @property {string} PRIVATE_MESSAGE text
  * @property {string} PRIVATE_NOTIFICATION private_notification
+ * @property {string} PRIVATE_SCREENSHOT dialogue.presence.screenshot
  * @property {string} SYSTEM_MESSAGE giftname?
  * @property {string} UNBLOCKED_BY blocked
  * @property {string} UNBLOCKED_WHOM blocked
@@ -40,6 +41,7 @@ export default {
 	MESSAGE_UPDATE: 'MESSAGE_UPDATE',
 	PRIVATE_MESSAGE: 'TEXT',
 	PRIVATE_NOTIFICATION: 'PRIVATE_NOTIFICATION',
+	PRIVATE_SCREENSHOT: 'DIALOGUE.PRESENCE.SCREENSHOT',
 	SYSTEM_MESSAGE: 'SYSTEM_MESSAGE',
 	UNBLOCKED_BY: 'UNBLOCKED_BY',
 	UNBLOCKED_WHOM: 'UNBLOCKED_WHOM'

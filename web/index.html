@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>AntiLand</title>
+	<link rel="stylesheet" href="assets/styles/default.css">
+	<script type="module" src="bootstrap.js"></script>
+</head>
+<body>
+	<div class="left-panel">
+		<nav>
+			<label class="nav-option">All<input type="radio" name="chats" id="all" checked style="display: none;"></label>
+			<label class="nav-option">Groups<input type="radio" name="chats" id="groups" style="display: none;"></label>
+			<label class="nav-option">Private Chats<input type="radio" name="chats" id="private" style="display: none;"></label>
+		</nav>
+		<div class="chats"></div>
+		<div class="account-container">
+			<div class="avatar-container">
+				<img src="" alt="" id="client-avatar">
+				<!-- Add accessories here -->
+			</div>
+			<span id="client-username"></span>
+		</div>
+	</div>
+	<div id="dialogue">
+		<h1 class="metadata"></h1>
+		<div id="messages" style="clear: both;"></div>
+		<div class="input-container">
+			<div class="reply-container" style="display: none;">
+				Replying to <span class="author"></span>
+				<button>Cancel</button>
+			</div>
+			<textarea id="text" placeholder="Message" style="resize: none;"></textarea>
+		</div>
+	</div>
+	<dialog class="auth-container">
+		<h4>Login</h4>
+		<input type="text" id="uname" placeholder="Username or E-Mail" style="margin-bottom: 4px;"><br>
+		<input type="password" id="pwd" placeholder="Password">
+		<hr>
+		<button id="login">Login</button>
+	</dialog>
+	<dialog class="error-container">
+		<h4>Error</h4>
+		<p id="errmsg"></p>
+		<form method="dialog">
+			<button value="default">Okay</button>
+		</form>
+	</dialog>
+</body>
+</html>

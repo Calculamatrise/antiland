@@ -45,14 +45,14 @@ export default class MessageManager extends BaseManager {
 				let data = messages.find(data => data.id == id);
 				if (data) {
 					await this.client.client.preprocessMessage(data, { channelId: this.client.id });
-					data.giftname && console.log(data)
 					let entry = new Message(data, this.client);
 					cache && this.cache.set(entry.id, entry);
 					return entry;
 				}
 				return null;
 			}
-			for (let item of messages.reverse()) {
+			for (let item of messages.sort((a, b) => Date.parse(a.createdAt.iso) - Date.parse(b.createdAt.iso))) {
+				await this.client.client.preprocessMessage(item, { channelId: this.client.id });
 				let entry = new Message(item, this.client);
 				this.cache.set(entry.id, entry);
 			}
