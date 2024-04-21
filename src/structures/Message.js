@@ -82,6 +82,9 @@ export default class Message extends BaseStructure {
 					case 'thumb':
 					case 'thumbUrl':
 						this[key].thumb = data[key][prop];
+						break;
+					case 'type':
+						this[key][prop] = data[key][prop]
 					}
 				}
 				break;

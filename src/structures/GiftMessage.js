@@ -6,6 +6,7 @@ export default class GiftMessage extends BaseStructure {
 	artifactName = null;
 	content = null;
 	dialogueId = null;
+	karma = 0;
 	receiverId = null;
 	senderId = null;
 	get iconId() {

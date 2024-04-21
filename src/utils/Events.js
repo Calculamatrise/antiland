@@ -14,6 +14,7 @@
  * @property {string} MessageCreate messageCreate
  * @property {string} MessageDelete messageDelete
  * @property {string} MessageReactionAdd messageReactionAdd
+ * @property {string} MessageReportAdd message.event.reported
  * @property {string} MessageUpdate messageUpdate
  * @property {string} Notification notification
  * @property {string} Ping ping
@@ -46,6 +47,7 @@ export default {
 	MessageCreate: 'messageCreate',
 	MessageDelete: 'messageDelete',
 	MessageReactionAdd: 'messageReactionAdd',
+	MessageReportAdd: 'messageReportAdd',
 	MessageUpdate: 'messageUpdate',
 	Notification: 'notification',
 	Ping: 'ping',

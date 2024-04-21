@@ -23,6 +23,7 @@ export default class Application extends EventEmitter {
 	static cacheKey = 'al_session_cache';
 	static colorScheme = 'auto';
 	static colorSchemeOptions = ['auto', 'dark', 'light'];
+	static name = 'AntiLand';
 	static searchParams = new URLSearchParams(location.search);
 	static applyColorScheme() {
 		let correspondingStylePath = this.getStylePath(this.getColorScheme());

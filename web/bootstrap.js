@@ -1,22 +1,27 @@
 import Application from "./assets/scripts/Application.js";
-import ContextMenuBuilder from "./assets/scripts/ContextMenuBuilder.js";
+import CacheManager from "./assets/scripts/CacheManager.js";
+import ContextMenu from "./assets/scripts/ContextMenu.js";
 
 Application.applyColorScheme();
 window.Application = new Application();
+
+let contentCache = CacheManager.create(Application.cacheKey, { persist: true });
+let sessionCache = CacheManager.create(Application.cacheKey + '_temp');
 
 // Remember which channel was selected in localStorage?
 // Or which nav button was selected
 // Add setting to remember?
 
 /**
- * @todo add option to filter DMs from certain sex or age groups
+ * @todo add option to filter DMs from certain sex or age groups in settings
  */
 
 import Client from "./assets/scripts/antiland/client/Client.js";
 import ChannelFlagsBitField from "../src/utils/ChannelFlagsBitField.js";
 import ChannelType from "../src/utils/ChannelType.js";
 import ChatSetupFlags from "../src/utils/ChatSetupFlags.js";
-import MessageType from "../src/utils/MessageType.js";
+import User from "./assets/scripts/modals/User.js";
+import Message from "./assets/scripts/modals/Message.js";
 
 let activeDialogue = null;
 
@@ -27,18 +32,19 @@ for (const radio of document.querySelectorAll('input[type="radio"][name="chats"]
 	radio.addEventListener('change', event => {
 		let allowed = event.target.id.toUpperCase().replace(/s$/i, '');
 		for (const chat of chatsContainer.children) {
-			chat.style[(allowed == 'ALL' || allowed === chat.dataset.type) ? 'removeProperty' : 'setProperty']('display', 'none');
+			chat.style[(allowed == 'ALL' || allowed === chat.dataset.type || (allowed === 'GROUP' && chat.dataset.type === 'PUBLIC')) ? 'removeProperty' : 'setProperty']('display', 'none');
 		}
 	});
 }
 
 const dialogueView = document.querySelector('#dialogue');
 const dialogueMetadata = dialogueView.querySelector('.metadata');
+const dialogueMediaContainer = dialogueView.querySelector('.media-container');
 const dialogueReplyContainer = dialogueView.querySelector('.reply-container');
 const dialogueReplyAuthor = dialogueReplyContainer.querySelector('.author');
 const dialogueReplyCancel = dialogueReplyContainer.querySelector('button');
 dialogueReplyContainer.addEventListener('click', () => {
-	let element = document.querySelector('.message[data-id="' + dialogueReplyContainer.dataset.mid + '"]');
+	let element = document.querySelector('message-wrapper[data-id="' + dialogueReplyContainer.dataset.mid + '"]');
 	if (!element) return;
 	element.scrollIntoView({ behavior: 'smooth', block: 'center' });
 });
@@ -51,8 +57,9 @@ const dialogueText = dialogueView.querySelector('#text');
 const messageContainer = document.querySelector('#messages');
 function addChatButton(dialogue) {
 	let chat = chatsContainer.querySelector('label[data-id="' + dialogue.id + '"]');
-	let name = chat && chat.querySelector('span');
 	let radio = chat && chat.querySelector('input[type="radio"]');
+	let name = chat && chat.querySelector('span');
+	let lastmsg = chat && chat.querySelector('.last-message');
 	if (!chat) {
 		chat = chatsContainer.appendChild(document.createElement('label'));
 		chat.classList.add('dialogue');
@@ -67,15 +74,17 @@ function addChatButton(dialogue) {
 			openDialogue(dialogue.id);
 		});
 		name = chat.appendChild(document.createElement('span'));
+		lastmsg = chat.appendChild(document.createElement('span'));
+		lastmsg.classList.add('last-message');
 	}
 	name.innerText = dialogue.name;
-	return { chat, name, radio };
+	dialogue.lastMessage && (lastmsg.innerText = (dialogue.lastMessage.author.id === client.user.id ? 'You: ' : '') + dialogue.lastMessage.content.replace(/\n+.+/g, ''));
+	return { chat, name, radio, lastmsg };
 }
 
-let cache = getCache();
 let openDialogueId = Application.searchParams.get('g');
-if (Array.isArray(cache.dialogues)) {
-	for (let dialogue of cache.dialogues) {
+if (Array.isArray(contentCache.get('dialogues'))) {
+	for (let dialogue of contentCache.get('dialogues')) {
 		let { radio } = addChatButton(dialogue);
 		if (dialogue.id === openDialogueId) {
 			showDialogue({ dialogueId: dialogue.id, name: dialogue.name });
@@ -84,9 +93,9 @@ if (Array.isArray(cache.dialogues)) {
 	}
 }
 
-const avatar = document.querySelector('#client-avatar');
-const username = document.querySelector('#client-username');
 client.on('ready', async () => {
+	true /* debug */ && (window.client = client);
+
 	localStorage.setItem('al_session', client.token);
 	if (Application.searchParams.has('g')) {
 		let dialogueId = Application.searchParams.get('g');
@@ -99,22 +108,68 @@ client.on('ready', async () => {
 		addChatButton(dialogue);
 	}
 
-	updateCache({
-		dialogues: Array.from(dialogues.values()).map(({ id, name, type }) => ({ id, name, type }))
-	});
-	avatar.src = client.user.avatarURL();
-	username.innerText = client.user.displayName;
+	contentCache.set('dialogues', Array.from(dialogues.values()).map(({ id, name, type }) => ({ id, name, type })));
+	for (let element of document.querySelectorAll('[data-action="insert"]')) {
+		let field = element.dataset.field;
+		let replace = element.dataset.replace || 'innerText';
+		let target = client.user;
+		if (field.includes('.')) {
+			let objects = field.split('.');
+			field = objects.pop();
+			for (let i = 0; i < objects.length; objects.shift()) {
+				target = target[objects[i]];
+			}
+		}
+
+		switch(field) {
+		case 'avatar':
+			element[replace] = target.avatarURL();
+			for (let accessory of target.avatar.accessories) {
+				if (/^\D0$/.test(accessory)) continue;
+				let accs = document.createElement('img');
+				accs.classList.add('accessory');
+				accs.dataset.type = accessory[0];
+				accs.src = "https://gfx.antiland.com/accs/" + accessory;
+				element.after(accs);
+			}
+			break;
+		case 'blocked':
+			element.replaceChildren(...await Promise.all(Array.from(target[field].values()).map(userId => client.users.fetch(userId, { cache: false }))).then(users => {
+				return users.map(user => {
+					let card = User.createCard(user);
+					let unblock = card.appendChild(document.createElement('button'));
+					unblock.innerText = 'Unblock';
+					unblock.addEventListener('click', async event => {
+						event.target.classList.add('loading');
+						let card = event.target.closest('.user-card');
+						card !== null && await client.user.contacts.unblock(card.dataset.id).then(res => {
+							card.remove();
+						});
+						event.target.classList.remove('loading');
+					});
+					return card;
+				});
+			}));
+			break;
+		default:
+			element[replace] = target[field]
+		}
+	}
+
 	authContainer.close('success');
 });
 
-client.on('messageCreate', async message => createMessage(message));
+client.on('messageCreate', message => createMessage(message));
+client.on('giftMessageCreate', message => createMessage(Object.assign(message, { author: message.sender })));
+const authUsername = authContainer.querySelector('input[type="text"]');
+const authPassword = authContainer.querySelector('input[type="password"]');
 authContainer.addEventListener('close', async event => {
 	switch(event.target.returnValue) {
 	case 'cancel':
 		return;
 	case 'success':
-		uname.value = null;
-		pwd.value = null;
+		authUsername.value = null;
+		authPassword.value = null;
 		return;
 	}
 });
@@ -124,8 +179,8 @@ login.addEventListener('click', async event => {
 	if (event.target.classList.contains('loading')) return;
 	event.target.classList.add('loading');
 	await attemptLogin({
-		username: uname.value,
-		password: pwd.value
+		username: authUsername.value,
+		password: authPassword.value
 	});
 	event.target.classList.remove('loading');
 });
@@ -159,7 +214,7 @@ function openDialogue(dialogueId) {
 		showError("Failed to find dialogue.");
 		return;
 	}
-	history.pushState({ dialogueId, name: dialogue.name }, null, '/web/?g=' + dialogueId);
+	history.pushState({ dialogueId, name: dialogue.name }, null, location.pathname + '?g=' + dialogueId);
 	// dialogueText.setAttribute('placeholder', 'Message ' + dialogue.name);
 }
 
@@ -175,6 +230,7 @@ function showDialogue(data) {
 	container.style.removeProperty('display');
 	dialogueMetadata.innerText = name;
 	dialogueText.setAttribute('placeholder', 'Message ' + name);
+	document.title = name + ' - ' + Application.name;
 	client.dialogues.fetch(dialogueId).then(async dialogue => {
 		activeDialogue = dialogue;
 		let lastMessageTimestamp = container.lastElementChild && new Date(container.lastElementChild.querySelector('.timestamp').getAttribute('title').replace(/\s+at\s+/, ' '));
@@ -197,120 +253,65 @@ function getMessageContainer(dialogueId, { createIfNotExists } = {}) {
 }
 
 function createMessage(message, scrollToBottom) {
-	if (message.type === MessageType.GIFT_MESSAGE) message.author = message.sender;
 	let subContainer = getMessageContainer(message.dialogueId, { createIfNotExists: true });
-	if (null !== subContainer.querySelector('.message[data-id="' + message.id + '"]')) return;
+	if (null !== subContainer.querySelector('message-wrapper[data-id="' + message.id + '"]')) return;
 	let autoScroll = messageContainer.scrollHeight - messageContainer.scrollTop <= messageContainer.offsetHeight;
 	let lastMessageSid = subContainer.lastElementChild && subContainer.lastElementChild.dataset.sid;
-	let msg = subContainer.appendChild(document.createElement('div'));
-	msg.classList.add('message');
-	msg.dataset.id = message.id;
-	msg.dataset.sid = message.author.id;
-	if (message.referenceId !== null) {
-		let referenceContent = msg.appendChild(document.createElement('div'));
-		referenceContent.classList.add('reference-content');
-		referenceContent.dataset.id = message.referenceId;
-		message.reference.content !== null && (referenceContent.innerText = message.reference.content) || (referenceContent.dataset.partial = true,
-		referenceContent.innerHTML = "<i>Click to load message</i>");
-		referenceContent.addEventListener('click', async () => {
-			if (referenceContent.dataset.partial) {
-				delete referenceContent.dataset.partial;
-				let referenceMessage = await message.dialogue.messages.fetch(referenceContent.dataset.id, { force: true });
-				referenceMessage && (referenceContent.innerText = referenceMessage.content) || (referenceContent.innerHTML = "<i>Failed to load message</i>");
-			}
-			let element = document.querySelector('.message[data-id="' + referenceContent.dataset.id + '"]');
-			if (!element) return;
-			element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-		});
-	}
-
-	let messageWrapper = msg.appendChild(document.createElement('span'));
-	messageWrapper.classList.add('message-wrapper');
-	let moveTimestamp = lastMessageSid === message.author.id && message.referenceId === null;
-	let timestamp = moveTimestamp && messageWrapper.appendChild(document.createElement('span'));
-	if (!moveTimestamp) {
-		let avatar = messageWrapper.appendChild(document.createElement('img'));
-		avatar.classList.add('avatar');
-		avatar.src = message.author.avatarURL();
-	}
-
-	let contentContainer = messageWrapper.appendChild(document.createElement('div'));
-	contentContainer.classList.add('content-container');
-	if (!moveTimestamp) {
-		let metadataContainer = contentContainer.appendChild(document.createElement('div'));
-		metadataContainer.classList.add('metadata');
-		let username = metadataContainer.appendChild(document.createElement('span'));
-		username.classList.add('author');
-		username.innerText = message.author.displayName;
-		timestamp = metadataContainer.appendChild(document.createElement('span'));
-	}
-
-	timestamp.classList.add('timestamp');
-	timestamp.setAttribute('title', message.createdAt.toLocaleString([], {
-		weekday: 'long',
-		year: 'numeric',
-		month: 'long',
-		day: 'numeric',
-		hour: '2-digit',
-		hour12: false,
-		minute: '2-digit'
-	}));
-	timestamp.innerText = message.createdAt.toLocaleTimeString([], {
-		hour: '2-digit',
-		hour12: false,
-		minute: '2-digit'
-	});
-	let content = contentContainer.appendChild(document.createElement('span'));
-	content.classList.add('content');
-	content.innerText = message.content;
+	let msg = subContainer.appendChild(Message.create(message));
+	lastMessageSid !== message.author.id && msg.addAuthor();
 	(autoScroll || scrollToBottom) && messageContainer.scrollTo({
 		behavior: 'instant',
 		top: messageContainer.scrollHeight
 	});
-	if (message.media) {
-		let img = contentContainer.appendChild(document.createElement('img'));
-		img.classList.add('attachment');
-		img.src = message.media.url;
-		img.addEventListener('load', () => {
-			// autoScroll = messageContainer.scrollHeight - messageContainer.scrollTop <= messageContainer.offsetHeight;
-			(autoScroll || scrollToBottom) && messageContainer.scrollTo({
-				behavior: 'instant',
-				top: messageContainer.scrollHeight
-			});
+	msg.media && msg.media.addEventListener('load', () => {
+		// autoScroll = messageContainer.scrollHeight - messageContainer.scrollTop <= messageContainer.offsetHeight;
+		(autoScroll || scrollToBottom) && messageContainer.scrollTo({
+			behavior: 'instant',
+			top: messageContainer.scrollHeight
 		});
-	}
-
-	// (autoScroll || scrollToBottom) && messageContainer.scrollTo({
-	// 	behavior: 'instant',
-	// 	top: messageContainer.scrollHeight
-	// });
-	// scroll to bottom?
-	return msg;
+	});
 }
 
+const mediaFiles = new Map();
 dialogueText.addEventListener('keydown', async event => {
 	switch(event.key.toLowerCase()) {
 	case 'enter':
 		event.shiftKey || (event.preventDefault(),
-		sendMessage(dialogueText.value),
+		// send media files first;
+		sendMessage(dialogueText.value, { attachments: Array.from(mediaFiles.entries()).map(([name, url]) => ({ name, url })) }),
 		delete dialogueReplyContainer.dataset.mid,
-		dialogueText.value = null);
+		dialogueText.value = null,
+		dialogueMediaContainer.replaceChildren(),
+		mediaFiles.clear());
 		break;
 	}
 });
 
-// onpaste
-window.addEventListener('paste', event => {
-	console.log(event)
-})
+window.addEventListener('drop', event => {
+	event.preventDefault();
+	handleFileInput(event.dataTransfer);
+});
+window.addEventListener('paste', ({ clipboardData }) => handleFileInput(clipboardData));
+function handleFileInput({ files }) {
+	for (let file of files) {
+		let uuid = crypto.randomUUID();
+		let previewURL = URL.createObjectURL(file);
+		let previewContainer = dialogueMediaContainer.appendChild(document.createElement('div'));
+		previewContainer.classList.add('preview-container');
+		previewContainer.dataset.id = uuid;
+		let previewImg = previewContainer.appendChild(document.createElement('img'));
+		previewImg.src = previewURL;
+		let previewName = previewContainer.appendChild(document.createElement('span'));
+		previewName.innerText = file.name;
+		mediaFiles.set(uuid, previewURL);
+	}
+}
 
-function sendMessage(data) {
-	return activeDialogue.send(data).catch(err => {
+function sendMessage() {
+	return activeDialogue.send(...arguments).catch(err => {
 		showError(err.message);
 	})
 }
-
-// send function
 
 const errorContainer = document.querySelector('.error-container');
 const errmsg = errorContainer.querySelector('#errmsg');
@@ -321,34 +322,27 @@ function showError(message, callback) {
 	return new Promise(resolve => errorContainer.addEventListener('close', resolve, { once: true }));
 }
 
-function getCache() {
-	return Object.assign({}, JSON.parse(localStorage.getItem(Application.cacheKey)));
-}
+const settingsContainer = document.querySelector('.settings-container');
+const settings = document.querySelector('#settings');
+settings.addEventListener('click', event => {
+	event.preventDefault();
+	settingsContainer.showModal();
+});
 
-function updateCache(data) {
-	let cache = getCache();
-	localStorage.setItem(Application.cacheKey, JSON.stringify(cache.merge(data)));
-}
-
-Object.prototype.merge = function(object) {
-	for (const key in object) {
-		if (object.hasOwnProperty(key)) {
-			if (typeof this[key] == 'object' && typeof object[key] == 'object') {
-				this[key].merge(object[key]);
-				continue;
-			}
-
-			this[key] = object[key];
-		}
-	}
-
-	return this;
-}
+const saveSettings = settingsContainer.querySelector('button[value="save"]');
+saveSettings.addEventListener('click', event => {
+	event.preventDefault();
+	event.target.classList.add('loading');
+	// do shit
+	event.target.classList.remove('loading');
+	// close if success
+	// settingsContainer.close();
+});
 
 window.navigation.addEventListener('navigatesuccess', () => showDialogue());
 window.addEventListener('contextmenu', async event => {
 	event.preventDefault();
-	let element = event.target.closest('.message');
+	let element = event.target.closest('message-wrapper');
 	if (element) {
 		// event.preventDefault();
 		let chatContainer = element.closest('.dialogue-chats');
@@ -361,7 +355,29 @@ window.addEventListener('contextmenu', async event => {
 				let hasOutgoingFriendRequest = client.user.friends.pending.outgoing.has(user.id);
 				let paired = client.user.friends.cache.has(user.id);
 				let isContact = client.user.contacts.cache.has(user.id);
+				let isBlocked = client.user.contacts.blocked.has(user.id);
 				options.push({
+					name: 'Profile',
+					async click() {
+						let dialog = document.body.appendChild(document.createElement('dialog'));
+						dialog.appendChild(User.createCard(user));
+						let karma = dialog.appendChild(document.createElement('span'));
+						karma.innerText = user.karma;
+						let friends = dialog.appendChild(document.createElement('details'));
+						let summary = friends.appendChild(document.createElement('summary'));
+						summary.innerText = 'Friends';
+						for (let friend of await user.friends.fetch().then(map => map.values())) {
+							friends.appendChild(User.createCard(friend));
+						}
+						let button = dialog.appendChild(document.createElement('button'));
+						button.innerText = 'Close';
+						button.addEventListener('click', event => {
+							event.preventDefault();
+							dialog.remove();
+						}, { once: true });
+						dialog.showModal();
+					}
+				}, {
 					name: (isContact ? 'Remove' : 'Add') + ' Contact',
 					click: () => client.user.contacts[isContact ? 'remove' : 'add'](user.id)
 				}, {
@@ -377,10 +393,8 @@ window.addEventListener('contextmenu', async event => {
 					name: 'Message',
 					click: () => user.fetchDM({ createIfNotExists: true }).then(({ id }) => openDialogue(id))
 				}, {
-					name: 'Block',
-					click() {
-						
-					}
+					name: (isBlocked ? 'Unb' : 'B') + 'lock',
+					click: () => client.user.contacts[(isBlocked ? 'un' : '') + 'block'](user.id)
 				}, {
 					name: 'Report',
 					styles: ['danger'],
@@ -407,7 +421,7 @@ window.addEventListener('contextmenu', async event => {
 				click: () => navigator.clipboard.writeText(user.id)
 			});
 			// if is client user, add "Copy Private Channel ID"
-			ContextMenuBuilder.create(options, event);
+			ContextMenu.create(options, event);
 			return;
 		}
 
@@ -463,8 +477,13 @@ window.addEventListener('contextmenu', async event => {
 			name: 'Report',
 			styles: ['danger'],
 			click: () => {}
-		})
-		ContextMenuBuilder.create(options, event);
+		});
+		options.length > 0 && options.push({ type: 'hr' });
+		options.push({
+			name: 'Copy Message ID',
+			click: () => navigator.clipboard.writeText(message.id)
+		});
+		ContextMenu.create(options, event);
 		return;
 	}
 
@@ -474,11 +493,14 @@ window.addEventListener('contextmenu', async event => {
 		// event.preventDefault();
 		let dialogue = await client.dialogues.fetch(chat.dataset.id);
 		let isFounder = dialogue.founderId === client.user.id;
+		let isFavorite = client.user.favorites.cache.has(dialogue.id);
+		let isPinned = false;
 		const options = [{
-			name: 'Favourite',
-			click() {
-
-			}
+			name: (isPinned ? 'Unp' : 'P') + 'in',
+			click: () => {} // localStorage
+		}, {
+			name: (isFavorite ? 'Unf' : 'F') + 'avourite',
+			click: () => client.user.favorites[isFavorite ? 'remove' : 'add'](dialogue.id)
 		}, { type: 'hr' }, {
 			name: 'Archive',
 			click() {
@@ -504,14 +526,14 @@ window.addEventListener('contextmenu', async event => {
 			name: 'Copy Channel ID',
 			click: () => navigator.clipboard.writeText(dialogue.id)
 		});
-		ContextMenuBuilder.create(options, event);
+		ContextMenu.create(options, event);
 		return;
 	}
 
 	let sidebar = event.target.closest('.chats');
 	if (sidebar) {
 		// event.preventDefault();
-		ContextMenuBuilder.create([{
+		ContextMenu.create([{
 			name: 'Create Group Chat',
 			click() {
 
@@ -520,6 +542,11 @@ window.addEventListener('contextmenu', async event => {
 			name: 'Create Private Chat',
 			click() {
 				// create dialog
+
+			}
+		}, {
+			name: (true ? 'Show' : 'Hide') + ' Archived Chats',
+			click() {
 
 			}
 		}], event);

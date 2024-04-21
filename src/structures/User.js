@@ -1,6 +1,6 @@
 import BaseStructure from "./BaseStructure.js";
 import Dialogue from "./Dialogue.js";
-import FriendManager from "../managers/ClientFriendManager.js";
+import FriendManager from "../managers/FriendManager.js";
 
 export default class User extends BaseStructure {
 	activity = null;

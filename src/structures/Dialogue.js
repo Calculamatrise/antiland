@@ -3,10 +3,10 @@ import ChannelFlagsBitField from "../utils/ChannelFlagsBitField.js";
 import MessageManager from "../managers/MessageManager.js";
 import Message from "./Message.js";
 import User from "./User.js";
-import ChatFlags from "../utils/ChannelFlags.js";
 
 export default class Dialogue extends BaseStructure {
 	flags = new ChannelFlagsBitField();
+	lastMessage = null;
 	messages = new MessageManager(this);
 	constructor(data, options, isGroup) {
 		if (data instanceof Dialogue) return data;

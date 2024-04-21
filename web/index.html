@@ -14,19 +14,32 @@
 			<label class="nav-option">Groups<input type="radio" name="chats" id="groups" style="display: none;"></label>
 			<label class="nav-option">Private Chats<input type="radio" name="chats" id="private" style="display: none;"></label>
 		</nav>
+		<!-- <input type="text" placeholder="Search"> -->
 		<div class="chats"></div>
 		<div class="account-container">
-			<div class="avatar-container">
-				<img src="" alt="" id="client-avatar">
-				<!-- Add accessories here -->
+			<label for="dropdown-toggle" class="user-container hover">
+				<div class="avatar-container">
+					<img src="assets/avatars/1000.png" data-action="insert" data-field="avatar" data-replace="src">
+					<!-- Add accessories here -->
+				</div>
+				<span data-action="insert" data-field="displayName">Guest</span>
+			</label>
+			<div class="account-dropdown">
+				<input type="checkbox" class="parent-visibility" id="dropdown-toggle" style="display: none;">
+				<span data-action="insert" data-field="displayName">Guest</span>
+				<span data-action="insert" data-field="humanLink">guest</span>
+				<p data-action="insert" data-field="description">Description</p>
+				<button>Switch Accounts</button>
+				<button class="danger" id="logout">Logout</button>
 			</div>
-			<span id="client-username"></span>
+			<button id="settings">Settings</button>
 		</div>
 	</div>
 	<div id="dialogue">
 		<h1 class="metadata"></h1>
-		<div id="messages" style="clear: both;"></div>
+		<div id="messages"></div>
 		<div class="input-container">
+			<div class="media-container"></div>
 			<div class="reply-container" style="display: none;">
 				Replying to <span class="author"></span>
 				<button>Cancel</button>
@@ -36,10 +49,69 @@
 	</div>
 	<dialog class="auth-container">
 		<h4>Login</h4>
-		<input type="text" id="uname" placeholder="Username or E-Mail" style="margin-bottom: 4px;"><br>
-		<input type="password" id="pwd" placeholder="Password">
+		<input type="text" placeholder="Username or E-Mail" style="margin-bottom: 4px;"><br>
+		<input type="password" placeholder="Password">
 		<hr>
 		<button id="login">Login</button>
+	</dialog>
+	<dialog class="settings-container">
+		<span class="title">Settings</span>
+		<div class="flex">
+			<nav>
+				<label class="nav-option hover" for="general">General</label>
+				<label class="nav-option hover" for="content">Content</label>
+				<label class="nav-option hover" for="privacy">Privacy</label>
+				<label class="nav-option hover" for="filter">Filter</label>
+				<label class="nav-option hover" for="sp">Super Powers</label>
+			</nav>
+			<div class="content-container">
+				<input type="radio" class="parent-visibility" name="settings" id="general" checked style="display: none;">
+				<input type="text" id="uname" placeholder="Username" data-action="insert" data-field="displayName" data-replace="value">
+				<input type="text" id="login" placeholder="Login" data-action="insert" data-field="humanLink" data-replace="value">
+				<input type="email" id="email" placeholder="E-Mail" data-action="insert" data-field="email" data-replace="value">
+				<textarea id="desc" placeholder="Description" data-action="insert" data-field="description" data-replace="value"></textarea>
+				<input type="password" id="pwd" placeholder="Password">
+			</div>
+			<div class="content-container">
+				<input type="radio" class="parent-visibility" name="settings" id="content" style="display: none;">
+				<label>Show Messages From Blocked Users<input type="checkbox" checked></label>
+				<label>Show Sensitive Messages<input type="checkbox" data-action="insert" data-field="contentSettings.allowSensitiveTexts" data-replace="checked"></label>
+				<label>Show Sensitive Images<input type="checkbox" data-action="insert" data-field="contentSettings.allowSensitiveImages" data-replace="checked"></label>
+			</div>
+			<div class="content-container">
+				<input type="radio" class="parent-visibility" name="settings" id="privacy" style="display: none;">
+				<label>Minimum Karma<input type="number" id="min-karma" min="0" data-action="insert" data-field="security.minKarma" data-replace="value"></label>
+				<label>Allow Random Chats<input type="checkbox" data-action="insert" data-field="security.getRandoms" data-replace="checked"></label>
+				<label>Auto Accept Random Chats<input type="checkbox" data-action="insert" data-field="security.acceptRandoms" data-replace="checked"></label>
+				<label>Hide Friends<input type="checkbox" data-action="insert" data-field="security.hideMates" data-replace="checked"></label>
+				<label>Schedule Account For Deletion<input type="checkbox" data-action="insert" data-field="security.scheduledDeletion" data-replace="checked"></label>
+				<details>
+					<summary>Blocked Users</summary>
+					<div class="blocked-container" data-action="insert" data-field="contacts.blocked" data-replace="children"></div>
+				</details>
+			</div>
+			<div class="content-container">
+				<input type="radio" class="parent-visibility" name="settings" id="filter" style="display: none;">
+				<label title="Filter messages from the specified sex">Sex Requirement<select>
+					<option value="default" selected>None</option>
+					<option value="female">Female</option>
+					<option value="male">Male</option>
+				</select></label>
+				<label>Minimum Age<input type="number" min="0" max="100" value="0"></label>
+			</div>
+			<div class="content-container">
+				<input type="radio" class="parent-visibility" name="settings" id="sp" style="display: none;">
+				<label>Blessed<input type="checkbox" data-action="insert" data-field="superPowers.blessed" data-replace="checked"></label>
+				<label>Double Karma<input type="checkbox" data-action="insert" data-field="superPowers.doubleKarma" data-replace="checked"></label>
+				<label>Hide Visits<input type="checkbox" data-action="insert" data-field="superPowers.hideVisits" data-replace="checked"></label>
+				<label>Highlight Privates<input type="checkbox" data-action="insert" data-field="superPowers.highlightPrivates" data-replace="checked"></label>
+				<label>Show Online<input type="checkbox" data-action="insert" data-field="superPowers.showOnline" data-replace="checked"></label>
+			</div>
+		</div>
+		<form>
+			<button value="save" disabled>Save</button>
+			<button value="default" formmethod="dialog">Cancel</button>
+		</form>
 	</dialog>
 	<dialog class="error-container">
 		<h4>Error</h4>

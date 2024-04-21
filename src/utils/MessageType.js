@@ -12,6 +12,7 @@
  * @property {string} MESSAGE message
  * @property {string} MESSAGE_DELETE update
  * @property {string} MESSAGE_LIKE message_like
+ * @property {string} MESSAGE_REPORT message.event.reported
  * @property {string} MESSAGE_UPDATE update
  * @property {string} PRIVATE_MESSAGE text
  * @property {string} PRIVATE_NOTIFICATION private_notification
@@ -38,6 +39,7 @@ export default {
 	MESSAGE: 'MESSAGE',
 	MESSAGE_DELETE: 'MESSAGE_DELETE',
 	MESSAGE_LIKE: 'MESSAGE_LIKE',
+	MESSAGE_REPORT: 'MESSAGE_REPORT',
 	MESSAGE_UPDATE: 'MESSAGE_UPDATE',
 	PRIVATE_MESSAGE: 'TEXT',
 	PRIVATE_NOTIFICATION: 'PRIVATE_NOTIFICATION',

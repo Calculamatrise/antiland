@@ -13,7 +13,7 @@ import Opcodes from "../../../../../src/utils/Opcodes.js";
 export default class extends EventEmitter {
 	#connectionId = null;
 	#reconnectAttempts = 0;
-	#clientVersion = "nodejs/antiland";
+	#clientVersion = "antiland/web";
 	#host = "ps.anti.land";
 	#url = "wss://" + this.#host + "/v1/";
 	#fallback = false;
@@ -263,8 +263,9 @@ export default class extends EventEmitter {
 			return this.emit('channelMemberAdd', data);
 		case MessageType.GIFT_MESSAGE:
 			let message = new GiftMessage(data, data.dialogue);
-			this.emit('messageCreate', message);
-			message.receiverId == this.user.id && this.emit('giftMessageCreate', message);
+			this.emit('giftMessageCreate', message);
+			message.receiverId == this.user.id && (this.user.karma += message.karma,
+			this.emit('giftReceive', message)); // emit notification?
 			return;
 		case MessageType.MESSAGE:
 		case MessageType.PRIVATE_MESSAGE:
@@ -297,9 +298,8 @@ export default class extends EventEmitter {
 		let message = new Message(data, data.dialogue);
 		if (this.#lastMessageTimestamp.has(channelId) && message.createdTimestamp <= this.#lastMessageTimestamp.get(channelId)) return;
 		this.#lastMessageTimestamp.set(channelId, message.createdTimestamp);
-		let blocked = this.user.contacts.blocked.has(message.author.id);
-		blocked && (message.author.blocked = true);
-		this.emit('messageCreate', message, blocked);
+		this.user.contacts.blocked.has(message.author.id) && (message.author.blocked = true);
+		this.emit('messageCreate', message);
 	}
 
 	subscribe(channelId) {

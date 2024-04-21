@@ -1,5 +1,6 @@
 :root {
 	--bg-color: hsl(300deg, 5%, 12%);
+	--l-multiplier: 1;
 	--txt-color: hsl(0, 0%, 86%);
 	color-scheme: dark !important;
 }
