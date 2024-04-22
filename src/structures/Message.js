@@ -5,12 +5,14 @@ import User from "./User.js";
 import MessageType from "../utils/MessageType.js";
 
 export default class Message extends BaseStructure {
-	author = new User(null, this);
+	attachments = new Map();
+	author = null;
 	content = null;
 	dialogueId = null;
 	lovers = new LoverManager(this);
 	referenceId = null;
 	reports = 0;
+	stickerId = null;
 	constructor(data, dialogue, ignoreCache) {
 		if (data instanceof Message) return data;
 		if (data instanceof Object && dialogue instanceof Object && dialogue.hasOwnProperty('messages')) {
@@ -40,6 +42,7 @@ export default class Message extends BaseStructure {
 	_patch(data, shallowPatch) {
 		if (typeof data != 'object' || data == null) return;
 		shallowPatch || super._patch(...arguments);
+		data.sender instanceof User && (this.author = data.sender);
 		for (let key in data) {
 			switch (key) {
 			case 'avatar':
@@ -79,6 +82,8 @@ export default class Message extends BaseStructure {
 					case 'source':
 					case 'url':
 						this[key].url = data[key][prop];
+						this[key].type ||= /\.((jpe?|pn)g|webp)$/i.test(data[key][prop]) ? 'photo' : 'video';
+						this.attachments.set(data[key][prop].replace(/.+\/([^_]+).+/, '$1'), this[key]);
 						break;
 					case 'thumb':
 					case 'thumbUrl':
@@ -117,17 +122,23 @@ export default class Message extends BaseStructure {
 					this.author = this.client.users.cache.get(data[key]);
 					break;
 				}
-				this.author._patch({ id: data[key] });
+				this.author = new User({ id: data[key] }, this);
 				break;
 			case 'sendersName':
 				this.author._patch({ profileName: data[key] });
 				break;
-			case 'sticker': // https://gfx.antiland.com/stickers/a10
-				this.content = "https://gfx.antiland.com/stickers/" + data[key];
+			case 'sticker':
+				this.content = "[sticker=" + data[key] + "]";
+				this.stickerId = data[key];
+				this.attachments.set(data[key], this.sticker = {
+					url: this.stickerURL(),
+					type: 'sticker'
+				});
 				break;
-			case 'message': // [sticker=svd2021:3]
+			case 'message':
 			case 'text':
 				if (typeof data[key] != 'string' || data[key] === this.id) break;
+				/^\[sticker=\w+\]$/i.test(data[key]) && this._patch({ sticker: data[key].replace(/^\[sticker=(\w+)\]/i, '$1') });
 				this.content !== null && (this.originalContent === null && Object.defineProperty(this, 'originalContent', { value: this.content, writable: false }),
 				this.edits === null && Object.defineProperty(this, 'edits', { value: [], writable: false }),
 				this.edits.push(this.content));
@@ -241,6 +252,11 @@ export default class Message extends BaseStructure {
 			}
 			return new this.constructor(data, this.dialogue)
 		})
+	}
+
+	stickerURL() {
+		if (this.stickerId === null) return null;
+		return "https://gfx.antiland.com/stickers/" + this.stickerId;
 	}
 
 	/**

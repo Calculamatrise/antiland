@@ -57,17 +57,15 @@ dialogueReplyCancel.addEventListener('click', () => {
 
 const dialogueText = dialogueView.querySelector('#text');
 const messageContainer = document.querySelector('#messages');
-function addChatButton(dialogue) {
+function getChatButton(dialogue, { createIfNotExists } = {}) {
 	let chat = chatsContainer.querySelector('label[data-id="' + dialogue.id + '"]');
-	let radio = chat && chat.querySelector('input[type="radio"]');
-	let name = chat && chat.querySelector('span');
-	let lastmsg = chat && chat.querySelector('.last-message');
+	if (!chat && !createIfNotExists) return null;
 	if (!chat) {
 		chat = chatsContainer.appendChild(document.createElement('label'));
 		chat.classList.add('dialogue');
 		chat.dataset.id = dialogue.id;
 		chat.dataset.type = dialogue.type;
-		radio = chat.appendChild(document.createElement('input'));
+		let radio = chat.appendChild(document.createElement('input'));
 		radio.setAttribute('type', 'radio');
 		radio.setAttribute('name', 'dialogue');
 		radio.style.setProperty('display', 'none');
@@ -75,22 +73,26 @@ function addChatButton(dialogue) {
 			activeDialogue = dialogue;
 			openDialogue(dialogue.id);
 		});
-		name = chat.appendChild(document.createElement('span'));
-		lastmsg = chat.appendChild(document.createElement('span'));
+		let name = chat.appendChild(document.createElement('span'));
+		let lastmsg = chat.appendChild(document.createElement('span'));
 		lastmsg.classList.add('last-message');
+		Object.defineProperties(chat, {
+			lastMessage: { value: lastmsg, writable: true },
+			name: { value: name, writable: true },
+			radio: { value: radio, writable: true }
+		});
 	}
-	name.innerText = dialogue.name;
-	dialogue.lastMessage && (lastmsg.innerText = (dialogue.lastMessage.author.id === client.user.id ? 'You: ' : '') + dialogue.lastMessage.content.replace(/\n+.+/g, ''));
-	return { chat, name, radio, lastmsg };
+	chat.name.innerText = dialogue.name;
+	dialogue.lastMessage && (chat.lastMessage.innerText = (dialogue.lastMessage.author.id === client.user.id ? 'You: ' : '') + dialogue.lastMessage.content.replace(/\n+.+/g, ''));
+	return chat;
 }
 
 let openDialogueId = Application.searchParams.get('g');
 if (Array.isArray(contentCache.get('dialogues'))) {
 	for (let dialogue of contentCache.get('dialogues')) {
-		let { radio } = addChatButton(dialogue);
+		getChatButton(dialogue, { createIfNotExists: true });
 		if (dialogue.id === openDialogueId) {
 			showDialogue({ dialogueId: dialogue.id, name: dialogue.name });
-			radio.checked = true;
 		}
 	}
 }
@@ -107,7 +109,7 @@ client.on('ready', async () => {
 
 	let dialogues = await client.dialogues.fetchActive({ force: true });
 	for (let dialogue of dialogues.values()) {
-		addChatButton(dialogue);
+		getChatButton(dialogue, { createIfNotExists: true });
 	}
 
 	contentCache.set('dialogues', Array.from(dialogues.values()).map(({ id, name, type }) => ({ id, name, type })));
@@ -228,6 +230,8 @@ function showDialogue(data) {
 		if (container.dataset.id === dialogueId) continue;
 		container.style.setProperty('display', 'none');
 	}
+	let tabRadio = chatsContainer.querySelector('label[data-id="' + dialogueId + '"] > input[type="radio"]');;
+	tabRadio !== null && (tabRadio.checked = true);
 	let container = getMessageContainer(dialogueId, { createIfNotExists: true });
 	container.style.removeProperty('display');
 	dialogueMembersView.replaceChildren();

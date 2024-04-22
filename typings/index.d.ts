@@ -208,6 +208,7 @@ export enum MessageType {
 	MESSAGE_UPDATE = 'update',
 	PRIVATE_MESSAGE = 'private_message',
 	PRIVATE_NOTIFICATION = 'private_notification',
+	STICKER = 'sticker',
 	SYSTEM_MESSAGE = 'giftname?',
 	UNBLOCKED_BY = 'blocked',
 	UNBLOCKED_WHOM = 'blocked'

@@ -92,6 +92,7 @@ nav .nav-option:has(> input:checked)::before, .panel.left-panel .chats .dialogue
 .panel.left-panel {
 	border-right: 1px solid hsl(0deg, 0%, calc(50% - 15% * var(--l-multiplier)));
 	float: left;
+	min-width: 285px;
 }
 
 .panel.left-panel .chats {
@@ -268,7 +269,7 @@ details:has(.blocked-container) summary {
 	height: -webkit-fill-available;
 	/* max-height: 80vh; */
 	overflow: hidden auto;
-	width: max-content;
+	padding-right: 1.5rem;
 }
 
 message-wrapper { display: block; }
@@ -369,9 +370,10 @@ message-wrapper .content-container {
 }
 
 message-wrapper .translation { font-style: italic; }
-#messages message-wrapper .attachment {
-	border-radius: 0.25em;
-	max-width: 100%;
+message-wrapper .attachment { border-radius: 0.25em; }
+message-wrapper .attachment[data-type="sticker"] {
+	max-height: 16rem;
+	max-width: 16rem;
 }
 
 .user-card {

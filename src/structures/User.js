@@ -70,6 +70,9 @@ export default class User extends BaseStructure {
 						case 'accs':
 							this[key].accessories = new Set(data[key][prop]);
 							break;
+						case 'blessed':
+							// sp
+							break;
 						case 'idx':
 							this[key].id = data[key][prop];
 							break;

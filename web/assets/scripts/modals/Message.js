@@ -31,6 +31,7 @@ export default class MessageWrapper extends HTMLElement {
 		if (this.attachments.find(media => media.src === url)) return;
 		let media = this.contentContainer.appendChild(document.createElement(type !== 'video' ? 'img' : 'video'));
 		media.classList.add('attachment');
+		media.dataset.type = type;
 		media.src = url;
 		media.addEventListener('load', event => this.dispatchEvent(new Event(event)), { once: true });
 		this.attachments.push(media);
@@ -101,6 +102,7 @@ export default class MessageWrapper extends HTMLElement {
 		content.innerText = message.content;
 		msg.content = content;
 		message.media && msg.addAttachment(message.media);
+		message.stickerId !== null && msg.addAttachment(message.sticker);
 		message.referenceId !== null && msg.addAuthor();
 		return msg;
 	}
