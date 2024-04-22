@@ -1,4 +1,5 @@
 // import DOMHelper from "../DOMHelper.js";
+import QuickActionMenu from "../QuickActionMenu.js";
 import User from "./User.js";
 
 export default class MessageWrapper extends HTMLElement {
@@ -15,6 +16,14 @@ export default class MessageWrapper extends HTMLElement {
 		super();
 		this.dataset.id = message.id;
 		this.dataset.sid = message.author.id;
+		// this.addEventListener('mouseenter', event => {
+		// 	QuickActionMenu.create([{
+		// 		name: '❤️'
+		// 	}, {
+		// 		name: '␡',
+		// 		styles: ['danger']
+		// 	}], this);
+		// });
 		Object.defineProperty(this, 'message', { value: message });
 	}
 
@@ -94,6 +103,66 @@ export default class MessageWrapper extends HTMLElement {
 		message.media && msg.addAttachment(message.media);
 		message.referenceId !== null && msg.addAuthor();
 		return msg;
+	}
+
+	static createContextMenuOptions(message, { client }) {
+		const options = [{
+			disabled: message.id === dialogueReplyContainer.dataset.mid,
+			name: 'Reply',
+			click() {
+				dialogueReplyAuthor.innerText = message.author.displayName;
+				dialogueReplyContainer.dataset.mid = message.id;
+				dialogueReplyContainer.style.removeProperty('display');
+			}
+		}, {
+			name: 'Copy Text',
+			click: () => navigator.clipboard.writeText(message.content)
+		}, {
+			name: 'Share', // v2:chat.message.share
+			click() {
+
+			}
+		}, {
+			disabled: null !== element.querySelector('.translation'),
+			name: 'Translate',
+			click: () => message.translate().then(translation => {
+				let trans = element.appendChild(document.createElement('span'));
+				trans.classList.add('translation');
+				trans.innerText = translation;
+			})
+		}];
+		let canDelete = (dialogue.flags.has(ChannelFlagsBitField.Flags.OWN_MSG_REMOVE_ENABLED) || (dialogue.options && dialogue.options.setup && dialogue.options.setup.has(ChatSetupFlags.ALLOW_MESSAGE_DELETE))) && message.author.id === client.user.id;
+		// add user submenu?
+		// isModerator && options.push({
+		// 	name: 'Ban',
+		// 	styles: ['danger'],
+		// 	click: () => dialogue.members.ban(message.author.id).then(info => {
+		// 		console.log(info)
+		// 	})
+		// }, {
+		// 	name: 'Perma-Ban',
+		// 	styles: ['danger'],
+		// 	click: () => dialogue.members.ban(message.author.id).then(info => {
+		// 		console.log(info)
+		// 	})
+		// });
+		(isModerator || canDelete) && options.push({
+			name: 'Delete',
+			styles: ['danger'],
+			click: () => dialogue.messages.delete(message.id).then(res => {
+				res && element.remove();
+			})
+		});
+		options.push({
+			name: 'Report',
+			styles: ['danger'],
+			click: () => {}
+		});
+		options.length > 0 && options.push({ type: 'hr' });
+		options.push({
+			name: 'Copy Message ID',
+			click: () => navigator.clipboard.writeText(message.id)
+		});
 	}
 }
 

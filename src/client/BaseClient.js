@@ -8,6 +8,7 @@ import FriendRequest from "../structures/FriendRequest.js";
 import GiftMessage from "../structures/GiftMessage.js";
 import Message from "../structures/Message.js";
 
+import Events from "../utils/Events.js";
 import MessageType from "../utils/MessageType.js";
 import Opcodes from "../utils/Opcodes.js";
 
@@ -286,6 +287,9 @@ export default class extends EventEmitter {
 			data.message && data.message._patch(data, true);
 			this.emit('messageReactionAdd', data);
 			return;
+		case MessageType.MESSAGE_REPORT:
+			this.emit(Events.MessageReportAdd, data);
+			return;
 		case MessageType.MESSAGE_UPDATE:
 			data.update && data.message._patch(data, true);
 			temp = data.message || new Message(data, data.dialogue);
@@ -397,6 +401,7 @@ export default class extends EventEmitter {
 	}
 
 	async preprocessMessage(data, { channelId }) {
+		data.body && data.header && Object.assign(data, data.body, data.header);
 		let dialogueId = (data.dialogueId || this.constructor.parseId(data.dialogue) || data.did || data.deleteChat || (channelId !== this.user.channelId && channelId)) || null;
 		let dialogue = (dialogueId !== null && await this.dialogues.fetch(dialogueId).catch(err => {
 			if (err.code !== 141) {

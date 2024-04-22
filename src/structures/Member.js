@@ -1,9 +1,11 @@
+import BaseStructure from "./BaseStructure.js";
 import User from "./User.js";
 
-export default class Member extends User {
+export default class Member extends BaseStructure {
 	dialogueId = null;
 	position = null;
 	priority = null;
+	user = null;
 	constructor(data, dialogue) {
 		if (data instanceof Member) return data;
 		if (data instanceof Object && dialogue instanceof Object && dialogue.hasOwnProperty('messages')) {
@@ -13,6 +15,8 @@ export default class Member extends User {
 				entry._patch(data);
 				return entry
 			}
+
+			data.position ||= dialogue.founderId === id ? 'founder' : (dialogue.moderators && dialogue.moderators.cache.has(id)) ? 'moderator' : 'member';
 		}
 		super(...arguments, true);
 		Object.defineProperties(this, {
@@ -21,6 +25,7 @@ export default class Member extends User {
 			dialogue: { value: dialogue },
 			dialogueId: { enumerable: true, value: dialogue.id }
 		});
+		this.user = new User(data, dialogue);
 		this._patch(data);
 		this.id !== null && this.hasOwnProperty('client') && dialogue.members.cache.set(this.id, this)
 	}
@@ -32,6 +37,7 @@ export default class Member extends User {
 	_patch(data) {
 		if (typeof data != 'object' || data == null) return;
 		super._patch(...arguments);
+		this.user._patch(...arguments);
 		for (let key in data) {
 			switch (key) {
 			case 'position':

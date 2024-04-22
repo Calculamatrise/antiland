@@ -22,12 +22,13 @@ import ChannelType from "../src/utils/ChannelType.js";
 import ChatSetupFlags from "../src/utils/ChatSetupFlags.js";
 import User from "./assets/scripts/modals/User.js";
 import Message from "./assets/scripts/modals/Message.js";
+import MemberWrapper from "./assets/scripts/modals/Member.js";
 
 let activeDialogue = null;
 
 const client = new Client({ debug: true, fallback: true, maxReconnectAttempts: 6 });
 const authContainer = document.querySelector('.auth-container');
-const chatsContainer = document.querySelector('.left-panel .chats');
+const chatsContainer = document.querySelector('.panel.left-panel .chats');
 for (const radio of document.querySelectorAll('input[type="radio"][name="chats"]')) {
 	radio.addEventListener('change', event => {
 		let allowed = event.target.id.toUpperCase().replace(/s$/i, '');
@@ -37,6 +38,7 @@ for (const radio of document.querySelectorAll('input[type="radio"][name="chats"]
 	});
 }
 
+const dialogueMembersView = document.querySelector('.members-list');
 const dialogueView = document.querySelector('#dialogue');
 const dialogueMetadata = dialogueView.querySelector('.metadata');
 const dialogueMediaContainer = dialogueView.querySelector('.media-container');
@@ -228,11 +230,19 @@ function showDialogue(data) {
 	}
 	let container = getMessageContainer(dialogueId, { createIfNotExists: true });
 	container.style.removeProperty('display');
+	dialogueMembersView.replaceChildren();
 	dialogueMetadata.innerText = name;
 	dialogueText.setAttribute('placeholder', 'Message ' + name);
 	document.title = name + ' - ' + Application.name;
 	client.dialogues.fetch(dialogueId).then(async dialogue => {
 		activeDialogue = dialogue;
+		if (dialogue.type !== ChannelType.PRIVATE) {
+			let members = await dialogue.members.fetch({ force: true });
+			for (let member of members.values()) {
+				dialogueMembersView.appendChild(MemberWrapper.createCard(member));
+			}
+		}
+
 		let lastMessageTimestamp = container.lastElementChild && new Date(container.lastElementChild.querySelector('.timestamp').getAttribute('title').replace(/\s+at\s+/, ' '));
 		let messageHistory = await dialogue.messages.fetch({ force: true, since: lastMessageTimestamp }); // cache that it has been fetched
 		for (let message of messageHistory.values()) {
@@ -342,6 +352,21 @@ saveSettings.addEventListener('click', event => {
 window.navigation.addEventListener('navigatesuccess', () => showDialogue());
 window.addEventListener('contextmenu', async event => {
 	event.preventDefault();
+	let userWrapper = event.target.closest('.user-card');
+	if (userWrapper) {
+		if (userWrapper.classList.contains('member-card')) {
+			let dialogue = await client.dialogues.fetch(userWrapper.dataset.did);
+			let member = await dialogue.members.fetch(userWrapper.dataset.id, { partial: true });
+			let options = MemberWrapper.createContextMenuOptions(member, { client });
+			ContextMenu.create(options, event);
+			return;
+		}
+
+		let user = await client.users.fetch(userWrapper.dataset.id);
+		let options = User.createContextMenuOptions(user, { client });
+		ContextMenu.create(options, event);
+	}
+
 	let element = event.target.closest('message-wrapper');
 	if (element) {
 		// event.preventDefault();
@@ -349,84 +374,25 @@ window.addEventListener('contextmenu', async event => {
 		let dialogue = await client.dialogues.fetch(chatContainer.dataset.id);
 		let isModerator = (dialogue.type !== ChannelType.PRIVATE && dialogue.moderators.cache.has(client.user.id)) || dialogue.founderId === client.user.id;
 		if (event.target.closest('.avatar') || event.target.closest('.metadata')) {
-			let user = await client.users.fetch(element.dataset.sid);
-			const options = [];
-			if (user.id !== client.user.id) {
-				let hasOutgoingFriendRequest = client.user.friends.pending.outgoing.has(user.id);
-				let paired = client.user.friends.cache.has(user.id);
-				let isContact = client.user.contacts.cache.has(user.id);
-				let isBlocked = client.user.contacts.blocked.has(user.id);
-				options.push({
-					name: 'Profile',
-					async click() {
-						let dialog = document.body.appendChild(document.createElement('dialog'));
-						dialog.appendChild(User.createCard(user));
-						let karma = dialog.appendChild(document.createElement('span'));
-						karma.innerText = user.karma;
-						let friends = dialog.appendChild(document.createElement('details'));
-						let summary = friends.appendChild(document.createElement('summary'));
-						summary.innerText = 'Friends';
-						for (let friend of await user.friends.fetch().then(map => map.values())) {
-							friends.appendChild(User.createCard(friend));
-						}
-						let button = dialog.appendChild(document.createElement('button'));
-						button.innerText = 'Close';
-						button.addEventListener('click', event => {
-							event.preventDefault();
-							dialog.remove();
-						}, { once: true });
-						dialog.showModal();
-					}
-				}, {
-					name: (isContact ? 'Remove' : 'Add') + ' Contact',
-					click: () => client.user.contacts[isContact ? 'remove' : 'add'](user.id)
-				}, {
-					name: (paired ? 'Remove' : hasOutgoingFriendRequest ? 'Cancel' : 'Add') + ' Friend' + (hasOutgoingFriendRequest ? ' Request' : ''),
-					click: () => client.user.friends[hasOutgoingFriendRequest ? 'cancel' : paired ? 'remove' : 'request'](user.id)
-				}, {
-					disabled: !paired, // check if user is friend first
-					name: 'Add Friend Nickname',
-					click() {
-						
-					}
-				}, {
-					name: 'Message',
-					click: () => user.fetchDM({ createIfNotExists: true }).then(({ id }) => openDialogue(id))
-				}, {
-					name: (isBlocked ? 'Unb' : 'B') + 'lock',
-					click: () => client.user.contacts[(isBlocked ? 'un' : '') + 'block'](user.id)
-				}, {
-					name: 'Report',
-					styles: ['danger'],
-					click: () => {}
-				});
+			if (dialogue.type !== ChannelType.PRIVATE) {
+				let member = await dialogue.members.fetch(element.dataset.sid, { partial: true });
+				let options = MemberWrapper.createContextMenuOptions(member, { client });
+				ContextMenu.create(options, event);
+				return;
 			}
-			isModerator && (options.length > 0 && options.push({ type: 'hr' }),
-			options.push({
-				name: 'Ban',
-				styles: ['danger'],
-				click: () => dialogue.members.ban(user.id).then(info => {
-					console.log(info)
-				})
-			}, {
-				name: 'Perma-Ban',
-				styles: ['danger'],
-				click: () => dialogue.members.ban(user.id).then(info => {
-					console.log(info)
-				})
-			}));
-			options.length > 0 && options.push({ type: 'hr' });
-			options.push({
-				name: 'Copy User ID',
-				click: () => navigator.clipboard.writeText(user.id)
-			});
-			// if is client user, add "Copy Private Channel ID"
+
+			let member = await client.users.fetch(element.dataset.sid);
+			let options = User.createContextMenuOptions(member, { client });
 			ContextMenu.create(options, event);
 			return;
 		}
 
 		let message = await dialogue.messages.fetch(element.dataset.id);
 		const options = [{
+			disabled: message.lovers.cache.has(client.user.id),
+			name: 'Like',
+			click: () => message.like()
+		}, {
 			disabled: message.id === dialogueReplyContainer.dataset.mid,
 			name: 'Reply',
 			click() {
@@ -484,6 +450,9 @@ window.addEventListener('contextmenu', async event => {
 			click: () => navigator.clipboard.writeText(message.id)
 		});
 		ContextMenu.create(options, event);
+		// ContextMenu.create(options, event).addEventListener('close', event => {
+		// 	console.log(event) // use this to handle actions from Message.createContextMenuOptions();
+		// }, { once: true });
 		return;
 	}
 
@@ -534,9 +503,49 @@ window.addEventListener('contextmenu', async event => {
 	if (sidebar) {
 		// event.preventDefault();
 		ContextMenu.create([{
+			name: 'Create Channel',
+			click() {
+				let dialog = document.body.appendChild(document.createElement('dialog'));
+				let title = dialog.appendChild(document.createElement('h4'));
+				title.innerText = 'Create a channel';
+				let name = dialog.appendChild(document.createElement('input'));
+				name.setAttribute('placeholder', 'Name');
+				dialog.appendChild(document.createElement('br'));
+				let description = dialog.appendChild(document.createElement('textarea'));
+				description.setAttribute('placeholder', 'Description');
+				dialog.appendChild(document.createElement('hr'));
+				let form = dialog.appendChild(document.createElement('form'));
+				let submit = form.appendChild(document.createElement('button'));
+				submit.innerText = 'Create';
+				submit.addEventListener('click', event => {
+					event.preventDefault();
+				});
+				let cancel = form.appendChild(document.createElement('button'));
+				cancel.setAttribute('formmethod', 'dialog');
+				cancel.innerText = 'Cancel';
+				dialog.showModal();
+			}
+		}, {
 			name: 'Create Group Chat',
 			click() {
-
+				let dialog = document.body.appendChild(document.createElement('dialog'));
+				let title = dialog.appendChild(document.createElement('h4'));
+				title.innerText = 'Create a group chat';
+				let name = dialog.appendChild(document.createElement('input'));
+				name.setAttribute('placeholder', 'Name');
+				dialog.appendChild(document.createElement('br'));
+				let description = dialog.appendChild(document.createElement('textarea'));
+				description.setAttribute('placeholder', 'Description');
+				let form = dialog.appendChild(document.createElement('form'));
+				let submit = form.appendChild(document.createElement('button'));
+				submit.innerText = 'Create';
+				submit.addEventListener('click', event => {
+					event.preventDefault();
+				});
+				let cancel = form.appendChild(document.createElement('button'));
+				cancel.setAttribute('formmethod', 'dialog');
+				cancel.innerText = 'Cancel';
+				dialog.showModal();
 			}
 		}, {
 			name: 'Create Private Chat',
@@ -545,9 +554,13 @@ window.addEventListener('contextmenu', async event => {
 
 			}
 		}, {
-			name: (true ? 'Show' : 'Hide') + ' Archived Chats',
+			name: (contentCache.get('showArchive') ? 'Hide' : 'Show') + ' Archived Chats',
 			click() {
-
+				let showArchive = !contentCache.get('showArchive');
+				contentCache.set('showArchive', showArchive);
+				if (showArchive) {
+					// unhide archived chats
+				}
 			}
 		}], event);
 		return;

@@ -12,7 +12,11 @@ export default class {
 
 	_patch(data) {
 		if (typeof data != 'object' || data == null) return;
-		for (let key in data) {
+		for (let key of Object.getOwnPropertyNames(data).filter(key => {
+			let descriptor = Object.getOwnPropertyDescriptor(this, key);
+			return !descriptor || descriptor.writable;
+		})) {
+		// for (let key in data) {
 			switch (key) {
 			case 'body':
 			case 'header':
@@ -45,4 +49,14 @@ export default class {
 	}
 
 	async fetch() { return this }
+	static from(instance) {
+		let temp = new this(instance, { client: instance.client });
+		for (let key of Object.getOwnPropertyNames(instance)) {
+			let descriptor = Object.getOwnPropertyDescriptor(temp, key);
+			if (!descriptor || !descriptor.writable) continue;
+			if (instance[key] === null || (temp[key] !== null && temp[key].constructor !== instance[key].constructor)) continue;
+			temp[key] = instance[key];
+		}
+		return temp;
+	}
 }

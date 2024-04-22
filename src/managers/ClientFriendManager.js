@@ -2,7 +2,7 @@ import FriendManager from "./FriendManager.js";
 import FriendRequest from "../structures/FriendRequest.js";
 import User from "../structures/User.js";
 
-export default class extends FriendManager {
+export default class ClientFriendManager extends FriendManager {
 	pending = {
 		incoming: new Map(),
 		outgoing: new Map()

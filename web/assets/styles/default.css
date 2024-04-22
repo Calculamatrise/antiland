@@ -5,7 +5,18 @@
 body {
 	background-color: var(--bg-color);
 	color: var(--txt-color);
+	display: flex;
 	font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+}
+
+body > div {
+	box-sizing: border-box;
+	height: 100%;
+	/* height: -webkit-fill-available; */
+	height: calc(100vh - 1rem);
+	max-height: calc(100vh - 1rem);
+	padding: 0.5rem 0;
+	vertical-align: top;
 }
 
 nav {
@@ -16,7 +27,7 @@ nav {
 	text-align: center;
 }
 
-nav .nav-option, .left-panel .chats .dialogue {
+nav .nav-option, .panel.left-panel .chats .dialogue {
 	border-radius: 2.5px;
 	padding: 0.25em 0.4em;
 	transition: all 80ms;
@@ -34,24 +45,24 @@ nav .nav-option, .left-panel .chats .dialogue {
 	white-space: nowrap;
 }
 
-nav .nav-option:has(> input:checked), .left-panel .chats .dialogue:has(> input:checked) {
+nav .nav-option:has(> input:checked), .panel.left-panel .chats .dialogue:has(> input:checked) {
 	/* background-color: var(--txt-color); */
 	color: var(--bg-color);
 	transition: all 360ms;
 }
 
-nav .nav-option, .left-panel .chats .dialogue {
+nav .nav-option, .panel.left-panel .chats .dialogue {
 	position: relative;
 }
 
-nav .nav-option::before, .left-panel .chats .dialogue::before {
+nav .nav-option::before, .panel.left-panel .chats .dialogue::before {
 	border-radius: 2.5px;
 	content: "";
 	inset: 2.5px;
 	z-index: -1;
 }
 
-nav .nav-option:has(> input:checked)::before, .left-panel .chats .dialogue:has(> input:checked)::before {
+nav .nav-option:has(> input:checked)::before, .panel.left-panel .chats .dialogue:has(> input:checked)::before {
 	background-color: var(--txt-color);
 	color: var(--bg-color);
 	content: "";
@@ -60,7 +71,7 @@ nav .nav-option:has(> input:checked)::before, .left-panel .chats .dialogue:has(>
 	transition: all 360ms;
 }
 
-.left-panel nav {
+.panel.left-panel nav {
 	background-color: var(--bg-color);
 	border-bottom: 1px solid hsl(0deg, 0%, calc(50% - 25% * var(--l-multiplier)));
 	padding: 0.25em;
@@ -69,17 +80,21 @@ nav .nav-option:has(> input:checked)::before, .left-panel .chats .dialogue:has(>
 	z-index: 1;
 }
 
-.left-panel {
-	border-right: 1px solid hsl(0deg, 0%, calc(50% - 15% * var(--l-multiplier)));
+.panel {
 	display: inline-flex;
 	flex-direction: column;
-	height: calc(100vh - 16px - 1em);
 	max-width: 25vw;
-	padding: 0.5em 1.5em;
+	padding-left: 1.5rem;
+	padding-right: 1.5em;
 	width: fit-content;
 }
 
-.left-panel .chats {
+.panel.left-panel {
+	border-right: 1px solid hsl(0deg, 0%, calc(50% - 15% * var(--l-multiplier)));
+	float: left;
+}
+
+.panel.left-panel .chats {
 	display: flex;
 	flex-direction: column;
 	gap: 0.25em;
@@ -88,13 +103,13 @@ nav .nav-option:has(> input:checked)::before, .left-panel .chats .dialogue:has(>
 	padding: 0.25em;
 }
 
-.left-panel .chats:empty::before {
+.panel.left-panel .chats:empty::before {
 	color: hsl(0deg, 0%, 50%);
 	content: "No chats to display.";
 	font-size: smaller;
 }
 
-.left-panel .account-container {
+.panel.left-panel .account-container {
 	align-items: center;
 	background-color: var(--bg-color);
 	border-top: 1px solid hsl(0deg, 0%, calc(50% - 25% * var(--l-multiplier)));
@@ -105,12 +120,20 @@ nav .nav-option:has(> input:checked)::before, .left-panel .chats .dialogue:has(>
 	position: sticky;
 }
 
-.left-panel .account-container .user-container {
+.panel.left-panel .account-container .user-container {
 	margin: 0.5em 0;
 	width: -webkit-fill-available;
 }
 
-.left-panel .account-container .user-container [data-field="displayName"] { font-weight: bold; }
+.panel.left-panel .account-container .user-container [data-field="displayName"] { font-weight: bold; }
+.panel.right-panel {
+	border-left: 1px solid hsl(0deg, 0%, calc(50% - 15% * var(--l-multiplier)));
+	float: right;
+}
+
+.panel.right-panel:has(.members-list:empty) {
+	display: none;
+}
 
 .user-container {
 	align-items: center;
@@ -118,11 +141,7 @@ nav .nav-option:has(> input:checked)::before, .left-panel .chats .dialogue:has(>
 	gap: 0.25em;
 }
 
-.user-container .avatar-container img {
-	max-width: 87px;
-	object-fit: scale-down;
-	width: 3.5em;
-}
+.user-container .avatar-container img { max-width: 87px; }
 
 details:has(.blocked-container) summary {
 	background-color: hsl(0deg, 0%, calc(50% - 42.94% * var(--l-multiplier)));
@@ -155,9 +174,9 @@ details:has(.blocked-container) summary {
 #dialogue {
 	display: inline-flex;
 	flex-direction: column;
-	height: -webkit-fill-available;
-	padding: 0.5rem 0;
-	position: absolute;
+	max-width: 90vw;
+	/* width: 50vw; */
+	width: 100%;
 	width: -webkit-fill-available;
 }
 
@@ -240,6 +259,17 @@ details:has(.blocked-container) summary {
 }
 
 #messages .dialogue-chats { display: contents; }
+
+.members-list {
+	display: inline-flex;
+	flex-direction: column;
+	gap: 0.25rem;
+	height: 100%;
+	height: -webkit-fill-available;
+	/* max-height: 80vh; */
+	overflow: hidden auto;
+	width: max-content;
+}
 
 message-wrapper { display: block; }
 
@@ -334,6 +364,8 @@ message-wrapper .content-container {
 	display: flex;
 	flex-direction: column;
 	justify-content: space-around;
+	width: 100%;
+	width: -webkit-fill-available;
 }
 
 message-wrapper .translation { font-style: italic; }
@@ -349,8 +381,18 @@ message-wrapper .translation { font-style: italic; }
 	justify-content: space-between;
 }
 
-.user-card img {
-	width: 4rem;
+.user-card .metadata {
+	display: flex;
+	flex-direction: column;
+}
+
+.user-card .karma {
+	color: hsl(300deg, 40%, 50%);
+	font-size: 0.75em;
+}
+
+.user-card .karma::before {
+	content: "₭";
 }
 
 :has(> .account-dropdown) { position: relative; }
@@ -510,7 +552,7 @@ context-menu {
 	overflow: hidden;
 	padding: 0.25em;
 	position: absolute;
-	z-index: 1001;
+	z-index: 1002;
 }
 
 context-menu button {
@@ -527,4 +569,24 @@ context-menu hr {
 
 	/* border-color: hsl(0deg, 0%, 35%); */
 	width: 90%;
+}
+
+:has(> quick-action-menu) { position: relative; }
+quick-action-menu {
+	background-color: var(--bg-color);
+	border: 1px solid hsl(0deg, 0%, calc(50% - 25% * var(--l-multiplier)));
+	border-radius: 0.2em;
+	bottom: 75%;
+	box-shadow: 2px 2px 4px -1px hsl(0deg, 0%, calc(50% - 40% * var(--l-multiplier)), 50%);
+	display: flex;
+	overflow: hidden;
+	padding: 0.25em;
+	position: absolute;
+	right: 0.5rem;
+	z-index: 1002;
+}
+
+quick-action-menu button {
+	border: none;
+	padding: 0.5em 1em;
 }

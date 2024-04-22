@@ -27,6 +27,7 @@ export default class ContextMenu extends HTMLElement {
 		this.options.push(data);
 		if (/^(b|h)r$/i.test(type)) return element;
 		for (let key in data) {
+			if (typeof data[key] == 'undefined') continue;
 			if (typeof data[key] == 'function' && element['on' + key] !== undefined) {
 				element.addEventListener(key, data[key]);
 				continue;
@@ -36,6 +37,7 @@ export default class ContextMenu extends HTMLElement {
 				element[key] = data[key];
 				break;
 			case 'styles':
+				if (typeof data[key][Symbol.iterator] != 'function') continue;
 				element.classList.add(...Array.from(data[key].values()));
 				break;
 			}
@@ -58,21 +60,21 @@ export default class ContextMenu extends HTMLElement {
 		return { clientX, clientY };
 	}
 
-	remove() {
+	remove(event) {
 		if (null === this.constructor.contextMenu) return;
 		window.removeEventListener('blur', this.#blurListener);
 		window.removeEventListener('pointerdown', this.#pointerdownListener);
 		super.remove();
 		this.constructor.contextMenu = null;
-		this.dispatchEvent(new Event("close", {
-			options: this.options
+		this.dispatchEvent(new CustomEvent('close', {
+			detail: event && event.target.innerText && event.target.innerText.toLowerCase()
 		}));
 	}
 
 	static contextMenu = null;
 	static create(options, event) {
 		if (!this.contextMenu) {
-			this.contextMenu = document.createElement('context-menu');
+			this.contextMenu = new this();
 		} else {
 			this.contextMenu.clear();
 		}

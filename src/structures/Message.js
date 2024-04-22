@@ -10,6 +10,7 @@ export default class Message extends BaseStructure {
 	dialogueId = null;
 	lovers = new LoverManager(this);
 	referenceId = null;
+	reports = 0;
 	constructor(data, dialogue, ignoreCache) {
 		if (data instanceof Message) return data;
 		if (data instanceof Object && dialogue instanceof Object && dialogue.hasOwnProperty('messages')) {
@@ -92,6 +93,10 @@ export default class Message extends BaseStructure {
 				if (this.reference !== null) break;
 				this.referenceId = data[key];
 				this.dialogue !== null && Object.defineProperty(this, 'reference', { value: new Message({ id: data[key] }, this.dialogue), writable: false });
+				break;
+			case 'reports':
+			case 'reportsCount':
+				this.reports = data[key];
 				break;
 			case 'sender':
 				let sender = data[key] instanceof User ? data[key] : new User(data[key], this);
@@ -184,7 +189,7 @@ export default class Message extends BaseStructure {
 		return this.client.requests.post("functions/v2:chat.message.love", {
 			messageId: this.id
 		}).then(result => {
-			(this.lovers ||= new Map()).set(this.client.user.id, this.client.user);
+			this.lovers.cache.set(this.client.user.id, this.client.user);
 			return this._patch({ likesCount: result })
 		})
 	}

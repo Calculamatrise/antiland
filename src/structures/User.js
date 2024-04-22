@@ -14,9 +14,9 @@ export default class User extends BaseStructure {
 	karma = null;
 	minKarma = null;
 	username = null;
-	constructor(data, options, isMember) {
-		if (data instanceof User) return data;
-		if (!isMember && data instanceof Object && options instanceof Object && options.hasOwnProperty('client')) {
+	constructor(data, options, skipPatch) {
+		if (data instanceof User && data.constructor === User) return data;
+		if (data instanceof Object && options instanceof Object && options.hasOwnProperty('client')) {
 			let id = data.id || data.objectId;
 			let entry = options.client.users.cache.get(id);
 			if (entry) {
@@ -30,7 +30,7 @@ export default class User extends BaseStructure {
 			dmChannel: { value: null, writable: true },
 			humanLink: { value: null, writable: true }
 		});
-		isMember || this._patch(data);
+		skipPatch || this._patch(data),
 		this.id !== null && this.hasOwnProperty('client') && this.client.users.cache.set(this.id, this)
 	}
 

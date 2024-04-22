@@ -2,6 +2,7 @@ import BaseManager from "./BaseManager.js";
 import Member from "../structures/Member.js";
 
 export default class MemberManager extends BaseManager {
+	total = null;
 	get manageable() {
 		return this.client.manageable || this.client.moderators.cache.has(this.client.client.user.id)
 	}
@@ -13,9 +14,11 @@ export default class MemberManager extends BaseManager {
 	 * @param {boolean} [options.active]
 	 * @param {boolean} [options.force]
 	 * @param {number} [options.page]
+	 * @param {boolean} [options.partial] whether to create a partial member object
+	 * @param {string} [options.search]
 	 * @returns {Promise<Member>}
 	 */
-	async fetch({ active, force, id, page } = {}) {
+	async fetch({ active, force, id, page, partial, search } = {}) {
 		if (typeof arguments[0] == 'string') return this.fetch(Object.assign({}, arguments[1], { id: arguments[0] }));
 		else if (active) return this.fetchActive(...arguments);
 		else if (!force && this.cache.size > 0) {
@@ -25,12 +28,23 @@ export default class MemberManager extends BaseManager {
 				return this.cache;
 			}
 		}
+
+		if (partial) {
+			return this.client.client.users.fetch(id).then(user => {
+				let entry = new Member(user, this.client);
+				this.cache.set(entry.id, entry);
+				return entry;
+			});
+		}
+
 		page ??= 0;
 		return this.client.client.requests.post("functions/v2:chat.getMembers", {
 			dialogueId: this.client.id,
 			page,
-			search: null
+			search: search || null
 		}).then(res => {
+			this.total = res.total;
+			this.client.totalMembers = res.total;
 			for (let item of res.members) {
 				let entry = new Member(item, this.client);
 				this.cache.set(entry.id, entry);
