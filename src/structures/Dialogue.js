@@ -6,7 +6,7 @@ import User from "./User.js";
 
 export default class Dialogue extends BaseStructure {
 	flags = new ChannelFlagsBitField();
-	lastMessage = null;
+	lastMessageId = null;
 	messages = new MessageManager(this);
 	constructor(data, options, isGroup) {
 		if (data instanceof Dialogue) return data;
@@ -40,6 +40,7 @@ export default class Dialogue extends BaseStructure {
 			case 'badgeColor':
 			case 'founderId':
 			case 'friendId':
+			case 'lastMessageId':
 			case 'name':
 			case 'subType':
 			case 'title':
@@ -55,7 +56,8 @@ export default class Dialogue extends BaseStructure {
 				Object.defineProperty(this, key, { value: new User(data[key], this), writable: false })
 				break;
 			case 'lastMessage':
-				this[key] = new Message(data[key], this, true);
+				this._patch({ [key + 'Id']: typeof data[key] == 'object' ? data[key].id : data[key] });
+				this[key] = data[key] instanceof Message ? data[key] : new Message(typeof data[key] == 'string' ? { id: data[key] } : data[key], this, { partial: true });
 				break;
 			case 'msgCount':
 				this.messageCount = data[key];

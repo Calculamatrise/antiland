@@ -13,7 +13,7 @@ export default class Message extends BaseStructure {
 	referenceId = null;
 	reports = 0;
 	stickerId = null;
-	constructor(data, dialogue, ignoreCache) {
+	constructor(data, dialogue, { partial, skipCache } = {}) {
 		if (data instanceof Message) return data;
 		if (data instanceof Object && dialogue instanceof Object && dialogue.hasOwnProperty('messages')) {
 			let id = data.id || data.objectId;
@@ -29,10 +29,12 @@ export default class Message extends BaseStructure {
 			dialogue: { value: isDialogue ? dialogue : null, writable: !isDialogue },
 			edits: { value: null, writable: true },
 			originalContent: { value: null, writable: true },
-			reference: { value: null, writable: true }
+			partial: { value: partial || this.partial, writable: true },
+			reference: { value: null, writable: true },
+			sticker: { value: null, writable: true }
 		});
 		this._patch(data);
-		!ignoreCache && this.id !== null && this.hasOwnProperty('client') && dialogue.messages.cache.set(this.id, this)
+		!skipCache && this.id !== null && this.hasOwnProperty('client') && dialogue.messages.cache.set(this.id, this)
 	}
 
 	get deletable() {
@@ -122,7 +124,7 @@ export default class Message extends BaseStructure {
 					this.author = this.client.users.cache.get(data[key]);
 					break;
 				}
-				this.author = new User({ id: data[key] }, this);
+				this.author = new User({ id: data[key] }, this, { partial: this.partial, skipCache: this.partial });
 				break;
 			case 'sendersName':
 				this.author._patch({ profileName: data[key] });
@@ -130,10 +132,16 @@ export default class Message extends BaseStructure {
 			case 'sticker':
 				this.content = "[sticker=" + data[key] + "]";
 				this.stickerId = data[key];
-				this.attachments.set(data[key], this.sticker = {
-					url: this.stickerURL(),
-					type: 'sticker'
+				if (this.sticker !== null) break;
+				Object.defineProperty(this, 'sticker', {
+					value: {
+						id: data[key],
+						url: this.stickerURL(),
+						type: 'sticker'
+					},
+					writable: false
 				});
+				this.attachments.set(data[key], this.sticker);
 				break;
 			case 'message':
 			case 'text':

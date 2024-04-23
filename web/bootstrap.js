@@ -20,11 +20,14 @@ import Client from "./assets/scripts/antiland/client/Client.js";
 import ChannelFlagsBitField from "../src/utils/ChannelFlagsBitField.js";
 import ChannelType from "../src/utils/ChannelType.js";
 import ChatSetupFlags from "../src/utils/ChatSetupFlags.js";
-import User from "./assets/scripts/modals/User.js";
-import Message from "./assets/scripts/modals/Message.js";
+import MessageWrapper from "./assets/scripts/modals/Message.js";
 import MemberWrapper from "./assets/scripts/modals/Member.js";
+import SuperDialog from "./assets/scripts/modals/SuperDialog.js";
+import UserWrapper from "./assets/scripts/modals/User.js";
 
 let activeDialogue = null;
+let archivedChats;
+let pinnedChats;
 
 const client = new Client({ debug: true, fallback: true, maxReconnectAttempts: 6 });
 const authContainer = document.querySelector('.auth-container');
@@ -32,7 +35,7 @@ const chatsContainer = document.querySelector('.panel.left-panel .chats');
 for (const radio of document.querySelectorAll('input[type="radio"][name="chats"]')) {
 	radio.addEventListener('change', event => {
 		let allowed = event.target.id.toUpperCase().replace(/s$/i, '');
-		for (const chat of chatsContainer.children) {
+		for (const chat of chatsContainer.querySelectorAll('label')) {
 			chat.style[(allowed == 'ALL' || allowed === chat.dataset.type || (allowed === 'GROUP' && chat.dataset.type === 'PUBLIC')) ? 'removeProperty' : 'setProperty']('display', 'none');
 		}
 	});
@@ -61,10 +64,14 @@ function getChatButton(dialogue, { createIfNotExists } = {}) {
 	let chat = chatsContainer.querySelector('label[data-id="' + dialogue.id + '"]');
 	if (!chat && !createIfNotExists) return null;
 	if (!chat) {
-		chat = chatsContainer.appendChild(document.createElement('label'));
+		dialogue.archived && getChatArchive({ createIfNotExists: true });
+		dialogue.pinned && getPinnedChats({ createIfNotExists: true });
+		chat = (dialogue.archived ? archivedChats : dialogue.pinned ? pinnedChats : chatsContainer).appendChild(document.createElement('label'));
 		chat.classList.add('dialogue');
 		chat.dataset.id = dialogue.id;
 		chat.dataset.type = dialogue.type;
+		dialogue.archived && (chat.dataset.archived = true);
+		dialogue.pinned && (chat.dataset.pinned = true);
 		let radio = chat.appendChild(document.createElement('input'));
 		radio.setAttribute('type', 'radio');
 		radio.setAttribute('name', 'dialogue');
@@ -87,12 +94,49 @@ function getChatButton(dialogue, { createIfNotExists } = {}) {
 	return chat;
 }
 
+function updateChatTab(dialogue) {
+	let chat = getChatButton(dialogue, { createIfNotExists: true });
+	let notInChats = chat.parentElement !== chatsContainer;
+	dialogue.pinned && getPinnedChats({ createIfNotExists: true }).appendChild(chat);
+	dialogue.archived && getChatArchive({ createIfNotExists: true }).appendChild(chat);
+	!dialogue.archived && !dialogue.pinned && notInChats && (pinnedChats ? pinnedChats.after(chat) : archivedChats ? archivedChats.after(chat) : chatsContainer.appendChild(chat));
+	chat.name.innerText = dialogue.name;
+	dialogue.lastMessage && (chat.lastMessage.innerText = (dialogue.lastMessage.author.id === client.user.id ? 'You: ' : '') + dialogue.lastMessage.content.replace(/\n+.+/g, ''));
+	return chat;
+}
+
+function getChatArchive({ createIfNotExists } = {}) {
+	if (!archivedChats && createIfNotExists) {
+		let details = document.createElement('details');
+		details.classList.add('archived-chats');
+		let summary = details.appendChild(document.createElement('summary'));
+		summary.innerText = 'Archived Chats';
+		archivedChats = details.appendChild(document.createElement('div'));
+		archivedChats.classList.add('chats');
+		chatsContainer.prepend(details);
+	}
+	return archivedChats || null;
+}
+
+function getPinnedChats({ createIfNotExists } = {}) {
+	if (!pinnedChats && createIfNotExists) {
+		pinnedChats = document.createElement('div');
+		pinnedChats.classList.add('pinned-chats');
+		pinnedChats.style.setProperty('display', 'contents');
+		archivedChats ? archivedChats.after(pinnedChats) : chatsContainer.prepend(pinnedChats);
+	}
+	return pinnedChats || null;
+}
+
+// check params for p -- user profile open dialog if present
 let openDialogueId = Application.searchParams.get('g');
-if (Array.isArray(contentCache.get('dialogues'))) {
-	for (let dialogue of contentCache.get('dialogues')) {
+if (contentCache.has('dialogues')) {
+	let dialogues = contentCache.get('dialogues');
+	for (let dialogueId in dialogues) {
+		let dialogue = dialogues[dialogueId];
 		getChatButton(dialogue, { createIfNotExists: true });
-		if (dialogue.id === openDialogueId) {
-			showDialogue({ dialogueId: dialogue.id, name: dialogue.name });
+		if (dialogueId === openDialogueId) {
+			showDialogue({ dialogueId, name: dialogue.name });
 		}
 	}
 }
@@ -112,7 +156,7 @@ client.on('ready', async () => {
 		getChatButton(dialogue, { createIfNotExists: true });
 	}
 
-	contentCache.set('dialogues', Array.from(dialogues.values()).map(({ id, name, type }) => ({ id, name, type })));
+	contentCache.update('dialogues', Object.fromEntries(Array.from(dialogues.values()).map(({ id, name, type }) => [id, { id, name, type }])));
 	for (let element of document.querySelectorAll('[data-action="insert"]')) {
 		let field = element.dataset.field;
 		let replace = element.dataset.replace || 'innerText';
@@ -140,7 +184,7 @@ client.on('ready', async () => {
 		case 'blocked':
 			element.replaceChildren(...await Promise.all(Array.from(target[field].values()).map(userId => client.users.fetch(userId, { cache: false }))).then(users => {
 				return users.map(user => {
-					let card = User.createCard(user);
+					let card = UserWrapper.createCard(user);
 					let unblock = card.appendChild(document.createElement('button'));
 					unblock.innerText = 'Unblock';
 					unblock.addEventListener('click', async event => {
@@ -180,42 +224,42 @@ authContainer.addEventListener('close', async event => {
 
 const login = authContainer.querySelector('#login');
 login.addEventListener('click', async event => {
-	if (event.target.classList.contains('loading')) return;
 	event.target.classList.add('loading');
-	await attemptLogin({
+	await client.login({
 		username: authUsername.value,
 		password: authPassword.value
+	}).catch(err => {
+		SuperDialog.error(err.message);
 	});
 	event.target.classList.remove('loading');
+});
+
+const logout = document.querySelector('#logout');
+logout.addEventListener('click', async event => {
+	event.target.classList.add('loading');
+	await client.destroy(true);
+	localStorage.removeItem('al_session');
+	event.target.classList.remove('loading');
+	location.reload();
 });
 
 // check if user token is saved first, if yes then login
 const token = localStorage.getItem('al_session');
 if (token !== null) {
-	attemptLogin(token).catch(err => {
-		localStorage.removeItem('al_session');
+	client.login(token).catch(err => {
+		SuperDialog.error(err.message, () => {
+			location.reload();
+		});
+		209 === err.code && localStorage.removeItem('al_session');
 	});
 } else {
 	authContainer.showModal();
 }
 
-function attemptLogin(payload) {
-	return client.login(payload).catch(err => {
-		console.log(err)
-		const errmsg = errorContainer.querySelector('#errmsg');
-		errmsg.innerText = err.message;
-		errorContainer.addEventListener('close', () => {
-			authContainer.showModal();
-		}, { once: true });
-		errorContainer.showModal();
-		throw err;
-	});
-}
-
 function openDialogue(dialogueId) {
 	let dialogue = client.dialogues.cache.get(dialogueId);
 	if (!dialogue) {
-		showError("Failed to find dialogue.");
+		SuperDialog.error("Failed to find dialogue.");
 		return;
 	}
 	history.pushState({ dialogueId, name: dialogue.name }, null, location.pathname + '?g=' + dialogueId);
@@ -271,7 +315,7 @@ function createMessage(message, scrollToBottom) {
 	if (null !== subContainer.querySelector('message-wrapper[data-id="' + message.id + '"]')) return;
 	let autoScroll = messageContainer.scrollHeight - messageContainer.scrollTop <= messageContainer.offsetHeight;
 	let lastMessageSid = subContainer.lastElementChild && subContainer.lastElementChild.dataset.sid;
-	let msg = subContainer.appendChild(Message.create(message));
+	let msg = subContainer.appendChild(MessageWrapper.create(message));
 	lastMessageSid !== message.author.id && msg.addAuthor();
 	(autoScroll || scrollToBottom) && messageContainer.scrollTo({
 		behavior: 'instant',
@@ -284,6 +328,8 @@ function createMessage(message, scrollToBottom) {
 			top: messageContainer.scrollHeight
 		});
 	});
+	let lastMessagePreview = document.querySelector('label[data-id="' + message.dialogueId + '"] > .last-message');
+	null !== lastMessagePreview && (lastMessagePreview.innerText = message.content);
 }
 
 const mediaFiles = new Map();
@@ -323,17 +369,8 @@ function handleFileInput({ files }) {
 
 function sendMessage() {
 	return activeDialogue.send(...arguments).catch(err => {
-		showError(err.message);
+		SuperDialog.error(err.message);
 	})
-}
-
-const errorContainer = document.querySelector('.error-container');
-const errmsg = errorContainer.querySelector('#errmsg');
-function showError(message, callback) {
-	errmsg.innerText = message;
-	typeof callback == 'function' && errorContainer.addEventListener('close', callback, { once: true });
-	errorContainer.showModal();
-	return new Promise(resolve => errorContainer.addEventListener('close', resolve, { once: true }));
 }
 
 const settingsContainer = document.querySelector('.settings-container');
@@ -367,7 +404,7 @@ window.addEventListener('contextmenu', async event => {
 		}
 
 		let user = await client.users.fetch(userWrapper.dataset.id);
-		let options = User.createContextMenuOptions(user, { client });
+		let options = UserWrapper.createContextMenuOptions(user, { client });
 		ContextMenu.create(options, event);
 	}
 
@@ -386,7 +423,7 @@ window.addEventListener('contextmenu', async event => {
 			}
 
 			let member = await client.users.fetch(element.dataset.sid);
-			let options = User.createContextMenuOptions(member, { client });
+			let options = UserWrapper.createContextMenuOptions(member, { client });
 			ContextMenu.create(options, event);
 			return;
 		}
@@ -462,22 +499,22 @@ window.addEventListener('contextmenu', async event => {
 
 	let chat = event.target.closest('.dialogue');
 	let type = chat !== null && chat.dataset.type;
-	if (/^(group|private)$/i.test(type)) {
+	if (/^(group|private|public)$/i.test(type)) {
 		// event.preventDefault();
 		let dialogue = await client.dialogues.fetch(chat.dataset.id);
 		let isFounder = dialogue.founderId === client.user.id;
 		let isFavorite = client.user.favorites.cache.has(dialogue.id);
-		let isPinned = false;
+		let dialogues = contentCache.get('dialogues');
+		let dialogueCache = dialogues && dialogues[dialogue.id];
+		let isArchived = dialogueCache && dialogueCache.archived;
+		let isPinned = dialogueCache && dialogueCache.pinned;
 		const options = [{
-			name: (isPinned ? 'Unp' : 'P') + 'in',
-			click: () => {} // localStorage
-		}, {
-			name: (isFavorite ? 'Unf' : 'F') + 'avourite',
-			click: () => client.user.favorites[isFavorite ? 'remove' : 'add'](dialogue.id)
-		}, { type: 'hr' }, {
-			name: 'Archive',
-			click() {
-
+			name: (isArchived ? 'Una' : 'A') + 'rchive',
+			click: () => {
+				isArchived = !dialogueCache.archived;
+				dialogueCache.archived = isArchived;
+				contentCache.update('dialogues', { [dialogue.id]: dialogueCache });
+				updateChatTab(dialogueCache);
 			}
 		}, {
 			name: isFounder ? 'Delete' : 'Leave',
@@ -495,7 +532,21 @@ window.addEventListener('contextmenu', async event => {
 				}
 			})
 		}];
-		options.push({ type: 'hr' }, {
+		!isArchived && (options.length > 0 && options.unshift({ type: 'hr' }),
+		options.unshift({
+			name: (isPinned ? 'Unp' : 'P') + 'in',
+			click: () => {
+				isPinned = !dialogueCache.pinned;
+				dialogueCache.pinned = isPinned;
+				contentCache.update('dialogues', { [dialogue.id]: dialogueCache });
+				updateChatTab(dialogueCache);
+			}
+		}, {
+			name: (isFavorite ? 'Unf' : 'F') + 'avourite',
+			click: () => client.user.favorites[isFavorite ? 'remove' : 'add'](dialogue.id)
+		}));
+		options.length > 0 && options.push({ type: 'hr' });
+		options.push({
 			name: 'Copy Channel ID',
 			click: () => navigator.clipboard.writeText(dialogue.id)
 		});
@@ -562,8 +613,9 @@ window.addEventListener('contextmenu', async event => {
 			click() {
 				let showArchive = !contentCache.get('showArchive');
 				contentCache.set('showArchive', showArchive);
-				if (showArchive) {
-					// unhide archived chats
+				if (archivedChats) {
+					let details = archivedChats.closest('details');
+					null !== details && details.style[showArchive ? 'removeProperty' : 'setProperty']('display', 'none');
 				}
 			}
 		}], event);

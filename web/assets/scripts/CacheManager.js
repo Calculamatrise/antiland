@@ -15,6 +15,9 @@ export default class CacheManager extends Map {
 		this.name = name;
 		persist && (this.type = 'persistent');
 		Object.defineProperty(this, 'data', { value: exists, writable: true });
+		// Object.defineProperty(this, 'proxy', { value: (() => {
+		// 	return new Proxy(this.data, {});
+		// })(exists || {}), writable: true });
 		Object.defineProperty(this, 'type', { writable: false });
 		this.constructor[persist ? 'cache' : 'temp'].set(name, this);
 	}
@@ -26,12 +29,21 @@ export default class CacheManager extends Map {
 	/**
 	 * Delete a key or cache
 	 * @param {string} [key]
+	 * @param {Array} [keys]
 	 * @returns {boolean} whether a value has been deleted
 	 */
-	delete(key) {
+	delete(key, keys) {
 		if (typeof key == 'undefined') {
 			let exists = null !== this.get();
 			return exists && window[(this.type != 'temp' ? 'local' : 'session') + 'Storage'].removeItem(this.name);
+		} else if (arguments.length > 1) {
+			let value = this.get(key);
+			let deleted = false;
+			for (let key of keys) {
+				deleted = delete value[key];
+			}
+			return deleted && (this.update(key, value),
+			deleted);
 		}
 		return super.delete(key)
 	}
@@ -83,8 +95,8 @@ export default class CacheManager extends Map {
 		if (typeof value == 'undefined') {
 			throw new TypeError("Value must be defined");
 		}
-		Object.merge(this.data[key], value);
-		return this.set(key, this.data[key])
+		null === this.data && (this.data = {});
+		return this.set(key, this.data[key] instanceof Object ? Object.merge(this.data[key], value) : value)
 	}
 
 	static cache = new Map();

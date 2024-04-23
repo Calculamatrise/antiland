@@ -33,7 +33,10 @@ export default class PubNubBroker extends EventEmitter {
 
 	async connect() {
 		this.unsubscribe();
-		this.#pubnub || (this.#pubnub = await fetch("https://www.antiland.com/chat/static/config.json").then(r => r.json()).then(({ pubnub }) => pubnub));
+		this.#pubnub || (this.#pubnub = await fetch("https://www.antiland.com/chat/static/config.json").then(r => r.json()).then(({ pubnub }) => pubnub).catch(err => {
+			console.warn(err);
+			return "sub-c-24884386-3cf2-11e5-8d55-0619f8945a4f";
+		}));
 		this.#baseURL = "https://" + this.#domain + "/v2/subscribe/" + this.#pubnub + "/";
 		this.emit('open')
 	}

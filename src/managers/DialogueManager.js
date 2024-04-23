@@ -11,13 +11,21 @@ export default class DialogueManager extends BaseManager {
 
 		return this.client.requests.post("functions/v2:chat.byId", {
 			dialogueId: id
-		}).then(data => {
-			if (data) {
-				let entry = new (/^(group|public)$/i.test(data.type) ? Group : Dialogue)(data, this);
-				this.cache.set(entry.id, entry);
-				return entry
-			}
-			return null
+		}).then(async data => {
+			if (!data) return null;
+			// if (typeof data.lastMessage == 'object') {
+			// 	for (let key in data.lastMessage) {
+			// 		switch(key) {
+			// 		case 'sender':
+			// 		case 'senderId':
+			// 			await this.client.users.fetch(data.lastMessage.senderId);
+			// 			break;
+			// 		}
+			// 	}
+			// }
+			let entry = new (/^(group|public)$/i.test(data.type) ? Group : Dialogue)(data, this);
+			this.cache.set(entry.id, entry);
+			return entry
 		})
 	}
 

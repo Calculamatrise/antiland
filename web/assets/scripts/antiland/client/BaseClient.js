@@ -78,8 +78,8 @@ export default class extends EventEmitter {
 		this.#pingTimeout && clearTimeout(this.#pingTimeout);
 		if (!this.#ws) return true;
 		return new Promise((resolve, reject) => {
-			this.#ws.once('close', resolve),
-			this.#ws.once('error', reject),
+			this.#ws.addEventListener('close', resolve, { once: true }),
+			this.#ws.addEventListener('error', reject, { once: true }),
 			this.#ws.close()
 		})
 	}
@@ -226,8 +226,9 @@ export default class extends EventEmitter {
 				this.user.friends.pending.incoming.set(entry.id, entry);
 				return this.emit('friendRequest', entry);
 			case MessageType.MESSAGE_DELETE:
-			case MessageType.MESSAGE_UPDATE:
 			case MessageType.MESSAGE_LIKE:
+			case MessageType.MESSAGE_UPDATE:
+			case MessageType.STICKER:
 				break;
 			case MessageType.PRIVATE_NOTIFICATION:
 				if (data.hasOwnProperty('message') && data.hasOwnProperty('objectId')) {
@@ -270,6 +271,7 @@ export default class extends EventEmitter {
 			return;
 		case MessageType.MESSAGE:
 		case MessageType.PRIVATE_MESSAGE:
+		case MessageType.STICKER:
 			if (data.message !== null) {
 				data.message._patch(data); // updates message author
 				return;
@@ -302,6 +304,8 @@ export default class extends EventEmitter {
 		let message = new Message(data, data.dialogue);
 		if (this.#lastMessageTimestamp.has(channelId) && message.createdTimestamp <= this.#lastMessageTimestamp.get(channelId)) return;
 		this.#lastMessageTimestamp.set(channelId, message.createdTimestamp);
+		data.dialogue.lastMessage = message;
+		data.dialogue.lastMessageId = message.id;
 		this.user.contacts.blocked.has(message.author.id) && (message.author.blocked = true);
 		this.emit('messageCreate', message);
 	}

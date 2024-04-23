@@ -22,16 +22,36 @@ body > div {
 nav {
 	align-items: center;
 	display: grid;
+	gap: 0.25em;
 	grid-template-columns: repeat(auto-fit, minmax(4em, 1fr));
 	font-size: clamp(10px, 2cqh, 15px);
 	text-align: center;
 }
 
-nav .nav-option, .panel.left-panel .chats .dialogue {
+nav .nav-option, .chats .dialogue, .archived-chats > summary {
 	border-radius: 2.5px;
 	padding: 0.25em 0.4em;
 	transition: all 80ms;
 }
+
+nav .nav-option:hover, .dialogue:hover, .user-card:hover, .archived-chats > summary:hover {
+	backdrop-filter: brightness(calc(100% + 25% * var(--l-multiplier)));
+}
+
+.archived-chats:has(:hover) { opacity: unset; }
+.archived-chats {
+	border-radius: 0.25rem;
+	opacity: 0.8;
+}
+
+.archived-chats:has(> .chats:empty) { display: none; }
+.archived-chats[open] { backdrop-filter: brightness(calc(100% - 50% * var(--l-multiplier))); }
+.archived-chats > summary::marker { content: none; }
+.archived-chats > summary::marker { content: "🗀 "; }
+
+/* .archived-chats .chats-container {
+	display: flex;
+} */
 
 .dialogue:has(> input:checked) .last-message { display: none; }
 .dialogue .last-message {
@@ -159,9 +179,12 @@ details:has(.blocked-container) summary {
 }
 
 .auth-container {
-	border: 1px solid hsl(0deg, 0%, calc(50% - 15% * var(--l-multiplier)));
-	border-radius: 2.5px;
-	inset: 0;
+	align-content: center;
+	border: none;
+	border-radius: 0;
+	height: 100vh;
+	text-align: center;
+	width: 100vw;
 }
 
 .auth-container input { padding: 0.25em .4em; }
@@ -176,6 +199,7 @@ details:has(.blocked-container) summary {
 	display: inline-flex;
 	flex-direction: column;
 	max-width: 90vw;
+	overflow: hidden;
 	/* width: 50vw; */
 	width: 100%;
 	width: -webkit-fill-available;
@@ -341,7 +365,8 @@ message-wrapper .timestamp {
 	color: hsl(0deg, 0%, 50%);
 	display: inline-flex;
 	font-size: 0.7rem;
-	margin-left: 1.35rem;
+	margin-left: 1.185rem;
+	/* margin-left: 1.35rem; */
 	/* margin-right: 0.75rem; */
 	/* margin-right: 1rem; */
 	user-select: none;
@@ -370,7 +395,12 @@ message-wrapper .content-container {
 }
 
 message-wrapper .translation { font-style: italic; }
-message-wrapper .attachment { border-radius: 0.25em; }
+message-wrapper .attachment {
+	border-radius: 0.25em;
+	max-width: 100%;
+	width: fit-content;
+}
+
 message-wrapper .attachment[data-type="sticker"] {
 	max-height: 16rem;
 	max-width: 16rem;
@@ -378,6 +408,7 @@ message-wrapper .attachment[data-type="sticker"] {
 
 .user-card {
 	align-items: center;
+	border-radius: 0.25em;
 	display: flex;
 	gap: 0.25em;
 	justify-content: space-between;
@@ -468,6 +499,14 @@ input:is([type="checkbox"], [type="radio"]).parent-visibility,
 dialog {
 	border-color: hsl(0deg, 0%, calc(50% - 45% * var(--l-multiplier)));
 	border-radius: 1cqmin;
+}
+
+dialog[header]::before {
+	content: attr(header);
+	display: block;
+	font-size: 1.25rem;
+	font-weight: bold;
+	margin-bottom: 1.25rem;
 }
 
 /* hr { border-color: hsl(0deg, 0%, 50%); } */
@@ -591,4 +630,17 @@ quick-action-menu {
 quick-action-menu button {
 	border: none;
 	padding: 0.5em 1em;
+}
+
+dialog[is="super-dialog"].error {
+	color: hsl(0deg, calc(50% - 10% * var(--l-multiplier)), 50%);
+	font-size: smaller;
+}
+
+dialog[is="super-dialog"].error::before {
+	content: "Something went wrong! *Call the cal police!*";
+	display: block;
+	/* font-size: smaller; */
+	font-weight: bold;
+	margin-bottom: 0.25em;
 }

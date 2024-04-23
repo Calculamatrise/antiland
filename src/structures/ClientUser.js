@@ -21,7 +21,7 @@ export default class ClientUser extends User {
 	stickers = new ClientStickerManager(this);
 	tasks = new TaskManager(this);
 	constructor(data) {
-		super(...arguments, true);
+		super(...arguments, { skipPatch: true });
 		Object.defineProperties(this, {
 			referrerId: { value: null, writable: true }
 		});

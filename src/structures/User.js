@@ -14,7 +14,7 @@ export default class User extends BaseStructure {
 	karma = null;
 	minKarma = null;
 	username = null;
-	constructor(data, options, skipPatch) {
+	constructor(data, options, { partial, skipCache, skipPatch } = {}) {
 		if (data instanceof User && data.constructor === User) return data;
 		if (data instanceof Object && options instanceof Object && options.hasOwnProperty('client')) {
 			let id = data.id || data.objectId;
@@ -28,10 +28,11 @@ export default class User extends BaseStructure {
 		Object.defineProperties(this, {
 			blocked: { value: false, writable: true },
 			dmChannel: { value: null, writable: true },
-			humanLink: { value: null, writable: true }
+			humanLink: { value: null, writable: true },
+			partial: { value: partial || this.partial, writable: true }
 		});
 		skipPatch || this._patch(data),
-		this.id !== null && this.hasOwnProperty('client') && this.client.users.cache.set(this.id, this)
+		!skipCache && this.id !== null && this.hasOwnProperty('client') && this.client.users.cache.set(this.id, this)
 	}
 
 	_patch(data) {

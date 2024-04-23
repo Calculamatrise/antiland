@@ -1,4 +1,4 @@
-export default class {
+export default class EventEmitter {
 	/** @private */
 	#events = new Map();
 	#temp = new WeakSet();
@@ -97,8 +97,14 @@ export default class {
 	 * @param {Function} listener 
 	 * @returns {Boolean}
 	 */
-	removeListener(event, listener) {
-		if (typeof event != 'string') {
+	off(event, listener) {
+		if (arguments.length === 0) {
+			this.#events.clear();
+			this.#temp.clear();
+			return true;
+		} if (arguments.length === 1) {
+			return this.removeAllListeners(event);
+		} else if (typeof event != 'string') {
 			throw new TypeError("Event must be of type: String");
 		}
 
@@ -123,3 +129,10 @@ export default class {
 		return this.#events.delete(event);
 	}
 }
+
+Object.defineProperties(EventEmitter.prototype, {
+	addEventListener: { value: EventEmitter.prototype.on, writable: true },
+	addListener: { value: EventEmitter.prototype.on, writable: true },
+	removeEventListener: { value: EventEmitter.prototype.off, writable: true },
+	removeListener: { value: EventEmitter.prototype.off, writable: true }
+});

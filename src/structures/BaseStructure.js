@@ -5,17 +5,22 @@ export default class {
 			options.hasOwnProperty('client') && Object.defineProperty(this, 'client', { value: options.client });
 		Object.defineProperties(this, {
 			createdAt: { value: null, writable: true },
-			createdTimestamp: { value: null, writable: true }
+			createdTimestamp: { value: null, writable: true },
+			partial: { value: Object.values(data).length < 5, writable: true }
 		});
 		ignoreUpdate || this._patch(...arguments)
 	}
 
+	_filterData(data, deep) {
+		return Object[deep ? 'getOwnPropertyNames' : 'keys'](data).filter(property => {
+			let descriptor = Object.getOwnPropertyDescriptor(this, property);
+			return !descriptor || descriptor.writable
+		});
+	}
+
 	_patch(data) {
 		if (typeof data != 'object' || data == null) return;
-		for (let key of Object.getOwnPropertyNames(data).filter(key => {
-			let descriptor = Object.getOwnPropertyDescriptor(this, key);
-			return !descriptor || descriptor.writable;
-		})) {
+		for (let key of this._filterData(data, true)) {
 		// for (let key in data) {
 			switch (key) {
 			case 'body':

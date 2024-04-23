@@ -102,7 +102,7 @@ export default class MessageWrapper extends HTMLElement {
 		content.innerText = message.content;
 		msg.content = content;
 		message.media && msg.addAttachment(message.media);
-		message.stickerId !== null && msg.addAttachment(message.sticker);
+		message.sticker && msg.addAttachment(message.sticker);
 		message.referenceId !== null && msg.addAuthor();
 		return msg;
 	}
