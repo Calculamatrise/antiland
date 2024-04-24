@@ -7,6 +7,7 @@ body {
 	color: var(--txt-color);
 	display: flex;
 	font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+	/* font-size: clamp(10px, 4vmin, 16px); */
 }
 
 body > div {
@@ -24,7 +25,7 @@ nav {
 	display: grid;
 	gap: 0.25em;
 	grid-template-columns: repeat(auto-fit, minmax(4em, 1fr));
-	font-size: clamp(10px, 2cqh, 15px);
+	font-size: clamp(12px, 2cqh, 15px);
 	text-align: center;
 }
 
@@ -34,8 +35,50 @@ nav .nav-option, .chats .dialogue, .archived-chats > summary {
 	transition: all 80ms;
 }
 
-nav .nav-option:hover, .dialogue:hover, .user-card:hover, .archived-chats > summary:hover {
-	backdrop-filter: brightness(calc(100% + 25% * var(--l-multiplier)));
+@media (hover: hover) {
+	nav .nav-option:hover, .dialogue:hover, .user-card:hover, .archived-chats > summary:hover {
+		backdrop-filter: brightness(calc(100% + 25% * var(--l-multiplier)));
+	}
+
+	.archived-chats:has(:hover) { opacity: unset; }
+
+	message-wrapper:hover { backdrop-filter: brightness(calc(1 + .2 * var(--l-multiplier))); }
+	message-wrapper:hover .timestamp { visibility: visible; }
+
+	button:not(:disabled):hover {
+		background-color: var(--txt-color);
+		color: var(--bg-color);
+		transition: all 360ms;
+	}
+
+	label.hover:has(input:not(:disabled)):hover, label.hover[for]:hover {
+		background-color: var(--txt-color);
+		color: var(--bg-color);
+		transition: all 360ms;
+	}
+}
+
+@media (pointer: coarse) and (hover: none) {
+	nav .nav-option:active, .dialogue:active, .user-card:active, .archived-chats > summary:active {
+		backdrop-filter: brightness(calc(100% + 25% * var(--l-multiplier)));
+	}
+
+	.archived-chats:has(:active) { opacity: unset; }
+
+	message-wrapper:active { backdrop-filter: brightness(calc(1 + .2 * var(--l-multiplier))); }
+	message-wrapper:active .timestamp { visibility: visible; }
+
+	button:not(:disabled):active {
+		background-color: var(--txt-color);
+		color: var(--bg-color);
+		transition: all 360ms;
+	}
+
+	label.hover:has(input:not(:disabled)):active, label.hover[for]:active {
+		background-color: var(--txt-color);
+		color: var(--bg-color);
+		transition: all 360ms;
+	}
 }
 
 .archived-chats > summary:hover { cursor: default; }
@@ -44,7 +87,7 @@ nav .nav-option:hover, .dialogue:hover, .user-card:hover, .archived-chats > summ
 	user-select: none;
 }
 
-.archived-chats:has(:hover) { opacity: unset; }
+/* .archived-chats:has(:hover) { opacity: unset; } */
 .archived-chats {
 	border-radius: 0.25rem;
 	opacity: 0.8;
@@ -80,13 +123,12 @@ nav .nav-option:has(> input:checked), .panel.left-panel .chats .dialogue:has(> i
 	transition: all 360ms;
 }
 
-nav .nav-option, .panel.left-panel .chats .dialogue {
-	position: relative;
-}
+nav .nav-option, .panel.left-panel .chats .dialogue { position: relative; }
 
-.dialogue.favorite::after {
+.dialogue.favorite::after { content: "★"; /* "☆"; */ }
+.dialogue.pinned::after, .dialogue[data-pinned]::after { content: "🖈"; }
+.dialogue.favorite::after, .dialogue.pinned::after, .dialogue[data-pinned]::after {
 	align-content: center;
-	content: "★"; /* "☆"; */
 	font-size: 1.25em;
 	inset: 0 0.5em 0.15em;
 	line-height: 100%;
@@ -122,15 +164,14 @@ nav .nav-option:has(> input:checked)::before, .panel.left-panel .chats .dialogue
 .panel {
 	display: inline-flex;
 	flex-direction: column;
-	max-width: 25vw;
-	padding-left: 1.5rem;
-	padding-right: 1.5em;
+	max-width: 20vw;
 	width: fit-content;
 }
 
+.panel.right-panel { margin-left: 1.25rem; }
 .panel.left-panel {
-	border-right: 1px solid hsl(0deg, 0%, calc(50% - 15% * var(--l-multiplier)));
 	float: left;
+	margin-right: 1.25rem;
 	min-width: 285px;
 }
 
@@ -166,14 +207,8 @@ nav .nav-option:has(> input:checked)::before, .panel.left-panel .chats .dialogue
 }
 
 .panel.left-panel .account-container .user-container [data-field="displayName"] { font-weight: bold; }
-.panel.right-panel {
-	border-left: 1px solid hsl(0deg, 0%, calc(50% - 15% * var(--l-multiplier)));
-	float: right;
-}
-
-.panel.right-panel:has(.members-list:empty) {
-	display: none;
-}
+.panel.right-panel { float: right; }
+.panel.right-panel:has(.members-list:empty) { display: none; }
 
 .user-container {
 	align-items: center;
@@ -217,6 +252,7 @@ details:has(.blocked-container) summary {
 #dialogue {
 	display: inline-flex;
 	flex-direction: column;
+	justify-content: space-between;
 	max-width: 90vw;
 	overflow: hidden;
 	/* width: 50vw; */
@@ -226,16 +262,22 @@ details:has(.blocked-container) summary {
 
 #dialogue > .metadata {
 	background-color: var(--bg-color);
-	padding: 0 2rem;
+	border-bottom: 1px solid hsl(0deg, 0%, calc(50% - 30% * var(--l-multiplier)));
+	padding-bottom: clamp(2px, 1.25cqh, 1rem);
 	position: sticky;
-	text-decoration: underline;
-	text-decoration-color: hsl(0deg, 0%, calc(50% - 30% * var(--l-multiplier)));
-	text-decoration-thickness: 1px;
-	text-underline-offset: 0.88em;
 	top: 0;
 }
 
-#dialogue .input-container { margin: 0 1rem; }
+.metadata .title {
+	font-weight: bold;
+}
+
+.metadata .description {
+	color: hsl(0deg, 0%, 50%);
+	font-size: clamp(0.7rem, 2.75cqh, 0.9rem);
+}
+
+/* #dialogue .input-container { margin: 0 1rem; } */
 #dialogue .input-container .media-container {
 	align-items: flex-end;
 	background-color: var(--bg-color);
@@ -311,11 +353,13 @@ details:has(.blocked-container) summary {
 }
 
 #dialogue #messages {
+	border: 1px solid hsl(0deg, 0%, calc(50% - 30% * var(--l-multiplier)));
+	border-bottom: none;
+	border-top: none;
 	display: flex;
 	flex-direction: column;
 	gap: 0.25em;
 	height: -webkit-fill-available;
-	max-height: 82.5vh;
 	overflow: auto;
 	padding-bottom: 1rem;
 }
@@ -331,7 +375,11 @@ details:has(.blocked-container) summary {
 	height: -webkit-fill-available;
 	/* max-height: 80vh; */
 	overflow: hidden auto;
-	padding-right: 1.5rem;
+	padding-right: 0.5cqw;
+}
+
+@media (max-width: 900px) {
+	.panel.right-panel { display: none; }
 }
 
 message-wrapper { display: block; }
@@ -341,11 +389,20 @@ message-wrapper {
 }
 
 message-wrapper.deleted { background-color: hsl(0deg 60% calc(50% - 25% * var(--l-multiplier)) / 35%); }
-message-wrapper:hover { backdrop-filter: brightness(calc(1 + .2 * var(--l-multiplier))); }
+/* message-wrapper:hover { backdrop-filter: brightness(calc(1 + .2 * var(--l-multiplier))); } */
 message-wrapper:has(+ message-wrapper .message-container .content-container .metadata) { margin-bottom: 0.5em; }
 message-wrapper .reference-content {
 	color: hsl(0deg, 0%, 50%);
 	font-size: smaller;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.truncate {
+	-webkit-box-orient: vertical;
+	-webkit-line-clamp: 1;
+	display: -webkit-box;
 	overflow: hidden;
 	text-overflow: ellipsis;
 	white-space: nowrap;
@@ -411,7 +468,7 @@ message-wrapper .timestamp {
 }
 
 message-wrapper .message-container > .timestamp { visibility: hidden; }
-message-wrapper:hover .timestamp { visibility: visible; }
+/* message-wrapper:hover .timestamp { visibility: visible; } */
 message-wrapper .metadata {
 	align-items: center;
 	display: flex;
@@ -525,9 +582,9 @@ input:is([type="checkbox"], [type="radio"]).parent-visibility,
 .flex.vertical { flex-direction: column; }
 
 .title {
-	font-size: 1.5rem;
+	font-size: clamp(1rem, 4cqh, 1.5rem);
 	font-weight: bold;
-	margin-bottom: 0.5em;
+	margin-bottom: 0.4em;
 }
 
 /* global end */
@@ -576,11 +633,11 @@ button {
 	transition: all 80ms;
 }
 
-button:not(:disabled):hover {
+/* button:not(:disabled):hover {
 	background-color: var(--txt-color);
 	color: var(--bg-color);
 	transition: all 360ms;
-}
+} */
 
 button.danger { color: hsl(0deg, 75%, calc(50% + 5% * var(--l-multiplier))); }
 button.danger:disabled { color: hsl(0deg 75% calc(50% + 5% * var(--l-multiplier)) / 50%); }
@@ -590,11 +647,11 @@ label.hover:has(input:not(:disabled)), label.hover[for] {
 	transition: all 80ms;
 }
 
-label.hover:has(input:not(:disabled)):hover, label.hover[for]:hover {
+/* label.hover:has(input:not(:disabled)):hover, label.hover[for]:hover {
 	background-color: var(--txt-color);
 	color: var(--bg-color);
 	transition: all 360ms;
-}
+} */
 
 .loading {
 	-webkit-user-select: none;

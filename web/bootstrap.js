@@ -48,6 +48,8 @@ for (const radio of document.querySelectorAll('input[type="radio"][name="chats"]
 const dialogueMembersView = document.querySelector('.members-list');
 const dialogueView = document.querySelector('#dialogue');
 const dialogueMetadata = dialogueView.querySelector('.metadata');
+const dialogueMetadataTitle = dialogueMetadata.querySelector('.title');
+const dialogueMetadataDescription = dialogueMetadata.querySelector('.description');
 const dialogueMediaContainer = dialogueView.querySelector('.media-container');
 const dialogueReplyContainer = dialogueView.querySelector('.reply-container');
 const dialogueReplyAuthor = dialogueReplyContainer.querySelector('.author');
@@ -297,12 +299,13 @@ function showDialogue(data) {
 	let container = getMessageContainer(dialogueId, { createIfNotExists: true });
 	container.style.removeProperty('display');
 	dialogueMembersView.replaceChildren();
-	dialogueMetadata.innerText = name;
+	dialogueMetadataTitle.innerText = name;
 	dialogueText.setAttribute('placeholder', 'Message ' + name);
 	document.title = name + ' - ' + Application.name;
 	client.dialogues.fetch(dialogueId).then(async dialogue => {
 		activeDialogue = dialogue;
 		if (dialogue.type !== ChannelType.PRIVATE) {
+			dialogueMetadataDescription.innerText = dialogue.description;
 			let members = await dialogue.members.fetch({ force: true });
 			for (let member of members.values()) {
 				dialogueMembersView.appendChild(MemberWrapper.createCard(member));
@@ -567,7 +570,9 @@ window.addEventListener('contextmenu', async event => {
 			}
 		}, {
 			name: (isFavorite ? 'Unf' : 'F') + 'avourite',
-			click: () => client.user.favorites[isFavorite ? 'remove' : 'add'](dialogue.id)
+			click: () => client.user.favorites[isFavorite ? 'remove' : 'add'](dialogue.id).then(res => {
+				updateChatTab(dialogueCache);
+			})
 		}));
 		options.length > 0 && options.push({ type: 'hr' });
 		options.push({
