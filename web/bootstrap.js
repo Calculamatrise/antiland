@@ -5,6 +5,10 @@ import ContextMenu from "./assets/scripts/ContextMenu.js";
 Application.applyColorScheme();
 window.Application = new Application();
 
+if ('serviceWorker' in navigator) {
+	navigator.serviceWorker.register('service-worker.js');
+}
+
 let contentCache = CacheManager.create(Application.cacheKey, { persist: true });
 let sessionCache = CacheManager.create(Application.cacheKey + '_temp');
 
@@ -62,6 +66,20 @@ const dialogueMedia = dialogueView.querySelector('#media');
 const dialogueText = dialogueView.querySelector('#text');
 const dialogueSend = dialogueView.querySelector('#send');
 const messageContainer = document.querySelector('#messages');
+
+// check params for p -- user profile open dialog if present
+let openDialogueId = Application.searchParams.get('g');
+let cachedDialogues = contentCache.get('dialogues');
+if (cachedDialogues) {
+	for (let dialogueId in cachedDialogues) {
+		let dialogue = cachedDialogues[dialogueId];
+		getChatTab(dialogue, { createIfNotExists: true });
+		if (dialogueId === openDialogueId) {
+			showDialogue({ dialogueId, name: dialogue.name });
+		}
+	}
+}
+
 function getChatTab(dialogue, { createIfNotExists } = {}) {
 	let chat = chatsContainer.querySelector('label[data-id="' + dialogue.id + '"]');
 	if (!chat && createIfNotExists) {
@@ -69,11 +87,12 @@ function getChatTab(dialogue, { createIfNotExists } = {}) {
 		dialogue.pinned && getPinnedChats({ createIfNotExists: true });
 		chat = (dialogue.archived ? archivedChats : dialogue.pinned ? pinnedChats : chatsContainer).appendChild(document.createElement('label'));
 		chat.classList.add('dialogue');
+		client.user && client.user.favorites.cache.has(dialogue.id) && (chat.classList.add('favorite'),
+		dialogue.pinned = true);
 		chat.dataset.id = dialogue.id;
 		chat.dataset.type = dialogue.type;
 		dialogue.archived && (chat.dataset.archived = true);
 		dialogue.pinned && (chat.dataset.pinned = true);
-		client.user && client.user.favorites.cache.has(dialogue.id) && chat.classList.add('favorite');
 		let radio = chat.appendChild(document.createElement('input'));
 		radio.setAttribute('type', 'radio');
 		radio.setAttribute('name', 'dialogue');
@@ -98,13 +117,15 @@ function getChatTab(dialogue, { createIfNotExists } = {}) {
 
 function updateChatTab(dialogue) {
 	let chat = getChatTab(dialogue, { createIfNotExists: true });
+	let cachedDialogue = cachedDialogues && cachedDialogues[dialogue.id];
 	let notInChats = chat.parentElement !== chatsContainer;
-	dialogue.pinned && getPinnedChats({ createIfNotExists: true }).appendChild(chat);
-	dialogue.archived && getChatArchive({ createIfNotExists: true }).appendChild(chat);
-	!dialogue.archived && !dialogue.pinned && notInChats && (pinnedChats ? pinnedChats.after(chat) : archivedChats ? archivedChats.after(chat) : chatsContainer.appendChild(chat));
+	client.user && client.user.favorites.cache.has(dialogue.id) && (chat.classList.add('favorite'),
+	cachedDialogue.pinned = true);
+	cachedDialogue.archived && getChatArchive({ createIfNotExists: true }).appendChild(chat);
+	cachedDialogue.pinned && getPinnedChats({ createIfNotExists: true }).appendChild(chat);
+	!cachedDialogue.archived && !cachedDialogue.pinned && notInChats && (pinnedChats ? pinnedChats.after(chat) : archivedChats ? archivedChats.after(chat) : chatsContainer.appendChild(chat));
 	chat.name.innerText = dialogue.name;
 	dialogue.lastMessage && (chat.lastMessage.innerText = (dialogue.lastMessage.author.id === client.user.id ? 'You: ' : '') + dialogue.lastMessage.content.replace(/\n+.+/g, ''));
-	client.user && client.user.favorites.cache.has(dialogue.id) && chat.classList.add('favorite');
 	return chat;
 }
 
@@ -129,19 +150,6 @@ function getPinnedChats({ createIfNotExists } = {}) {
 		archivedChats ? archivedChats.after(pinnedChats) : chatsContainer.prepend(pinnedChats);
 	}
 	return pinnedChats || null;
-}
-
-// check params for p -- user profile open dialog if present
-let openDialogueId = Application.searchParams.get('g');
-if (contentCache.has('dialogues')) {
-	let dialogues = contentCache.get('dialogues');
-	for (let dialogueId in dialogues) {
-		let dialogue = dialogues[dialogueId];
-		getChatTab(dialogue, { createIfNotExists: true });
-		if (dialogueId === openDialogueId) {
-			showDialogue({ dialogueId, name: dialogue.name });
-		}
-	}
 }
 
 client.on('ready', async () => {

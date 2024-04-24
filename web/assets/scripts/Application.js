@@ -24,7 +24,14 @@ export default class Application extends EventEmitter {
 	static colorScheme = 'auto';
 	static colorSchemeOptions = ['auto', 'dark', 'light'];
 	static name = 'AntiLand';
-	static searchParams = new URLSearchParams(location.search);
+	static shortcuts = new Set('g');
+	static searchParams = new URLSearchParams(location.search + Array.from(this.shortcuts.values()).reduce((params, shortcut) => {
+		let match = location.pathname.match(new RegExp('(?<=/' + shortcut + '/)([^/]+)', 'gi'), '$1');
+		if (match === null) return params;
+		params.push(shortcut + '=' + match[0]);
+		params.length === 1 && params.unshift('');
+		return params;
+	}, []).join('&'));
 	static applyColorScheme() {
 		let correspondingStylePath = this.getStylePath(this.getColorScheme());
 		if (!(this._styleLink instanceof HTMLLinkElement)) {

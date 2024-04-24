@@ -61,8 +61,11 @@ nav .nav-option:hover, .dialogue:hover, .user-card:hover, .archived-chats > summ
 
 .dialogue:has(> input:checked) .last-message { display: none; }
 .dialogue .last-message {
+	-webkit-box-orient: vertical;
+	-webkit-line-clamp: 1;
 	/* color: hsl(0deg, 0%, calc(50% - 10% * var(--l-multiplier))); */
 	display: block;
+	display: -webkit-box;
 	font-size: 0.85em;
 	max-width: 100%;
 	opacity: 0.5;
