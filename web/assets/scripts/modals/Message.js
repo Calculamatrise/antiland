@@ -38,7 +38,7 @@ export default class MessageWrapper extends HTMLElement {
 		return media;
 	}
 
-	addAuthor() {
+	setAuthor(author = null) {
 		if (this.avatar !== null) return;
 		this.avatar = User.createAvatarContainer(this.message.author);
 		this.container.prepend(this.avatar);
@@ -51,7 +51,7 @@ export default class MessageWrapper extends HTMLElement {
 		return this.contentContainer.prepend(metadataContainer);
 	}
 
-	addReference(message = null) {
+	setReference(message = null) {
 		if (this.reference !== null) return;
 		this.reference = this.appendChild(document.createElement('div'));
 		this.reference.classList.add('reference-content');
@@ -73,7 +73,7 @@ export default class MessageWrapper extends HTMLElement {
 
 	static create(message) {
 		let msg = new this(message);
-		message.referenceId !== null && msg.addReference(message.reference);
+		message.referenceId !== null && msg.setReference(message.reference);
 		let messageContainer = msg.appendChild(document.createElement('span'));
 		messageContainer.classList.add('message-container');
 		msg.container = messageContainer;
@@ -103,7 +103,7 @@ export default class MessageWrapper extends HTMLElement {
 		msg.content = content;
 		message.media && msg.addAttachment(message.media);
 		message.sticker && msg.addAttachment(message.sticker);
-		message.referenceId !== null && msg.addAuthor();
+		message.referenceId !== null && msg.setAuthor();
 		return msg;
 	}
 

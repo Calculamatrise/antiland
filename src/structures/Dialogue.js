@@ -114,16 +114,20 @@ export default class Dialogue extends BaseStructure {
 	 * @param {string|object} content
 	 * @param {object} [options]
 	 * @param {Iterable<object>} [options.attachments]
+	 * @param {string} [options.content]
 	 * @param {boolean} [options.prependReference] whether to quote the reference message in your message
 	 * @param {Message|string} [options.reference]
 	 */
-	send(content, { attachments, prependReference, reference } = {}) {
-		if (typeof content == 'object' && content !== null) {
-			return this.send(content.content, content);
-		} else if (!content) {
+	async send({ attachments, content, prependReference, reference } = {}) {
+		if (typeof arguments[0] == 'string') {
+			return this.send(Object.assign({}, ...Array.prototype.splice.call(arguments, 1), { content: arguments[0] }));
+		} else if (typeof content != 'string' || content.length < 1) {
+			if (!attachments) {
+				throw new TypeError("You cannot send empty messages to this chat");
+			}
 			return Promise.all(attachments.map(attachment => {
-				return this.sendMedia(attachment.url)
-			}))
+				return this.sendMedia(attachment.url, { reference })
+			}));
 		}
 		return this.client.requests.post("functions/v2:chat.message.sendText", Object.assign({
 			dialogueId: this.id,
@@ -137,7 +141,7 @@ export default class Dialogue extends BaseStructure {
 				throw new Error(data.text); // ephemeral response
 			} else if (data && attachments && attachments.length > 0) {
 				return Promise.all(attachments.map(attachment => {
-					return this.sendMedia(attachment.url)
+					return this.sendMedia(attachment.url, { reference })
 				})).then(results => results.concat(data))
 			}
 			this.client._handleMessage(data, { channelId: this.id });

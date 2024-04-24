@@ -44,7 +44,11 @@
 				Replying to <span class="author"></span>
 				<button>Cancel</button>
 			</div>
-			<textarea id="text" placeholder="Message" style="resize: none;"></textarea>
+			<div class="text-container">
+				<label class="file-picker"><input type="file" id="media" accept="image/*,video/*" multiple style="display: none;"></label>
+				<textarea id="text" placeholder="Message"></textarea>
+				<button id="send" title="Send">➤</button>
+			</div>
 		</div>
 	</div>
 	<div class="panel right-panel">

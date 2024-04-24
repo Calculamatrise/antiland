@@ -20,13 +20,15 @@ export default class PubNubBroker extends EventEmitter {
 		for (let key in data) {
 			switch(key) {
 			case 'd':
-				this.emit('message', JSON.stringify({
-					payload: {
-						channelId: (channelId || data.c) ?? null,
-						messages: [data[key]]
-					},
-					type: Opcodes.MESSAGE
-				}))
+				this.emit('message', {
+					data: JSON.stringify({
+						payload: {
+							channelId: (channelId || data.c) ?? null,
+							messages: [data[key]]
+						},
+						type: Opcodes.MESSAGE
+					})
+				})
 			}
 		}
 	}
@@ -58,12 +60,14 @@ export default class PubNubBroker extends EventEmitter {
 		let payload = data.payload;
 		switch(data.type) {
 		case Opcodes.AUTH:
-			this.emit('message', JSON.stringify({
-				payload: {
-					connectionId: null
-				},
-				type: Opcodes.AUTH_SUCCESS
-			}));
+			this.emit('message', {
+				data: JSON.stringify({
+					payload: {
+						connectionId: null
+					},
+					type: Opcodes.AUTH_SUCCESS
+				})
+			});
 			break;
 		case Opcodes.INIT:
 			this.send(JSON.stringify(Object.assign({}, data, { type: Opcodes.AUTH })));
@@ -78,15 +82,17 @@ export default class PubNubBroker extends EventEmitter {
 				this.unsubscribe(channelId);
 				dropped.add(channelId)
 			}
-			this.emit('message', JSON.stringify({
-				payload: {
-					diff: {
-						added: Array.from(added),
-						dropped: Array.from(dropped)
-					}
-				},
-				type: Opcodes.SUBSCRIPTIONS
-			}))
+			this.emit('message', {
+				data: JSON.stringify({
+					payload: {
+						diff: {
+							added: Array.from(added),
+							dropped: Array.from(dropped)
+						}
+					},
+					type: Opcodes.SUBSCRIPTIONS
+				})
+			})
 		}
 	}
 
@@ -102,7 +108,7 @@ export default class PubNubBroker extends EventEmitter {
 			tt: subscription.tt ?? 0,
 			tr: subscription.tr ?? 0,
 			uuid: this.#client.user.id,
-			pnsdk: 'nodejs/antiland'
+			pnsdk: 'antiland/web'
 		});
 		let data = await fetch(this.#baseURL + channelId + "/0?" + params.toString()).then(r => r.json()).catch(err => {
 			if (this.listenerCount('error') > 0) {

@@ -137,7 +137,7 @@ export default class UserWrapper extends HTMLElement {
 				}
 			}, {
 				name: 'Message',
-				click: () => user.fetchDM({ createIfNotExists: true }).then(({ id }) => openDialogue(id))
+				click: () => user.fetchDM({ createIfNotExists: true }).then(({ id, name }) => history.pushState({ dialogueId: id, name }, null, location.pathname + '?g=' + id))
 			}, {
 				name: (isBlocked ? 'Unb' : 'B') + 'lock',
 				click: () => client.user.contacts[(isBlocked ? 'un' : '') + 'block'](user.id)

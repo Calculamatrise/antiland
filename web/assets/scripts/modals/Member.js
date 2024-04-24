@@ -34,7 +34,7 @@ export default class MemberWrapper extends UserWrapper {
 			options.splice(options.length - 2, 0, {
 				name: (isModerator ? 'Remove' : 'Add') + ' Mod',
 				styles: isModerator && ['danger'],
-				click: () => member.dialogue.members.ban(member.id).then(info => {
+				click: () => member.dialogue.moderators[isModerator ? 'remove' : 'add'](member.id).then(info => {
 					console.log(info)
 				})
 			}));

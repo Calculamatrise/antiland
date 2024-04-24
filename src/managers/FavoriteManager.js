@@ -55,7 +55,7 @@ export default class FavoriteManager extends BaseManager {
 	 */
 	async remove(channelId) {
 		if (channelId instanceof Object) return this.add(channelId.dmChannel !== void 0 ? await channelId.fetchDM().then(c => c.id) : channelId.id);
-		this.cache.has(channelId) && await this.backup();
-		return this.cache.delete(channelId)
+		return this.cache.has(channelId) && (this.cache.delete(channelId),
+		await this.backup())
 	}
 }

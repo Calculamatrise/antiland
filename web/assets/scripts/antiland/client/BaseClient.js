@@ -120,7 +120,7 @@ export default class extends EventEmitter {
 			arguments.splice(2, 0, uniqueId);
 			this.sendCommand(...arguments);
 			setTimeout(() => reject("Request timed out"), 3e4)
-		});
+		})
 	}
 
 	#messageListener(message) {
@@ -212,6 +212,8 @@ export default class extends EventEmitter {
 				this.user.contacts.blocked.add(data.receiverId);
 				this.emit('userBlocked', data.receiver)  // relationshipUpdate? // blocked
 				return;
+			case MessageType.CHANNEL_BAN_CREATE:
+				return this.emit('channelBanAdd', data);
 			case MessageType.KARMA_TASK_PROGRESS:
 				switch(data.body.task.id.toLowerCase()) {
 				case 'karmatask.dailybonus':
@@ -259,8 +261,6 @@ export default class extends EventEmitter {
 		// check if message id is present to see if an action occurred on a message
 		let temp;
 		switch(data.type) {
-		case MessageType.CHANNEL_BAN_CREATE:
-			return this.emit('channelBanAdd', data);
 		case MessageType.CHANNEL_MEMBER_ADD:
 			return this.emit('channelMemberAdd', data);
 		case MessageType.GIFT_MESSAGE:
@@ -369,9 +369,9 @@ export default class extends EventEmitter {
 			await this.user.friends.fetch();
 			await this.user.contacts.fetchBlocked();
 			for (let entry of await Promise.all(data.favorites.map(item => {
-				return this.dialogues.fetch(item).then(dialogue => {
-					return dialogue && (dialogue.friend || dialogue.founder);
-				}).catch(err => this.users.fetch(item).then(user => user.fetchDM()).catch(err => null))
+				return this.dialogues.fetch(item).catch(err => {
+					return this.users.fetch(item).then(user => user.fetchDM()).catch(err => null)
+				})
 			})).then(entries => entries.filter(entry => entry))) {
 				this.user.favorites.cache.set(entry.id, entry);
 			}

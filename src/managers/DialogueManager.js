@@ -146,7 +146,7 @@ export default class DialogueManager extends BaseManager {
 			} else if (attachments && attachments.length > 0) {
 				return Object.assign(data, {
 					attachments: await Promise.all(attachments.map(attachment => {
-						return this.sendMedia(attachment.url)
+						return this.sendMedia(attachment.url, { reference })
 					}))
 				})
 			}

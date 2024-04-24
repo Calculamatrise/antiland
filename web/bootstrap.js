@@ -58,12 +58,13 @@ dialogueReplyCancel.addEventListener('click', () => {
 	dialogueReplyContainer.style.setProperty('display', 'none');
 });
 
+const dialogueMedia = dialogueView.querySelector('#media');
 const dialogueText = dialogueView.querySelector('#text');
+const dialogueSend = dialogueView.querySelector('#send');
 const messageContainer = document.querySelector('#messages');
-function getChatButton(dialogue, { createIfNotExists } = {}) {
+function getChatTab(dialogue, { createIfNotExists } = {}) {
 	let chat = chatsContainer.querySelector('label[data-id="' + dialogue.id + '"]');
-	if (!chat && !createIfNotExists) return null;
-	if (!chat) {
+	if (!chat && createIfNotExists) {
 		dialogue.archived && getChatArchive({ createIfNotExists: true });
 		dialogue.pinned && getPinnedChats({ createIfNotExists: true });
 		chat = (dialogue.archived ? archivedChats : dialogue.pinned ? pinnedChats : chatsContainer).appendChild(document.createElement('label'));
@@ -72,6 +73,7 @@ function getChatButton(dialogue, { createIfNotExists } = {}) {
 		chat.dataset.type = dialogue.type;
 		dialogue.archived && (chat.dataset.archived = true);
 		dialogue.pinned && (chat.dataset.pinned = true);
+		client.user && client.user.favorites.cache.has(dialogue.id) && chat.classList.add('favorite');
 		let radio = chat.appendChild(document.createElement('input'));
 		radio.setAttribute('type', 'radio');
 		radio.setAttribute('name', 'dialogue');
@@ -81,27 +83,28 @@ function getChatButton(dialogue, { createIfNotExists } = {}) {
 			openDialogue(dialogue.id);
 		});
 		let name = chat.appendChild(document.createElement('span'));
-		let lastmsg = chat.appendChild(document.createElement('span'));
-		lastmsg.classList.add('last-message');
+		dialogue.name && (name.innerText = dialogue.name);
+		let lastMessage = chat.appendChild(document.createElement('span'));
+		lastMessage.classList.add('last-message');
+		dialogue.lastMessage && (lastMessage.innerText = (dialogue.lastMessage.author.id === client.user.id ? 'You: ' : '') + dialogue.lastMessage.content.replace(/\n+.+/g, ''));
 		Object.defineProperties(chat, {
-			lastMessage: { value: lastmsg, writable: true },
+			lastMessage: { value: lastMessage, writable: true },
 			name: { value: name, writable: true },
 			radio: { value: radio, writable: true }
 		});
 	}
-	chat.name.innerText = dialogue.name;
-	dialogue.lastMessage && (chat.lastMessage.innerText = (dialogue.lastMessage.author.id === client.user.id ? 'You: ' : '') + dialogue.lastMessage.content.replace(/\n+.+/g, ''));
 	return chat;
 }
 
 function updateChatTab(dialogue) {
-	let chat = getChatButton(dialogue, { createIfNotExists: true });
+	let chat = getChatTab(dialogue, { createIfNotExists: true });
 	let notInChats = chat.parentElement !== chatsContainer;
 	dialogue.pinned && getPinnedChats({ createIfNotExists: true }).appendChild(chat);
 	dialogue.archived && getChatArchive({ createIfNotExists: true }).appendChild(chat);
 	!dialogue.archived && !dialogue.pinned && notInChats && (pinnedChats ? pinnedChats.after(chat) : archivedChats ? archivedChats.after(chat) : chatsContainer.appendChild(chat));
 	chat.name.innerText = dialogue.name;
 	dialogue.lastMessage && (chat.lastMessage.innerText = (dialogue.lastMessage.author.id === client.user.id ? 'You: ' : '') + dialogue.lastMessage.content.replace(/\n+.+/g, ''));
+	client.user && client.user.favorites.cache.has(dialogue.id) && chat.classList.add('favorite');
 	return chat;
 }
 
@@ -134,7 +137,7 @@ if (contentCache.has('dialogues')) {
 	let dialogues = contentCache.get('dialogues');
 	for (let dialogueId in dialogues) {
 		let dialogue = dialogues[dialogueId];
-		getChatButton(dialogue, { createIfNotExists: true });
+		getChatTab(dialogue, { createIfNotExists: true });
 		if (dialogueId === openDialogueId) {
 			showDialogue({ dialogueId, name: dialogue.name });
 		}
@@ -153,7 +156,7 @@ client.on('ready', async () => {
 
 	let dialogues = await client.dialogues.fetchActive({ force: true });
 	for (let dialogue of dialogues.values()) {
-		getChatButton(dialogue, { createIfNotExists: true });
+		updateChatTab(dialogue, { createIfNotExists: true });
 	}
 
 	contentCache.update('dialogues', Object.fromEntries(Array.from(dialogues.values()).map(({ id, name, type }) => [id, { id, name, type }])));
@@ -209,6 +212,13 @@ client.on('ready', async () => {
 
 client.on('messageCreate', message => createMessage(message));
 client.on('giftMessageCreate', message => createMessage(Object.assign(message, { author: message.sender })));
+client.on('messageDelete', message => {
+	let subContainer = getMessageContainer(message.dialogueId, { createIfNotExists: true });
+	let messageWrapper = subContainer.querySelector('message-wrapper[data-id="' + message.id + '"]');
+	if (null === messageWrapper) return;
+	messageWrapper.classList.add('deleted');
+});
+
 const authUsername = authContainer.querySelector('input[type="text"]');
 const authPassword = authContainer.querySelector('input[type="password"]');
 authContainer.addEventListener('close', async event => {
@@ -316,7 +326,7 @@ function createMessage(message, scrollToBottom) {
 	let autoScroll = messageContainer.scrollHeight - messageContainer.scrollTop <= messageContainer.offsetHeight;
 	let lastMessageSid = subContainer.lastElementChild && subContainer.lastElementChild.dataset.sid;
 	let msg = subContainer.appendChild(MessageWrapper.create(message));
-	lastMessageSid !== message.author.id && msg.addAuthor();
+	lastMessageSid !== message.author.id && msg.setAuthor();
 	(autoScroll || scrollToBottom) && messageContainer.scrollTo({
 		behavior: 'instant',
 		top: messageContainer.scrollHeight
@@ -330,6 +340,7 @@ function createMessage(message, scrollToBottom) {
 	});
 	let lastMessagePreview = document.querySelector('label[data-id="' + message.dialogueId + '"] > .last-message');
 	null !== lastMessagePreview && (lastMessagePreview.innerText = message.content);
+	return msg;
 }
 
 const mediaFiles = new Map();
@@ -338,7 +349,7 @@ dialogueText.addEventListener('keydown', async event => {
 	case 'enter':
 		event.shiftKey || (event.preventDefault(),
 		// send media files first;
-		sendMessage(dialogueText.value, { attachments: Array.from(mediaFiles.entries()).map(([name, url]) => ({ name, url })) }),
+		sendMessage(),
 		delete dialogueReplyContainer.dataset.mid,
 		dialogueText.value = null,
 		dialogueMediaContainer.replaceChildren(),
@@ -347,6 +358,10 @@ dialogueText.addEventListener('keydown', async event => {
 	}
 });
 
+dialogueMedia.addEventListener('change', ({ target }) => {
+	handleFileInput({ files: target.files });
+	target.value = null;
+});
 window.addEventListener('drop', event => {
 	event.preventDefault();
 	handleFileInput(event.dataTransfer);
@@ -367,8 +382,9 @@ function handleFileInput({ files }) {
 	}
 }
 
+dialogueSend.addEventListener('click', sendMessage);
 function sendMessage() {
-	return activeDialogue.send(...arguments).catch(err => {
+	return activeDialogue.send(dialogueText.value, mediaFiles.size > 0 && { attachments: Array.from(mediaFiles.entries()).map(([name, url]) => ({ name, url })) }).catch(err => {
 		SuperDialog.error(err.message);
 	})
 }
@@ -430,11 +446,11 @@ window.addEventListener('contextmenu', async event => {
 
 		let message = await dialogue.messages.fetch(element.dataset.id);
 		const options = [{
-			disabled: message.lovers.cache.has(client.user.id),
+			disabled: !message || message.lovers.cache.has(client.user.id),
 			name: 'Like',
 			click: () => message.like()
 		}, {
-			disabled: message.id === dialogueReplyContainer.dataset.mid,
+			disabled: !message || message.id === dialogueReplyContainer.dataset.mid,
 			name: 'Reply',
 			click() {
 				dialogueReplyAuthor.innerText = message.author.displayName;
@@ -446,9 +462,7 @@ window.addEventListener('contextmenu', async event => {
 			click: () => navigator.clipboard.writeText(message.content)
 		}, {
 			name: 'Share', // v2:chat.message.share
-			click() {
-
-			}
+			click() {}
 		}, {
 			disabled: null !== element.querySelector('.translation'),
 			name: 'Translate',
@@ -474,10 +488,12 @@ window.addEventListener('contextmenu', async event => {
 		// 	})
 		// });
 		(isModerator || canDelete) && options.push({
+			disabled: !message || message.deleted,
 			name: 'Delete',
 			styles: ['danger'],
 			click: () => dialogue.messages.delete(message.id).then(res => {
-				res && element.remove();
+				res && element.classList.add('deleted');
+				// res && element.remove();
 			})
 		});
 		options.push({

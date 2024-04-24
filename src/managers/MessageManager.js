@@ -7,13 +7,13 @@ export default class MessageManager extends BaseManager {
 		super(...arguments);
 		let maxCacheSize = (this.client.options && (this.client.options.configuredHistoryLength ?? this.client.options.historyLength)) ?? 50;
 		Object.defineProperty(this.cache, 'set', {
-			value() {
+			value: function set() {
 				if (this.size >= maxCacheSize) {
 					for (let entry of Array.from(this.values()).sort((a, b) => a.createdAt - b.createdAt).slice(0, 4)) {
 						this.delete(entry.id);
 					}
 				}
-				return Map.prototype.set.apply(this, arguments);
+				return Map.prototype.set.apply(this, arguments)
 			}
 		})
 	}
@@ -40,8 +40,9 @@ export default class MessageManager extends BaseManager {
 				__type: 'Date',
 				iso: since.toISOString()
 			}
-		})).then(async ({ messages }) => {
+		})).then(async ({ messages, removes }) => {
 			if (id) {
+				if (removes && removes.includes(id)) return { deleted: true };
 				let data = messages.find(data => data.id == id);
 				if (data) {
 					await this.client.client.preprocessMessage(data, { channelId: this.client.id });
@@ -51,10 +52,18 @@ export default class MessageManager extends BaseManager {
 				}
 				return null;
 			}
+			let sort = this.cache.size === 1 && this.cache.has(this.client.lastMessageId);
 			for (let item of messages.sort((a, b) => Date.parse(a.createdAt.iso) - Date.parse(b.createdAt.iso))) {
 				await this.client.client.preprocessMessage(item, { channelId: this.client.id });
 				let entry = new Message(item, this.client);
 				this.cache.set(entry.id, entry);
+			}
+			if (sort) {
+				let values = Array.from(this.cache.values()).sort((a, b) => a.createdAt - b.createdAt);
+				this.cache.clear();
+				for (let item of values) {
+					this.cache.set(item.id, item);
+				}
 			}
 			return id ? this.cache.get(id) ?? null : this.cache
 		})
