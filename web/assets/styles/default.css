@@ -29,14 +29,16 @@ nav {
 	text-align: center;
 }
 
-nav .nav-option, .chats .dialogue, .archived-chats > summary {
+nav .nav-option, .chats .dialogue, .archived-chats > summary, .friends-list > summary {
 	border-radius: 2.5px;
 	padding: 0.25em 0.4em;
 	transition: all 80ms;
 }
 
 @media (hover: hover) {
-	nav .nav-option:hover, .dialogue:hover, .user-card:hover, .archived-chats > summary:hover {
+	nav .nav-option:hover, .dialogue:hover, .user-card:hover,
+	.archived-chats > summary:hover,
+	.friends-list > summary:hover {
 		backdrop-filter: brightness(calc(100% + 25% * var(--l-multiplier)));
 	}
 
@@ -59,7 +61,9 @@ nav .nav-option, .chats .dialogue, .archived-chats > summary {
 }
 
 @media (pointer: coarse) and (hover: none) {
-	nav .nav-option:active, .dialogue:active, .user-card:active, .archived-chats > summary:active {
+	nav .nav-option:active, .dialogue:active, .user-card:active,
+	.archived-chats > summary:active,
+	.friends-list > summary:active {
 		backdrop-filter: brightness(calc(100% + 25% * var(--l-multiplier)));
 	}
 
@@ -81,7 +85,7 @@ nav .nav-option, .chats .dialogue, .archived-chats > summary {
 	}
 }
 
-.archived-chats > summary:hover { cursor: default; }
+.archived-chats > summary:hover, .friends-list > summary:hover { cursor: default; }
 .archived-chats > summary {
 	-webkit-user-select: none;
 	user-select: none;
@@ -378,6 +382,10 @@ details:has(.blocked-container) summary {
 	padding-right: 0.5cqw;
 }
 
+.friends-list > summary::marker {
+	content: "🗫 ";
+}
+
 @media (max-width: 900px) {
 	.panel.right-panel { display: none; }
 }
@@ -507,6 +515,7 @@ message-wrapper .attachment[data-type="sticker"] {
 	display: flex;
 	gap: 0.25em;
 	justify-content: space-between;
+	padding: 0.2em 0.4em;
 }
 
 .user-card .metadata {
@@ -599,9 +608,9 @@ dialog {
 dialog[header]::before {
 	content: attr(header);
 	display: block;
-	font-size: 1.25rem;
+	font-size: 1.5rem;
 	font-weight: bold;
-	margin-bottom: 1.25rem;
+	margin-bottom: 0.5em;
 }
 
 /* hr { border-color: hsl(0deg, 0%, 50%); } */

@@ -110,6 +110,7 @@ export default class UserWrapper extends HTMLElement {
 						event.target.classList.remove('loading');
 					});
 					let friends = dialog.appendChild(document.createElement('details'));
+					friends.classList.add('friends-list');
 					let summary = friends.appendChild(document.createElement('summary'));
 					summary.innerText = 'Friends';
 					for (let friend of await user.friends.fetch().then(map => map.values())) {

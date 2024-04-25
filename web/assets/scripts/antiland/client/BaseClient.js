@@ -14,7 +14,7 @@ import Opcodes from "../../../../../src/utils/Opcodes.js";
 export default class extends EventEmitter {
 	#reconnectAttempts = 0;
 	#clientVersion = "antiland/web";
-	#url = "wss://ps.anti.land/v1/";
+	#gateway = "wss://ps.anti.land/v1/";
 	#lastMessageTimestamp = new Map();
 	#pingTimeout = null;
 	#pingTimestamp = Date.now();
@@ -57,7 +57,7 @@ export default class extends EventEmitter {
 
 	#connect(cb) {
 		return new Promise((resolve, reject) => {
-			let socket = this.options.pubnub ? new PubNubBroker(this) : new WebSocket(this.#url + "?client=" + this.#clientVersion + (this.connectionId ? '&connectionId=' + this.connectionId : ''));
+			let socket = this.options.pubnub ? new PubNubBroker(this) : new WebSocket(this.#gateway + "?client=" + this.#clientVersion + (this.connectionId ? '&connectionId=' + this.connectionId : ''));
 			socket.addEventListener('close', code => (this.#ws = null, this.emit('disconnect', code))),
 			socket.addEventListener('error', err => this.options.maxReconnectAttempts > this.#reconnectAttempts++ ? resolve(this.options.fallback && (this.options.pubnub = true), this.#connect(cb)) : (this.emit(Events.Error, err), reject(err))),
 			socket.addEventListener('message', event => this.#messageListener(event.data)),
