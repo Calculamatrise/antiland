@@ -119,7 +119,7 @@ export default class extends BaseManager {
 	 * @param {boolean} [options.unique] Whether to filter old randoms
 	 * @returns {Promise<User>}
 	 */
-	random(lastUsers, { unique } = {}) {
+	async random(lastUsers, { unique } = {}) {
 		if (lastUsers instanceof Object && !Array.isArray(lastUsers)) return this.random(null, lastUsers);
 		return this.client.requests.post("functions/v2:profile.random", {
 			lastUsers: Array.from(lastUsers || (unique && this.#randomCache) || [])
@@ -141,7 +141,7 @@ export default class extends BaseManager {
 	 * @param {string} [options.receiverId]
 	 * @returns {Promise<unknown>}
 	 */
-	sendGift(user, { artifactName, currency = 'karma', dialogueId } = {}) {
+	async sendGift(user, { artifactName, currency = 'karma', dialogueId } = {}) {
 		if (typeof user == 'object') return this.sendGift(user.receiverId, user);
 		let receiverId = typeof user == 'object' ? user.id : user;
 		return this.client.requests.post("functions/v2:purchase.gift", {

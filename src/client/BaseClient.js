@@ -13,28 +13,25 @@ import MessageType from "../utils/MessageType.js";
 import Opcodes from "../utils/Opcodes.js";
 
 export default class extends EventEmitter {
-	#connectionId = null;
 	#reconnectAttempts = 0;
 	#clientVersion = "nodejs/antiland";
-	#host = "ps.anti.land";
-	#url = "wss://" + this.#host + "/v1/";
-	#fallback = false;
+	#gateway = "wss://ps.anti.land/v1/";
 	#lastMessageTimestamp = new Map();
 	#pingTimeout = null;
 	#pingTimestamp = Date.now();
-	#pubnub = false;
-	#subscribe = true;
+	#subscriptionQueue = new Set();
+	#timeouts = [];
 	#ws = null;
 	_outgoing = new Set(); // use this to guaruntee a response from the server/make promises
-	channels = new Set();
-	queueChannels = new Set();
-	maxReconnectAttempts = 3;
+	connectionId = null;
+	options = null;
 	ping = 0;
 	requests = new RequestHandler();
+	subscriptions = new Set();
 	user = null;
 
 	/**
-	 * @param {object} [options]
+	 * @param {ClientOptions} [options]
 	 * @param {boolean} [options.fallback] whether to fallback to a pubnub connection
 	 * @param {number} [options.maxReconnectAttempts]
 	 * @param {boolean} [options.pubnub] prefer pubnub
@@ -42,40 +39,35 @@ export default class extends EventEmitter {
 	 */
 	constructor(options) {
 		super();
-		Object.defineProperty(this, 'debug', { value: false, writable: true });
-		for (let key in options) {
-			switch(key.toLowerCase()) {
-			case 'debug':
-				this.debug = options[key];
-				break;
-			case 'fallback':
-				this.#fallback = Boolean(options[key]);
-				break;
-			case 'maxReconnectAttempts':
-				this[key] = options[key] | 0;
-				break;
-			case 'pubnub':
-				this.#pubnub = Boolean(options[key]);
-				break;
-			case 'subscribe':
-				this.#subscribe = Boolean(options[key])
-			}
+		this.options = Object.assign({}, this.options, {
+			fallback: false,
+			pubnub: false,
+			subscribe: true
+		});
+		for (let [key, value] of Object.entries(options).filter(([key, value]) => {
+			return this.options.hasOwnProperty(key) && (this.options[key] === null || typeof this.options[key] == typeof value);
+		})) {
+			this.options[key] = value;
 		}
-		Object.defineProperty(this, 'token', { value: null, writable: true })
+		Object.defineProperty(this, 'token', { value: null, writable: true });
+		Object.defineProperties(this, {
+			_outgoing: { enumerable: false },
+			connectionId: { enumerable: false }
+		})
 	}
 
 	#connect(cb) {
 		return new Promise((resolve, reject) => {
-			let socket = this.#pubnub ? new PubNubBroker(this) : new WebSocket(this.#url + "?client=" + this.#clientVersion + (this.#connectionId ? '&connectionId=' + this.#connectionId : ''));
+			let socket = this.options.pubnub ? new PubNubBroker(this) : new WebSocket(this.#gateway + "?client=" + this.#clientVersion + (this.connectionId ? '&connectionId=' + this.connectionId : ''));
 			socket.on('close', code => (this.#ws = null, this.emit('disconnect', code))),
-			socket.on('error', err => this.maxReconnectAttempts > this.#reconnectAttempts++ ? resolve(this.#fallback && (this.#pubnub = true), this.#connect(cb)) : (this.emit('error', err), reject(err))),
+			socket.on('error', err => this.options.maxReconnectAttempts > this.#reconnectAttempts++ ? resolve(this.options.fallback && (this.options.pubnub = true), this.#connect(cb)) : (this.emit(Events.Error, err), reject(err))),
 			socket.on('message', this.#messageListener.bind(this)),
 			socket.on('open', () => (this.#ws = socket, typeof cb == 'function' && cb(socket), resolve(socket)))
 		})
 	}
 
 	async destroy(disconnect) {
-		disconnect && (this.#connectionId = null);
+		disconnect && (this.connectionId = null);
 		this.#pingTimeout && clearTimeout(this.#pingTimeout);
 		if (!this.#ws) return true;
 		return new Promise((resolve, reject) => {
@@ -92,7 +84,7 @@ export default class extends EventEmitter {
 			throw new Error("Session token not found!");
 		}
 		this.emit('reconnecting');
-		!this.#pubnub && this.#reconnectAttempts === this.maxReconnectAttempts - 1 && this.#fallback && (this.#pubnub = true);
+		!this.options.pubnub && this.#reconnectAttempts === this.options.maxReconnectAttempts - 1 && this.options.fallback && (this.options.pubnub = true);
 		return this.login(config._SessionToken)
 	}
 
@@ -132,21 +124,21 @@ export default class extends EventEmitter {
 		let payload = data && data.payload;
 		switch (data.type) {
 		case Opcodes.AUTH_SUCCESS:
-			this.#connectionId = payload.connectionId;
+			this.connectionId = payload.connectionId;
 			this.#pingTimestamp = Date.now();
 			this.#reconnectAttempts = 0;
-			this.emit('ready');
+			this.emit(Events.ClientReady);
 			this.sendCommand(Opcodes.PING);
 			break;
 		// case Opcodes.AUTH_FAILURE:
-		// 	this.emit('error', payload);
+		// 	this.emit(Events.Error, payload);
 		// 	break;
 		case Opcodes.MESSAGE:
-			this.emit('raw', payload);
+			this.emit(Events.Raw, payload);
 			for (let message of payload.messages) {
 				this._handleMessage(message, payload).catch(err => {
 					if (this.listenerCount('error') > 0) {
-						this.emit('error', err);
+						this.emit(Events.Error, err);
 					} else {
 						throw err
 					}
@@ -160,18 +152,18 @@ export default class extends EventEmitter {
 					transport: 'anti',
 					ts: Date.now()
 				}))
-			}, true);
+			});
 			break;
 		case Opcodes.SUBSCRIPTIONS:
 			if (!payload) break; // channel not found
 			for (let channelId of payload.diff.dropped)
-				this.queueChannels.delete(channelId),
-				this.channels.delete(channelId),
-				channelId !== this.user.channelId && this.emit('channelDelete', channelId);
+				this.#subscriptionQueue.delete(channelId),
+				this.subscriptions.delete(channelId),
+				channelId !== this.user.channelId && this.emit(Events.ChannelDelete, channelId);
 			for (let channelId of payload.diff.added)
-				this.queueChannels.delete(channelId),
-				this.channels.add(channelId),
-				channelId !== this.user.channelId && this.emit('channelCreate', channelId);
+				this.#subscriptionQueue.delete(channelId),
+				this.subscriptions.add(channelId),
+				channelId !== this.user.channelId && this.emit(Events.ChannelCreate, channelId);
 			break;
 		case Opcodes.ACK:
 			this._outgoing.delete(payload.id);
@@ -179,7 +171,7 @@ export default class extends EventEmitter {
 			break;
 		case Opcodes.PONG:
 			this.ping = Date.now() - this.#pingTimestamp;
-			this.emit('ping', this.ping);
+			this.emit(Events.Ping, this.ping);
 			// this.requests.post("functions/v2:chat.presence.ping", {
 			// 	dialogueId: this.user.id
 			// })
@@ -190,44 +182,53 @@ export default class extends EventEmitter {
 			break;
 		default:
 			console.warn('unrecognized opcode', data);
-			this.emit('debug', { message, type: 'UNKNOWN_OPCODE' })
+			this.emit(Events.Debug, { message, type: 'UNKNOWN_OPCODE' });
+			this.emit(Events.Warn, "Unrecognized opcode:", data);
 		}
 	}
 
 	async _handleMessage(data, { channelId }) {
 		await this.preprocessMessage(...arguments).catch(err => {
-			console.log('errored', err.message, data);
-			if (this.listenerCount('error') > 0) {
-				this.emit('error', err);
-			} else {
-				throw err
-			}
+			console.warn('errored', err.message, data);
+			throw err
 		});
 		if (data.isPrivate) {
 			switch(data.type) {
 			case MessageType.BLOCKED_BY:
 				this.user.blockedBy.add(data.senderId);
-				this.emit('blocked', data.sender)  // relationshipUpdate? // clientBlocked
+				this.emit(Events.Blocked, data.sender); // relationshipUpdate? // clientBlocked
 				return;
 			case MessageType.BLOCKED_WHOM:
 				this.user.contacts.blocked.add(data.receiverId);
-				this.emit('userBlocked', data.receiver)  // relationshipUpdate? // blocked
+				this.emit(Events.UserBlocked, data.receiver); // relationshipUpdate? // blocked
 				return;
 			case MessageType.CHANNEL_BAN_CREATE:
-				return this.emit('channelBanAdd', data);
+				// setTimeout for ban, then emit ChannelBanRemove/Expire
+				return this.emit(Events.ChannelBanAdd, data);
 			case MessageType.KARMA_TASK_PROGRESS:
 				switch(data.body.task.id.toLowerCase()) {
 				case 'karmatask.dailybonus':
+					// start 24 hour timeout then emit Events.KarmaTaskCreate
 					this.user.karma += data.body.task.reward.currencyReward?.price?.karma | 0;
-					return this.emit('taskComplete', data.body.task);
+					this.user.tasks.update(data.body.task);
+					this.emit(Events.KarmaTaskUpdate, data.body.task);
+					if (data.body.task.localNotifications && data.body.task.localNotifications.length > 0) {
+						for (let { onBeforeExpire: { iso }} of data.body.task.localNotifications) {
+							this.#timeouts.push(setTimeout(() => {
+								this.emit(Events.KarmaTaskCreate, data.body.task);
+							}, Date.parse(iso) - Date.now()));
+						}
+					}
+					return;
 				default:
 					console.warn('unknown karma task', data.body);
-					return this.emit('debug', { data: data.body, type: 'UNKNOWN_KARMA_TASK' })
+					this.emit(Events.Warn, "Unknown KarmaTask:", data.body);
+					return this.emit(Events.Debug, { data: data.body, type: 'UNKNOWN_KARMA_TASK' })
 				}
 			case MessageType.FRIEND_REQUEST_CREATE:
 				let entry = new FriendRequest(data, this.user.friends);
 				this.user.friends.pending.incoming.set(entry.id, entry);
-				return this.emit('friendRequest', entry);
+				return this.emit(Events.FriendRequestCreate, entry);
 			case MessageType.MESSAGE_DELETE:
 			case MessageType.MESSAGE_LIKE:
 			case MessageType.MESSAGE_UPDATE:
@@ -239,34 +240,33 @@ export default class extends EventEmitter {
 					break;
 				}
 				data.hasOwnProperty('gift') && this.emit('giftReceived', data);
-				this.emit('notification', data);
+				this.emit(Events.Notification, data);
 				return;
 			case MessageType.UNBLOCKED_BY:
 				this.user.blockedBy.delete(data.senderId);
-				this.emit('unblocked', data.sender)  // relationshipUpdate? // clientBlocked
+				this.emit(Events.Unblocked, data.sender)  // relationshipUpdate? // clientBlocked
 				return;
 			case MessageType.UNBLOCKED_WHOM:
 				this.user.contacts.blocked.delete(data.receiverId);
-				this.emit('userUnblocked', data.receiver)  // relationshipUpdate? // blocked
+				this.emit(Events.UserUnblocked, data.receiver)  // relationshipUpdate? // blocked
 				return;
 			default:
 				// if (data.hasOwnProperty())
 				console.warn('unknown private notification', data);
-				return this.emit('debug', { data, type: 'UNKNOWN_MESSAGE' })
+				return this.emit(Events.Debug, { data, type: 'UNKNOWN_MESSAGE' })
 			}
 		}
 		if (!data.dialogue) {
 			console.warn("Dialogue not found:", data);
 			return
 		}
-		// check if message id is present to see if an action occurred on a message
 		let temp;
 		switch(data.type) {
 		case MessageType.CHANNEL_MEMBER_ADD:
-			return this.emit('channelMemberAdd', data);
+			return this.emit(Events.ChannelMemberAdd, data);
 		case MessageType.GIFT_MESSAGE:
 			let message = new GiftMessage(data, data.dialogue);
-			this.emit('giftMessageCreate', message);
+			this.emit(Events.GiftMessageCreate, message);
 			message.receiverId == this.user.id && (this.user.karma += message.karma,
 			this.emit('giftReceive', message)); // emit notification?
 			return;
@@ -281,13 +281,12 @@ export default class extends EventEmitter {
 		case MessageType.MESSAGE_DELETE:
 			data.update && data.message && data.message._patch(data, true);
 			temp = data.message || new Message(data, data.dialogue, true);
-			temp._patch({ updatedAt: data.createdAt });
-			data.dialogue.messages.cache.delete(temp.id);
-			this.emit('messageDelete', temp);
+			temp._patch({ deleted: true, updatedAt: data.createdAt });
+			this.emit(Events.MessageDelete, temp);
 			return;
 		case MessageType.MESSAGE_LIKE:
 			data.message && data.message._patch(data, true);
-			this.emit('messageReactionAdd', data);
+			this.emit(Events.MessageReactionAdd, data);
 			return;
 		case MessageType.MESSAGE_REPORT:
 			this.emit(Events.MessageReportAdd, data);
@@ -296,7 +295,7 @@ export default class extends EventEmitter {
 			data.update && data.message._patch(data, true);
 			temp = data.message || new Message(data, data.dialogue);
 			temp._patch({ updatedAt: data.createdAt });
-			this.emit('messageUpdate', temp);
+			this.emit(Events.MessageUpdate, temp);
 			return;
 		default:
 			console.warn('unrecognized action', data);
@@ -308,14 +307,14 @@ export default class extends EventEmitter {
 		data.dialogue.lastMessage = message;
 		data.dialogue.lastMessageId = message.id;
 		this.user.contacts.blocked.has(message.author.id) && (message.author.blocked = true);
-		this.emit('messageCreate', message);
+		this.emit(Events.MessageCreate, message);
 	}
 
 	subscribe(channelId) {
-		if (this.channels.has(channelId) || this.queueChannels.has(channelId)) return;
-		this.queueChannels.add(channelId);
+		if (this.subscriptions.has(channelId) || this.#subscriptionQueue.has(channelId)) return;
+		this.#subscriptionQueue.add(channelId);
 		this.sendCommand(Opcodes.NAVIGATE, {
-			channels: Array(Array.from(this.channels.values()), Array.from(this.queueChannels.values())).flat().map(channelId => ({
+			channels: Array(Array.from(this.subscriptions.values()), Array.from(this.#subscriptionQueue.values())).flat().map(channelId => ({
 				channelId,
 				offset: ''
 			})).concat({
@@ -327,10 +326,10 @@ export default class extends EventEmitter {
 	}
 
 	unsubscribe(channelId) {
-		this.queueChannels.delete(channelId);
-		if (!this.channels.delete(channelId)) return;
+		this.#subscriptionQueue.delete(channelId);
+		if (!this.subscriptions.delete(channelId)) return;
 		this.sendCommand(Opcodes.NAVIGATE, {
-			channels: Array(Array.from(this.channels.values()), Array.from(this.queueChannels.values())).flat().map(channelId => ({
+			channels: Array(Array.from(this.subscriptions.values()), Array.from(this.#subscriptionQueue.values())).flat().map(channelId => ({
 				channelId,
 				offset: ''
 			})),
@@ -372,16 +371,16 @@ export default class extends EventEmitter {
 			}
 
 			// if blockedBy included 'all', client is in prison or .isInPrison
-			this.queueChannels.add(this.user.channelId);
-			if (this.#subscribe) {
+			this.#subscriptionQueue.add(this.user.channelId);
+			if (this.options.subscribe) {
 				let groups = await this.groups.fetchActive({ force: true });
 				for (let channelId of groups.keys()) {
-					this.queueChannels.add(channelId);
+					this.#subscriptionQueue.add(channelId);
 				}
 			}
 
-			this.sendCommand(Opcodes[this.queueChannels.size > 0 ? "INIT" : "AUTH"], {
-				channels: Array.from(this.queueChannels.values()).flat().map(channelId => ({
+			this.sendCommand(Opcodes[this.#subscriptionQueue.size > 0 ? "INIT" : "AUTH"], {
+				channels: Array.from(this.#subscriptionQueue.values()).flat().map(channelId => ({
 					channelId,
 					offset: ''
 				})),
@@ -389,15 +388,15 @@ export default class extends EventEmitter {
 				sessionId: token,
 				verbose: true
 			});
-			let pingInterval = this.#pubnub || setInterval(() => {
+			let pingInterval = this.options.pubnub || setInterval(() => {
 				if (Date.now() - this.#pingTimestamp > 3e4) {
 					clearInterval(pingInterval);
 					this.emit('stale');
 					this.emit('timeout');
-					if (this.#reconnectAttempts++ > this.maxReconnectAttempts) {
+					if (this.#reconnectAttempts++ > this.options.maxReconnectAttempts) {
 						throw new Error("Connection timed out! Failed to reconnect. Max reconnect attempts reached.");
 					}
-					this.#reconnectAttempts > 1 && (this.#connectionId = null);
+					this.#reconnectAttempts > 1 && (this.connectionId = null);
 					this.reconnect()
 				}
 			})

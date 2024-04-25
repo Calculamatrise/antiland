@@ -43,7 +43,7 @@ export default class ClientFriendManager extends FriendManager {
 	 * @param {User|string} user 
 	 * @returns {Promise<object>}
 	 */
-	request(user, check) {
+	async request(user, check) {
 		let userId = typeof user == 'object' ? user.id : user;
 		if (check) {
 			if (this.pending.outgoing.has(userId)) {
@@ -87,7 +87,7 @@ export default class ClientFriendManager extends FriendManager {
 	 * @param {User|string} user
 	 * @returns {Promise<boolean>}
 	 */
-	cancel(user) {
+	async cancel(user) {
 		let userId = typeof user == 'object' ? user.id : user;
 		if (!this.pending.outgoing.has(userId)) {
 			throw new Error("You have not sent a friend request to this user.");
@@ -135,7 +135,7 @@ export default class ClientFriendManager extends FriendManager {
 	 * @param {User|string} user
 	 * @returns {Promise<object>}
 	 */
-	reject(user) {
+	async reject(user) {
 		let userId = typeof user == 'object' ? user.id : user;
 		if (!this.pending.incoming.has(userId)) {
 			throw new Error("Friend request not found.");
@@ -150,7 +150,7 @@ export default class ClientFriendManager extends FriendManager {
 	 * @param {User|string} user
 	 * @returns {Promise<object>}
 	 */
-	remove(user) {
+	async remove(user) {
 		let userId = typeof user == 'object' ? user.id : user;
 		if (!this.cache.has(userId)) {
 			throw new Error("Friend not found.");

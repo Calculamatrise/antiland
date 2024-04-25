@@ -13,7 +13,7 @@ export default class Message extends BaseStructure {
 	referenceId = null;
 	reports = 0;
 	stickerId = null;
-	constructor(data, dialogue, { partial, skipCache } = {}) {
+	constructor(data, dialogue, { partial, cache } = {}) {
 		if (data instanceof Message) return data;
 		if (data instanceof Object && dialogue instanceof Object && dialogue.hasOwnProperty('messages')) {
 			let id = data.id || data.objectId;
@@ -26,6 +26,7 @@ export default class Message extends BaseStructure {
 		super(...arguments, true);
 		let isDialogue = dialogue instanceof Dialogue;
 		Object.defineProperties(this, {
+			deleted: { value: false, writable: true },
 			dialogue: { value: isDialogue ? dialogue : null, writable: !isDialogue },
 			edits: { value: null, writable: true },
 			originalContent: { value: null, writable: true },
@@ -34,7 +35,7 @@ export default class Message extends BaseStructure {
 			sticker: { value: null, writable: true }
 		});
 		this._patch(data);
-		!skipCache && this.id !== null && this.hasOwnProperty('client') && dialogue.messages.cache.set(this.id, this)
+		false !== cache && this.id !== null && this.hasOwnProperty('client') && dialogue.messages.cache.set(this.id, this)
 	}
 
 	get deletable() {
@@ -71,6 +72,7 @@ export default class Message extends BaseStructure {
 			case 'hexColor':
 				this.color = parseInt(data[key].replace(/^#/, ''), 16);
 			case 'blessed':
+			case 'deleted':
 				this[key] = data[key];
 				break;
 			case 'likes':
@@ -124,7 +126,7 @@ export default class Message extends BaseStructure {
 					this.author = this.client.users.cache.get(data[key]);
 					break;
 				}
-				this.author = new User({ id: data[key] }, this, { partial: this.partial, skipCache: this.partial });
+				this.author = new User({ id: data[key] }, this, { partial: this.partial, cache: !this.partial });
 				break;
 			case 'sendersName':
 				this.author._patch({ profileName: data[key] });
@@ -166,6 +168,7 @@ export default class Message extends BaseStructure {
 			if (!res) {
 				throw new Error("Something went wrong! Failed to delete message.");
 			}
+			this.deleted = true;
 			return this
 		})
 	}
@@ -174,7 +177,7 @@ export default class Message extends BaseStructure {
 	 * Edit the contents of this message
 	 * @returns {Promise<Message>}
 	 */
-	edit(text) {
+	async edit(text) {
 		return this.client.requests.post("functions/v2:chat.message.changeText", {
 			messageId: this.id,
 			text
@@ -204,7 +207,7 @@ export default class Message extends BaseStructure {
 	 * Send love to the author for this message
 	 * @returns {Promise<Message>}
 	 */
-	like() {
+	async like() {
 		return this.client.requests.post("functions/v2:chat.message.love", {
 			messageId: this.id
 		}).then(result => {

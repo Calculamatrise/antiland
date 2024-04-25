@@ -14,7 +14,7 @@ export default class User extends BaseStructure {
 	karma = null;
 	minKarma = null;
 	username = null;
-	constructor(data, options, { partial, skipCache, skipPatch } = {}) {
+	constructor(data, options, { partial, cache, skipPatch } = {}) {
 		if (data instanceof User && data.constructor === User) return data;
 		if (data instanceof Object && options instanceof Object && options.hasOwnProperty('client')) {
 			let id = data.id || data.objectId;
@@ -32,7 +32,7 @@ export default class User extends BaseStructure {
 			partial: { value: partial || this.partial, writable: true }
 		});
 		skipPatch || this._patch(data),
-		!skipCache && this.id !== null && this.hasOwnProperty('client') && this.client.users.cache.set(this.id, this)
+		false !== cache && this.id !== null && this.hasOwnProperty('client') && this.client.users.cache.set(this.id, this)
 	}
 
 	_patch(data) {
@@ -252,7 +252,7 @@ export default class User extends BaseStructure {
 	 * @param {string} [options.referenceId]
 	 * @returns {Promise<Message>}
 	 */
-	send() {
+	async send() {
 		return this.fetchDM({ createIfNotExists: true }).then(dmChannel => {
 			return dmChannel.send(...arguments)
 		})

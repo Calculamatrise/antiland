@@ -11,6 +11,7 @@ export default class ClientUser extends User {
 	blockedBy = new Set();
 	channelId = null;
 	contacts = new ContactManager(this);
+	// email = null;
 	favorites = new FavoriteManager(this);
 	friends = new ClientFriendManager(this);
 	hexAccentColor = null;

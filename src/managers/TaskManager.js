@@ -33,4 +33,14 @@ export default class TaskManager extends BaseManager {
 			return data
 		})
 	}
+
+	update(task) {
+		let temp = this.cache.get(task.id);
+		if (!temp) {
+			this.cache.set(task.id, task);
+		} else {
+			Object.assign(temp, task);
+		}
+		return task;
+	}
 }

@@ -10,7 +10,10 @@
  * @property {string} ClientReady ready
  * @property {string} Debug debug
  * @property {string} Error error
+ * @property {string} FriendRequestCreate friendRequestCreate
  * @property {string} GiftMessageCreate giftMessageCreate
+ * @property {string} KarmaTaskCreate karmaTaskCreate
+ * @property {string} KarmaTaskUpdate karmaTaskUpdate
  * @property {string} MessageCreate messageCreate
  * @property {string} MessageDelete messageDelete
  * @property {string} MessageReactionAdd messageReactionAdd
@@ -32,6 +35,7 @@
 export default {
 	Blocked: 'blocked',
 	ChannelBanAdd: 'channelBanAdd',
+	// ChannelBanExpire: 'channelBanExpire',
 	ChannelBanRemove: 'channelBanRemove',
 	ChannelCreate: 'channelCreate',
 	ChannelDelete: 'channelDelete',
@@ -44,6 +48,8 @@ export default {
 	FriendRequestCreate: 'friendRequestCreate',
 	// FriendRequestDelete: 'friendRequestDelete',
 	GiftMessageCreate: 'giftMessageCreate',
+	KarmaTaskCreate: 'karmaTaskCreate',
+	KarmaTaskUpdate: 'karmaTaskUpdate',
 	MessageCreate: 'messageCreate',
 	MessageDelete: 'messageDelete',
 	MessageReactionAdd: 'messageReactionAdd',

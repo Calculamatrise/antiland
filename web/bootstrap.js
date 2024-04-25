@@ -294,7 +294,7 @@ function showDialogue(data) {
 		if (container.dataset.id === dialogueId) continue;
 		container.style.setProperty('display', 'none');
 	}
-	let tabRadio = chatsContainer.querySelector('label[data-id="' + dialogueId + '"] > input[type="radio"]');;
+	let tabRadio = chatsContainer.querySelector('label[data-id="' + dialogueId + '"] > input[type="radio"]');
 	tabRadio !== null && (tabRadio.checked = true);
 	let container = getMessageContainer(dialogueId, { createIfNotExists: true });
 	container.style.removeProperty('display');
@@ -456,12 +456,13 @@ window.addEventListener('contextmenu', async event => {
 		}
 
 		let message = await dialogue.messages.fetch(element.dataset.id);
+		let isDeleted = !message || message.deleted;
 		const options = [{
-			disabled: !message || message.lovers.cache.has(client.user.id),
+			disabled: isDeleted || message.lovers.cache.has(client.user.id),
 			name: 'Like',
 			click: () => message.like()
 		}, {
-			disabled: !message || message.id === dialogueReplyContainer.dataset.mid,
+			disabled: isDeleted || message.id === dialogueReplyContainer.dataset.mid,
 			name: 'Reply',
 			click() {
 				dialogueReplyAuthor.innerText = message.author.displayName;
@@ -499,7 +500,7 @@ window.addEventListener('contextmenu', async event => {
 		// 	})
 		// });
 		(isModerator || canDelete) && options.push({
-			disabled: !message || message.deleted,
+			disabled: isDeleted || message.deleted,
 			name: 'Delete',
 			styles: ['danger'],
 			click: () => dialogue.messages.delete(message.id).then(res => {

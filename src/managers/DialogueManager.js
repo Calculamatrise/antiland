@@ -113,7 +113,7 @@ export default class DialogueManager extends BaseManager {
 	 * @param {boolean} [options.unique] Whether to find a unique chat
 	 * @returns {Promise<unknown>}
 	 */
-	random(lastUsers = null, { unique } = {}) {
+	async random(lastUsers = null, { unique } = {}) {
 		if (lastUsers instanceof Object && !Array.isArray(lastUsers)) return this.random(null, lastUsers);
 		return this.client.fetch("functions/v2:chat.newRandom", {
 			lastUsers: Array.from(lastUsers || (unique && lastUsers) || [])
@@ -161,7 +161,7 @@ export default class DialogueManager extends BaseManager {
 	 * @param {string} stickerId
 	 * @returns {Promise<unknown>}
 	 */
-	sendAnySticker(dialogueId, stickerId) {
+	async sendAnySticker(dialogueId, stickerId) {
 		return this.sendMedia(dialogueId, "https://gfx.antiland.com/stickers/" + stickerId, Array.prototype.slice.call(arguments, 2))
 	}
 

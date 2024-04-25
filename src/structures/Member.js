@@ -110,4 +110,7 @@ export default class Member extends BaseStructure {
 			})
 		})
 	}
+
+	// mod() {}
+	// unmod() {}
 }

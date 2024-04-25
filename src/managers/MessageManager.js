@@ -42,7 +42,7 @@ export default class MessageManager extends BaseManager {
 			}
 		})).then(async ({ messages, removes }) => {
 			if (id) {
-				if (removes && removes.includes(id)) return { deleted: true };
+				if (removes && removes.includes(id)) return new Message({ deleted: true, id }, this.client, { cache: false });
 				let data = messages.find(data => data.id == id);
 				if (data) {
 					await this.client.client.preprocessMessage(data, { channelId: this.client.id });
@@ -194,21 +194,19 @@ export default class MessageManager extends BaseManager {
 	 */
 	async delete(message) {
 		let messageId = typeof message == 'object' ? message.id : message;
-		if (this.cache.has(messageId)) {
-			let entry = this.cache.get(messageId);
-			if (entry.author.id !== this.client.client.user.id || !this.client.options.setup?.has('OWN_MSG_REMOVE_ALLOWED')) {
-				if (!this.manageable) {
-					throw new Error("Insufficient privileges.");
-				}
-				return this.client.client.requests.post("functions/v2:chat.mod.deleteMessage", {
-					dialogueId: this.client.id,
-					messageId
-				}).then(r => r && (this.cache.delete(messageId), r))
+		let entry = this.cache.get(messageId);
+		if (entry && entry.author.id !== this.client.client.user.id || !this.client.options.setup?.has('OWN_MSG_REMOVE_ALLOWED')) {
+			if (!this.manageable) {
+				throw new Error("Insufficient privileges.");
 			}
+			return this.client.client.requests.post("functions/v2:chat.mod.deleteMessage", {
+				dialogueId: this.client.id,
+				messageId
+			}).then(r => r && (entry.deleted = true))
 		}
 		return this.client.client.requests.post("functions/v2:chat.message.delete", {
 			messageId
-		}).then(r => r && (this.cache.delete(messageId), r))
+		}).then(r => r && (entry && (entry.deleted = true), r))
 	}
 
 	/**

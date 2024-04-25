@@ -7,7 +7,8 @@ export default class {
 		 * @type {Client}
 		 * @readonly
 		 */
-		Object.defineProperty(this, 'client', { value: client })
+		Object.defineProperty(this, 'client', { value: client });
+		Object.defineProperty(this, 'cache', { enumerable: false })
 	}
 
 	async fetch(key, { force } = {}) {

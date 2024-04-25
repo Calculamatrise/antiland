@@ -41,7 +41,7 @@ export default class GroupManager extends DialogueManager {
 	 * @param {number} [options.limit]
 	 * @returns {Promise<Array<Group>>}
 	 */
-	search(query, { limit } = {}) {
+	async search(query, { limit } = {}) {
 		if (query instanceof Object) return this.search(null, query);
 		return this.client.requests.post("functions/v2:chat.search", {
 			search: query
@@ -82,7 +82,7 @@ export default class GroupManager extends DialogueManager {
 	 * @param {Iterable<string>} [options.setup]
 	 * @returns {Promise<Group>}
 	 */
-	edit(dialogueId, { categories, filters, historyLength, minKarma, setup } = {}) {
+	async edit(dialogueId, { categories, filters, historyLength, minKarma, setup } = {}) {
 		return this.fetch(dialogueId).then(dialogue => {
 			return this.client.requests.post("functions/v2:chat.mod.setInfo", {
 				dialogueId,

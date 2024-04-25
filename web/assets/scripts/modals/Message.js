@@ -16,6 +16,7 @@ export default class MessageWrapper extends HTMLElement {
 		super();
 		this.dataset.id = message.id;
 		this.dataset.sid = message.author.id;
+		// this.dataset.likes = message.likes;
 		// this.addEventListener('mouseenter', event => {
 		// 	QuickActionMenu.create([{
 		// 		name: '❤️'

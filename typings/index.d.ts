@@ -67,7 +67,10 @@ export interface ClientEvents {
 
 export interface ClientOptions {
 	debug?: boolean,
-	maxReconnectAttempts?: number
+	fallback?: boolean,
+	maxReconnectAttempts?: number,
+	pubnub?: boolean,
+	subscribe: boolean
 }
 
 export enum ActivityType {
@@ -177,6 +180,8 @@ export enum Events {
 	FriendRequestCreate = 'friendRequestCreate',
 	// FriendRequestDelete = 'friendRequestDelete',
 	GiftMessageCreate = 'giftMessageCreate',
+	KarmaTaskCreate = 'karmaTaskCreate',
+	KarmaTaskUpdate = 'karmaTaskUpdate',
 	MessageCreate = 'messageCreate',
 	MessageDelete = 'messageDelete',
 	MessageReactionAdd = 'messageReactionAdd',
