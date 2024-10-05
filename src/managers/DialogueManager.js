@@ -24,7 +24,8 @@ export default class DialogueManager extends BaseManager {
 			// 	}
 			// }
 			let entry = new (/^(group|public)$/i.test(data.type) ? Group : Dialogue)(data, this);
-			this.cache.set(entry.id, entry);
+			this.cache.set(entry.id, entry),
+			entry instanceof Group && this !== this.client.groups && this.client.groups.cache.set(entry.id, entry);
 			return entry
 		})
 	}
@@ -44,7 +45,8 @@ export default class DialogueManager extends BaseManager {
 			}
 			for (let item of entries.filter(({ id }) => (!ignore || !ignore.includes(id))).slice(0, limit)) {
 				let entry = new (/^(group|public)$/i.test(item.type) ? Group : Dialogue)(item, this);
-				this.cache.set(entry.id, entry);
+				this.cache.set(entry.id, entry),
+				entry instanceof Group && this.client.groups.cache.set(entry.id, entry);
 			}
 			return this.cache
 		})
@@ -55,7 +57,7 @@ export default class DialogueManager extends BaseManager {
 	 * @param {string} dialogueId
 	 * @returns {Promise<boolean>}
 	 */
-	block(dialogueId) {
+	async block(dialogueId) {
 		return this.client.requests.post("functions/v2:chat.block", {
 			dialogueId
 		}).then(result => {
@@ -73,7 +75,7 @@ export default class DialogueManager extends BaseManager {
 	 * @param {string} content
 	 * @returns {Promise<object?>}
 	 */
-	editMessage(messageId, content) {
+	async editMessage(messageId, content) {
 		return this.client.requests.post("functions/v2:chat.message.changeText", {
 			messageId: messageId,
 			text: content
@@ -97,7 +99,7 @@ export default class DialogueManager extends BaseManager {
 	 * @param {string} dialogueId
 	 * @returns {Promise<unknown>}
 	 */
-	leave(dialogueId) {
+	async leave(dialogueId) {
 		this.client.unsubscribe(dialogueId);
 		return this.client.requests.post("functions/v2:chat.leave", { dialogueId }).then(result => {
 			result && (this.cache.delete(dialogueId),
@@ -131,7 +133,7 @@ export default class DialogueManager extends BaseManager {
 	 * @param {string} [options.referenceId]
 	 * @returns {Promise<object>}
 	 */
-	send(dialogueId, content, { attachments, prependReference, reference, referenceId } = {}) {
+	async send(dialogueId, content, { attachments, prependReference, reference, referenceId } = {}) {
 		referenceId && (reference = Object.assign({}, reference, { id: referenceId }));
 		return this.client.requests.post("functions/v2:chat.message.sendText", Object.assign({
 			dialogueId,
@@ -170,7 +172,7 @@ export default class DialogueManager extends BaseManager {
 	 * @param {string} messageId
 	 * @returns {Promise<number>} Number of likes
 	 */
-	sendLove(messageId) {
+	async sendLove(messageId) {
 		return this.client.requests.post("functions/v2:chat.message.love", { messageId })
 	}
 
@@ -203,7 +205,7 @@ export default class DialogueManager extends BaseManager {
 		})
 	}
 
-	sendSticker(dialogueId, stickerId, { force, reference, referenceId } = {}) {
+	async sendSticker(dialogueId, stickerId, { force, reference, referenceId } = {}) {
 		referenceId && (reference = Object.assign({}, reference, { id: referenceId }));
 		return this.client.requests.post("functions/v2:chat.message.sendSticker", Object.assign({
 			dialogueId,
@@ -223,7 +225,7 @@ export default class DialogueManager extends BaseManager {
 	 * @param {string} messageId
 	 * @returns {Promise<boolean>}
 	 */
-	unsend(messageId) {
+	async unsend(messageId) {
 		return this.client.requests.post("functions/v2:chat.message.delete", { messageId })
 	}
 }

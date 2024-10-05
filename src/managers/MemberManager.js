@@ -146,7 +146,7 @@ export default class MemberManager extends BaseManager {
 	 * @param {Iterable} mateIds
 	 * @returns {Promise<unknown>}
 	 */
-	invite(mateIds) {
+	async invite(mateIds) {
 		return this.client.client.requests.post(`functions/v2:chat.addMatesToGroup`, {
 			dialogueId: this.client.id,
 			mateIds: Array.from(new Set(mateIds || this.client.user.friends.cache.keys())).map(m => typeof m == 'object' ? m.id : m)

@@ -1,6 +1,27 @@
 import BaseManager from "./BaseManager.js";
 
 export default class FavoriteManager extends BaseManager {
+	async _cache(...items) {
+		let backup = false;
+		if (items.length > 0) {
+			if (Array.isArray(items[0])) {
+				return this._cache(...items[0])
+			}
+
+			for (let channelId of items.filter(({ id } = {}) => id)) {
+				await this.client.client.dialogues.fetch(channelId).then(entry => {
+					this.cache.set(entry.id, entry)
+				}).catch(err => {
+					backup = true,
+					this.client.client.emit('warn', 'Channel favourite not found: ' + err.message)
+				})
+			}
+		}
+
+		backup && await this.backup();
+		return this.cache
+	}
+
 	async fetch(id, { force } = {}) {
 		if (!force && this.cache.size > 0) {
 			if (id && this.cache.has(id)) {
@@ -11,13 +32,10 @@ export default class FavoriteManager extends BaseManager {
 		}
 
 		return this.client.client.requests.post("functions/v2:profile.me").then(async data => {
-			for (let channelId of data.favorites) {
-				let entry = await this.client.client.dialogues.fetch(channelId).catch(err => this.users.fetch(channelId).then(user => user.fetchDM()).catch(err => !1));
-				if (!entry) continue;
-				this.cache.set(entry.id, entry);
-			}
-			return id ? this.cache.get(id) ?? null : this.cache
-		});
+			return this._cache(data.favorites).then(cache => {
+				return id ? cache.get(id) ?? null : cache
+			})
+		})
 	}
 
 	/**
@@ -26,14 +44,14 @@ export default class FavoriteManager extends BaseManager {
 	 * @returns {Promise<object>}
 	 */
 	async add(channelId) {
-		if (channelId instanceof Object) return this.add(channelId.dmChannel !== void 0 ? await channelId.fetchDM().then(c => c.id) : channelId.id);
+		channelId instanceof Object && (channelId = channelId.id);
 		if (!this.cache.has(channelId)) {
 			let entry = await this.client.client.dialogues.fetch(channelId);
 			if (!entry) {
 				throw new Error("Dialogue not found!");
 			}
-			this.cache.set(entry.id, entry);
-			await this.backup();
+			this.cache.set(entry.id, entry),
+			await this.backup()
 		}
 		return true
 	}
@@ -44,7 +62,7 @@ export default class FavoriteManager extends BaseManager {
 	 */
 	async backup() {
 		return this.client.client.requests.post("functions/v2:profile.backup", {
-			favorites: Array.from(this.cache.values()).map(entry => entry.id)
+			favorites: Array.from(this.cache.keys())
 		}).then(this.client._patch.bind(this.client))
 	}
 
@@ -54,7 +72,7 @@ export default class FavoriteManager extends BaseManager {
 	 * @returns {Promise<object>}
 	 */
 	async remove(channelId) {
-		if (channelId instanceof Object) return this.add(channelId.dmChannel !== void 0 ? await channelId.fetchDM().then(c => c.id) : channelId.id);
+		channelId instanceof Object && (channelId = channelId.id);
 		return this.cache.has(channelId) && (this.cache.delete(channelId),
 		await this.backup())
 	}

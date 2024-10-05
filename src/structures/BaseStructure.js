@@ -6,7 +6,7 @@ export default class {
 		Object.defineProperties(this, {
 			createdAt: { value: null, writable: true },
 			createdTimestamp: { value: null, writable: true },
-			partial: { value: Object.values(data).length < 5, writable: true }
+			partial: { value: Object.values(data).length < Object.keys(this).length, writable: true }
 		});
 		ignoreUpdate || this._patch(...arguments)
 	}
@@ -15,7 +15,7 @@ export default class {
 		return Object[deep ? 'getOwnPropertyNames' : 'keys'](data).filter(property => {
 			let descriptor = Object.getOwnPropertyDescriptor(this, property);
 			return !descriptor || descriptor.writable
-		});
+		})
 	}
 
 	_patch(data) {
@@ -48,12 +48,13 @@ export default class {
 				break;
 			case 'id':
 			case 'type':
-				this[key] = data[key]
+				if (this[key] !== null && typeof this[key] != 'undefined') break;
+				Object.defineProperty(this, key, { enumerable: true, value: data[key], writable: false })
 			}
 		}
 	}
 
-	async fetch() { return this }
+	async fetch() { return this.partial = false, this }
 	static from(instance) {
 		let temp = new this(instance, { client: instance.client });
 		for (let key of Object.getOwnPropertyNames(instance)) {
@@ -62,6 +63,6 @@ export default class {
 			if (instance[key] === null || (temp[key] !== null && temp[key].constructor !== instance[key].constructor)) continue;
 			temp[key] = instance[key];
 		}
-		return temp;
+		return temp
 	}
 }

@@ -74,7 +74,7 @@ export default class ClientFriendManager extends FriendManager {
 	 * @param {User|string} user 
 	 * @returns {Promise<object>}
 	 */
-	accept(user) {
+	async accept(user) {
 		let userId = typeof user == 'object' ? user.id : user;
 		return this.client.client.requests.post("functions/v2:contact.mate.accept", { userId }).then(result => {
 			return result && (this.pending.incoming.delete(userId) && this.cache.set(userId, this.client.client.users.cache.get(userId)),
@@ -102,7 +102,7 @@ export default class ClientFriendManager extends FriendManager {
 	 * @param {User|string} user 
 	 * @returns {Promise<object>}
 	 */
-	isPaired(user) {
+	async isPaired(user) {
 		let userId = typeof user == 'object' ? user.id : user;
 		if (this.pending.outgoing.has(userId)) {
 			return 'requested';

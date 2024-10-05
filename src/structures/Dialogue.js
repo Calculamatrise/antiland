@@ -70,8 +70,11 @@ export default class Dialogue extends BaseStructure {
 					case 'setup':
 						this[key][option] = new Set(data[key][option]);
 						break;
+					case 'historySince':
+						this[key][option] = new Date(typeof data[key][option] == 'object' ? data[key][option].iso : data[key][option]);
+						break;
 					default:
-						this[key][option] = data[key][option];
+						this[key][option] = data[key][option]
 					}
 				}
 			}

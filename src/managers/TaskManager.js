@@ -41,6 +41,6 @@ export default class TaskManager extends BaseManager {
 		} else {
 			Object.assign(temp, task);
 		}
-		return task;
+		return task
 	}
 }

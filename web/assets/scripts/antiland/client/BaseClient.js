@@ -25,12 +25,14 @@ export default class extends EventEmitter {
 	connectionId = null;
 	options = null;
 	ping = 0;
-	requests = new RequestHandler();
+	requests = new RequestHandler(this);
 	subscriptions = new Set();
+	token = null;
 	user = null;
 
 	/**
 	 * @param {object} [options]
+	 * @param {Iterable<string>} [options.channels] initial subscriptions
 	 * @param {boolean} [options.fallback] whether to fallback to a pubnub connection
 	 * @param {number} [options.maxReconnectAttempts]
 	 * @param {boolean} [options.pubnub] prefer pubnub
@@ -48,10 +50,10 @@ export default class extends EventEmitter {
 		})) {
 			this.options[key] = value;
 		}
-		Object.defineProperty(this, 'token', { value: null, writable: true });
 		Object.defineProperties(this, {
 			_outgoing: { enumerable: false },
-			connectionId: { enumerable: false }
+			connectionId: { enumerable: false },
+			token: { enumerable: false }
 		})
 	}
 
@@ -359,27 +361,23 @@ export default class extends EventEmitter {
 			token = globalThis.process && process.env.ANTILAND_TOKEN;
 		}
 
-		let data = await this.requests.attachToken(token);
-		this.token = token;
+		let data = await this.requests.post("functions/v2:profile.me", null, token).then(data => {
+			data.auth && data.auth.sessionToken && (this.token = data.auth.sessionToken);
+			return data
+		});
 		this.user = new ClientUser(data, { client: this });
 		this.users.cache.set(this.user.id, this.user);
 		await this.#connect(async socket => {
 			typeof listener == 'function' && this.once('ready', listener);
-			await this.user.friends.fetch();
-			await this.user.contacts.fetchBlocked();
-			for (let entry of await Promise.all(data.favorites.map(item => {
-				return this.dialogues.fetch(item).catch(err => {
-					return this.users.fetch(item).then(user => user.fetchDM()).catch(err => null)
-				})
-			})).then(entries => entries.filter(entry => entry))) {
-				this.user.favorites.cache.set(entry.id, entry);
-			}
-
 			// if blockedBy included 'all', client is in prison or .isInPrison
 			this.#subscriptionQueue.add(this.user.channelId);
 			if (this.options.subscribe) {
 				let groups = await this.groups.fetchActive({ force: true });
 				for (let channelId of groups.keys()) {
+					this.#subscriptionQueue.add(channelId);
+				}
+			} else if (this.options.channels) {
+				for (let channelId of this.options.channels) {
 					this.#subscriptionQueue.add(channelId);
 				}
 			}
@@ -393,6 +391,15 @@ export default class extends EventEmitter {
 				sessionId: token,
 				verbose: true
 			});
+			await this.user.friends.fetch();
+			await this.user.contacts.fetchBlocked();
+			for (let entry of await Promise.all(data.favorites.map(item => {
+				return this.dialogues.fetch(item).catch(err => {
+					return this.users.fetch(item).then(user => user.fetchDM()).catch(err => null)
+				})
+			})).then(entries => entries.filter(entry => entry))) {
+				this.user.favorites.cache.set(entry.id, entry);
+			}
 			let pingInterval = this.options.pubnub || setInterval(() => {
 				if (Date.now() - this.#pingTimestamp > 3e4) {
 					clearInterval(pingInterval);

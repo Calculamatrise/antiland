@@ -267,10 +267,10 @@ logout.addEventListener('click', async event => {
 const token = localStorage.getItem('al_session');
 if (token !== null) {
 	client.login(token).catch(err => {
+		209 === err.code && localStorage.removeItem('al_session');
 		SuperDialog.error(err.message, () => {
 			location.reload();
 		});
-		209 === err.code && localStorage.removeItem('al_session');
 	});
 } else {
 	authContainer.showModal();

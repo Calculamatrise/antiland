@@ -13,7 +13,7 @@ export default class {
 
 	async fetch(key, { force } = {}) {
 		if (!force && this.cache.has(key)) {
-			return this.cache.get(key);
+			return this.cache.get(key)
 		}
 	}
 }

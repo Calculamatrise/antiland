@@ -81,7 +81,7 @@ export default class MessageManager extends BaseManager {
 	 * @param {function} [callback]
 	 * @returns {Promise<Map<string, Message>>}
 	 */
-	await({ errors, filter, idle, max, maxProcessed, time } = {}, callback) {
+	async await({ errors, filter, idle, max, maxProcessed, time } = {}, callback) {
 		let counter = 0;
 		let processedCounter = 0;
 		let messages = new Map();
@@ -182,7 +182,7 @@ export default class MessageManager extends BaseManager {
 		})
 	}
 
-	create() {
+	async create() {
 		return this.client.send(...arguments)
 	}
 
@@ -215,7 +215,7 @@ export default class MessageManager extends BaseManager {
 	 * @param {string} content
 	 * @returns {Promise<boolean?>}
 	 */
-	edit(messageId, content) {
+	async edit(messageId, content) {
 		return this.client.client.requests.post("functions/v2:chat.message.changeText", {
 			messageId: messageId,
 			text: content
@@ -230,7 +230,7 @@ export default class MessageManager extends BaseManager {
 	 * @param {string} messageId
 	 * @returns {Promise<number>} Number of likes
 	 */
-	like(messageId) {
+	async like(messageId) {
 		return this.client.requests.post("functions/v2:chat.message.love", { messageId })
 	}
 

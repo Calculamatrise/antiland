@@ -3,12 +3,9 @@ import { METHODS } from "http";
 import AntilandAPIError from "../utils/AntilandAPIError.js";
 
 export default class {
-	static config = null;
-	static domain = "mobile-elb.antich.at";
-	#sessionToken = null;
-	constructor() {
-		for (const METHOD of METHODS) {
-			if (this.hasOwnProperty(METHOD.toLowerCase())) continue;
+	constructor(client) {
+		Object.defineProperty(this, 'client', { value: client });
+		for (const METHOD of METHODS.filter(METHOD => !this.hasOwnProperty(METHOD.toLowerCase()))) {
 			Object.defineProperty(this, METHOD.toLowerCase(), {
 				value(url, body, requireApplicationId = typeof body == 'boolean' ? body : null) {
 					return this.request(String(url), {
@@ -20,32 +17,19 @@ export default class {
 		}
 	}
 
-	async attachToken(token) {
-		return this.constructor.request("functions/v2:profile.me", {
-			method: 'POST'
-		}, token).then(data => {
-			data.auth && data.auth.sessionToken && (this.#sessionToken = data.auth.sessionToken);
-			return data
-		})
-	}
-
-	async fetchConfigBody() {
-		return Object.assign(await this.constructor.fetchConfigBody(), this.#sessionToken && {
-			_SessionToken: this.#sessionToken
-		})
-	}
-
 	async request() {
 		for (let i in arguments) {
 			if (typeof arguments[i] == 'object' && arguments[i] !== null) {
 				let headers = new Headers(arguments[i].headers);
-				this.#sessionToken && headers.append('X-Parse-Session-Token', this.#sessionToken);
-				Object.assign(arguments[i], { headers })
+				this.client.token && headers.append('X-Parse-Session-Token', this.client.token),
+				Object.assign(arguments[i], { debug: this.client.listenerCount('debug') > 0, headers })
 			}
 		}
 		return this.constructor.request(...arguments)
 	}
 
+	static config = null;
+	static domain = "mobile-elb.antich.at";
 	static async fetchConfig({ force } = {}) {
 		if (force || !this.config) {
 			this.config = await this.request("chat/static/config.json", {
@@ -62,21 +46,12 @@ export default class {
 		return this.config
 	}
 
-	static async fetchConfigBody() {
-		let config = await this.fetchConfig();
-		return {
-			_ApplicationId: config.appId,
-			_ClientVersion: "js1.11.1",
-			_InstallationId: "e939ca3e-3d6a-c720-b32e-8318b328a8ff",
-			_method: "GET"
-		}
-	}
-
 	static async request(url, options = typeof url == 'object' ? url : {}, token) {
-		let domain = options.domain || this.domain;
-		let path = options.path || url;
-		let method = String(options.method || 'GET');
-		let headers = new Headers(options.headers);
+		let debug = options.debug
+		  , domain = options.domain || this.domain
+		  , path = options.path || url
+		  , method = String(options.method || 'GET')
+		  , headers = new Headers(options.headers);
 		headers.append("Content-Type", "application/json; charset=utf-8");
 		if (token || headers.has('X-Parse-Session-Token')) {
 			let config = await this.fetchConfig();
@@ -97,7 +72,11 @@ export default class {
 					method: options.method
 				}, typeof r.error == 'object' ? r.error : r))
 			}
+			debug && console.log('\x1b[32m' + '[RequestHandler]', method.toUpperCase(), path + '\x1b[0m');
 			return r.result ?? r
+		}).catch(err => {
+			debug && console.trace('\x1b[31m' + '[RequestHandler]', method.toUpperCase(), path + '\x1b[0m', '\x1b[2m' + err.code + '\x1b[0m'); // console.error('[RequestHandler]', method.toUpperCase(), path);
+			throw err
 		})
 	}
 }

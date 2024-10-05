@@ -82,7 +82,7 @@ export default class extends BaseManager {
 	 * @param {boolean} [options.force]
 	 * @returns {Promise<boolean>}
 	 */
-	getBanInfo(userId) {
+	async getBanInfo(userId) {
 		return this.client.requests.post("functions/v2:contact.getBanInfo", { userId }).then(r => {
 			r.banned && console.log(r);
 			return r.banned && r

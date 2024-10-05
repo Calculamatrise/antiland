@@ -15,7 +15,7 @@ export default class ContactManager extends BaseManager {
 				this.cache.set(entry.id, entry);
 			}
 			return this.cache
-		});
+		})
 	}
 
 	async fetchBlocked({ force } = {}) {
@@ -39,10 +39,10 @@ export default class ContactManager extends BaseManager {
 	 * @param {User|string} user 
 	 * @returns {Promise<object>}
 	 */
-	add(user) {
+	async add(user) {
 		let id = typeof user == 'object' ? user.id : user;
 		return this.client.client.requests.post("functions/v2:friend.add", { id }).then(r => {
-			return r && this.cache.set(id, this.client.client.users.cache.get(id));
+			return r && this.cache.set(id, this.client.client.users.cache.get(id))
 		})
 	}
 
@@ -106,7 +106,7 @@ export default class ContactManager extends BaseManager {
 	 * Save contacts
 	 * @param {Set|Array} [contacts]
 	 */
-	register(contacts) {
+	async register(contacts) {
 		return this.client.client.requests.post("functions/v2:profile.registerContacts", {
 			contacts: contacts || Array.from(this.cache.keys())
 		})
@@ -117,10 +117,10 @@ export default class ContactManager extends BaseManager {
 	 * @param {User|string} user 
 	 * @returns {Promise<object>}
 	 */
-	remove(user) {
+	async remove(user) {
 		let id = typeof user == 'object' ? user.id : user;
 		return this.client.client.requests.post("functions/v2:friend.delete", { id }).then(r => {
-			return r && this.cache.delete(id);
+			return r && this.cache.delete(id)
 		})
 	}
 
@@ -129,14 +129,14 @@ export default class ContactManager extends BaseManager {
 	 * @param {User|string} userId
 	 * @returns {Promise<boolean>}
 	 */
-	unblock(user) {
+	async unblock(user) {
 		let userId = typeof user == 'object' ? user.id : user;
 		return this.client.client.requests.post("functions/v2:contact.unblockPrivate", { userId }).then(r => {
 			return r && (this.blocked.delete(userId), r)
 		})
 	}
 
-	unblockAll() {
+	async unblockAll() {
 		return this.client.client.requests.post("functions/v2:contact.unblockAllPrivate").then(r => {
 			return r && (this.blocked.clear(), r)
 		})

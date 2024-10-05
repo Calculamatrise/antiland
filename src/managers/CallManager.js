@@ -10,7 +10,7 @@ export default class CallManager extends BaseManager {
 	 * @param {string} callerId
 	 * @returns {Promise<CallRoom>}
 	 */
-	accept(callerId) {
+	async accept(callerId) {
 		return this.client.requests.post("functions/v2:call.accept", { callerId })
 	}
 
@@ -18,7 +18,7 @@ export default class CallManager extends BaseManager {
 	 * Cancel an outgoing call
 	 * @returns {Promise<unknown>}
 	 */
-	cancel(guestId) {
+	async cancel(guestId) {
 		return this.client.requests.post("functions/v2:call.cancel", { guestId })
 	}
 
@@ -30,7 +30,7 @@ export default class CallManager extends BaseManager {
 	 * @param {string} [options.comments]
 	 * @returns {Promise<unknown>}
 	 */
-	rate(callId, rating, { comments } = {}) {
+	async rate(callId, rating, { comments } = {}) {
 		return this.client.requests.post("functions/v2:call.rate", {
 			id: callId,
 			score: rating | 0,
@@ -43,7 +43,7 @@ export default class CallManager extends BaseManager {
 	 * @param {string} callerId
 	 * @returns {Promise<unknown>}
 	 */
-	reject(callerId) {
+	async reject(callerId) {
 		return this.client.requests.post("functions/v2:call.reject", { callerId })
 	}
 

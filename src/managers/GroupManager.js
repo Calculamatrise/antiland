@@ -18,7 +18,8 @@ export default class GroupManager extends DialogueManager {
 			}
 			for (let item of entries.filter(({ id, type }) => /^(group|public)$/i.test(type) && (!ignore || !ignore.includes(id))).slice(0, limit)) {
 				let entry = new Group(item, this);
-				this.cache.set(entry.id, entry);
+				this.cache.set(entry.id, entry),
+				this.client.dialogues.cache.set(entry.id, entry);
 			}
 			return this.cache
 		})
@@ -30,7 +31,7 @@ export default class GroupManager extends DialogueManager {
 	 * @param {string} [options.interest]
 	 * @returns {Promise<Iterable>}
 	 */
-	top({ interest } = {}) {
+	async top({ interest } = {}) {
 		return this.client.requests.post("functions/v2:chat.top" + (interest ? 'ByInterest' : ''), interest && { interest })
 	}
 
@@ -63,7 +64,7 @@ export default class GroupManager extends DialogueManager {
 	 * @param {boolean} [options.isPublic]
 	 * @returns {Promise<Group>}
 	 */
-	create({ name, isPublic = true } = {}) {
+	async create({ name, isPublic = true } = {}) {
 		return this.client.requests.post("functions/v2:chat.newGroup", { name, isPublic }).then(item => {
 			let entry = new Group(item, this);
 			this.cache.set(entry.id, entry);
@@ -101,7 +102,7 @@ export default class GroupManager extends DialogueManager {
 	 * @param {string} mateIds
 	 * @returns {Promise<boolean>}
 	 */
-	invite(dialogueId, mateIds) {
+	async invite(dialogueId, mateIds) {
 		return this.client.requests.post(`functions/v2:chat.addMatesToGroup`, {
 			dialogueId,
 			mateIds: Array.from(new Set(mateIds)).map(m => typeof m == 'object' ? m.id : m)
@@ -113,7 +114,7 @@ export default class GroupManager extends DialogueManager {
 	 * @param {string} dialogueId
 	 * @returns {Promise<boolean>}
 	 */
-	join(dialogueId) {
+	async join(dialogueId) {
 		return this.client.requests.post(`functions/v2:chat.joinGroup`, {
 			dialogueId
 		})

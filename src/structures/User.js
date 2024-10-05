@@ -174,7 +174,7 @@ export default class User extends BaseStructure {
 	 * Create a DM with this user
 	 * @returns {Promise<Dialogue>}
 	 */
-	createDM() {
+	async createDM() {
 		return this.client.requests.post("functions/v2:chat.createPrivate", {
 			userId: this.id
 		}).then(data => {
@@ -256,5 +256,98 @@ export default class User extends BaseStructure {
 		return this.fetchDM({ createIfNotExists: true }).then(dmChannel => {
 			return dmChannel.send(...arguments)
 		})
+	}
+
+	static convertToUserObject(data, target) {
+		let object = Object.assign({}, data[target]);
+		switch (target) {
+		case 'receiver':
+			for (let key in data) {
+				switch (key) {
+				case 'receiverId':
+				case 'rid':
+				case 'whom':
+					object.id = data[key];
+					break;
+				default:
+					object[key] = data[key]
+				}
+			}
+			break;
+		default:
+			if ('sender' in data) {
+				Object.assign(object, data.sender);
+			}
+			for (let key in data) {
+				switch (key) {
+				case 'id':
+					if (object[key]) break;
+				case 'by':
+				case 'senderId':
+				case 'sid':
+					object.id = data[key];
+					break;
+				case 'profileName':
+				case 'senderName':
+				case 'sendersName':
+					object.profileName = data[key];
+					break;
+				default:
+					object[key] = data[key]
+				}
+			}
+		}
+		if ('type' in object) {
+			delete object.type;
+		}
+		return object
+	}
+
+	static parseUserObjects(data) {
+		const appendMetadata = object => {
+			if ('accessories' in data) {
+				object.avatar ||= {},
+				object.avatar.accessories = data.accessories;
+			}
+
+			if ('avatar' in data) {
+				object.avatar ||= {},
+				object.avatar.id = data.avatar;
+			}
+
+			return object
+		}
+
+		if ('liker' in data) {
+			data.liker = {
+				id: data.senderId,
+				profileName: data.sendersName || data.senderName
+			};
+		}
+
+		if ('receiverId' in data) {
+			data.receiver = {
+				id: data.receiverId || data.receiver,
+				profileName: data.receiverName
+			};
+		}
+
+		if ('senderId' in data) {
+			data.sender = appendMetadata({
+				id: data.senderId,
+				profileName: data.sendersName || data.senderName
+			});
+		} else if ('profileName' in data) {
+			data.sender = appendMetadata({
+				id: data.id,
+				profileName: data.profileName
+			});
+		}
+
+		if ('type' in data) {
+			delete data.type;
+		}
+
+		return data
 	}
 }

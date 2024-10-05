@@ -19,6 +19,6 @@ export default class FriendManager extends BaseManager {
 				this.cache.set(entry.id, entry);
 			}
 			return id ? this.cache.get(id) ?? null : this.cache
-		});
+		})
 	}
 }

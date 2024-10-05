@@ -1,15 +1,15 @@
 import BaseManager from "./BaseManager.js";
 
 export default class PresenceManager extends BaseManager {
-	fetch() {}
+	async fetch() {}
 
 	/**
 	 * Ping your presence
 	 * @param {string} dialogueId
 	 * @returns {Promise<boolean>}
 	 */
-	ping(dialogueId) {
-		return this.client.client.requests.post("functions/v2:chat.presence.ping", { dialogueId }) // cache
+	async ping(dialogueId) {
+		return this.client.client.requests.post("functions/v2:chat.presence.ping", { dialogueId }) // cache, ping cached presences every once in a while
 	}
 
 	/**
@@ -17,7 +17,7 @@ export default class PresenceManager extends BaseManager {
 	 * @param {string} dialogueId
 	 * @returns {Promise<boolean>}
 	 */
-	recall(dialogueId) {
+	async recall(dialogueId) {
 		return this.client.client.requests.post("functions/v2:chat.presence.leave", { dialogueId })
 	}
 }

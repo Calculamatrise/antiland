@@ -3,10 +3,9 @@ const METHODS = ['GET', 'POST'];
 import AntilandAPIError from "../../../../../src/utils/AntilandAPIError.js";
 
 export default class {
-	#sessionToken = null;
-	constructor() {
-		for (const METHOD of METHODS) {
-			if (this.hasOwnProperty(METHOD.toLowerCase())) continue;
+	constructor(client) {
+		Object.defineProperty(this, 'client', { value: client });
+		for (const METHOD of METHODS.filter(METHOD => !this.hasOwnProperty(METHOD.toLowerCase()))) {
 			Object.defineProperty(this, METHOD.toLowerCase(), {
 				value(url, body, requireApplicationId = typeof body == 'boolean' ? body : null) {
 					return this.request(String(url), {
@@ -18,24 +17,11 @@ export default class {
 		}
 	}
 
-	async attachToken(token) {
-		return this.constructor.request("functions/v2:profile.me", {
-			method: 'POST'
-		}, token).then(data => {
-			data.auth && data.auth.sessionToken && (this.#sessionToken = data.auth.sessionToken);
-			return data
-		})
-	}
-
-	fetchConfigBody() {
-		return { _SessionToken: this.#sessionToken }
-	}
-
 	async request() {
 		for (let i in arguments) {
 			if (typeof arguments[i] == 'object' && arguments[i] !== null) {
 				let headers = new Headers(arguments[i].headers);
-				this.#sessionToken && headers.append('X-Parse-Session-Token', this.#sessionToken);
+				this.client.token && headers.append('X-Parse-Session-Token', this.client.token);
 				Object.assign(arguments[i], { headers })
 			}
 		}
@@ -50,12 +36,7 @@ export default class {
 				appId: "fUEmHsDqbr9v73s4JBx0CwANjDJjoMcDFlrGqgY5",
 				server: "https://mobile-elb.antich.at",
 				version: 10001
-			}, await this.request("chat/static/config.json", { // get?url=www.antiland.com/chat/static/config.json
-				domain: 'www.antiland.com' // anyorigin.com
-			}).then(data => {
-				this.domain ||= data.parse.server;
-				return Object.assign({}, data.parse, { pubnub: data.pubnub })
-			}).catch(err => console.warn(err)));
+			});
 		}
 		return this.config
 	}
