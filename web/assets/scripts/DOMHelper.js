@@ -12,7 +12,7 @@ export default class DOMHelper {
 	static create(tagName, options) {
 		let element = document.createElement(tagName);
 		this.update(element, options);
-		return element;
+		return element
 	}
 
 	static update(element, options) {
@@ -45,6 +45,6 @@ export default class DOMHelper {
 				continue;
 			}
 		}
-		return element;
+		return element
 	}
 }

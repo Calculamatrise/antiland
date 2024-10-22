@@ -32,19 +32,19 @@ export default class PubNubBroker extends EventEmitter {
 	}
 
 	async connect() {
-		this.unsubscribe();
-		this.#pubnub || (this.#pubnub = await fetch("https://www.antiland.com/chat/static/config.json").then(r => r.json()).then(({ pubnub }) => pubnub));
-		this.#baseURL = "https://" + this.#domain + "/v2/subscribe/" + this.#pubnub + "/";
+		this.unsubscribe(),
+		this.#pubnub || (this.#pubnub = await fetch("https://www.antiland.com/chat/static/config.json").then(r => r.json()).then(({ pubnub }) => pubnub)),
+		this.#baseURL = "https://" + this.#domain + "/v2/subscribe/" + this.#pubnub + "/",
 		this.emit('open')
 	}
 
 	close() {
-		this.unsubscribe();
+		this.unsubscribe(),
 		this.emit('close')
 	}
 
 	destroy() {
-		this.close();
+		this.close(),
 		this.removeAllListeners()
 	}
 
@@ -117,12 +117,23 @@ export default class PubNubBroker extends EventEmitter {
 			}
 		}
 		if (recurse && !this.#subscriptions.has(channelId)) return;
-		this.#subscriptions.set(channelId, subscription);
+		this.#subscriptions.set(channelId, subscription),
 		this.subscribe(channelId, true);
 		if (!data.m || data.m.length < 1) return;
 		for (let message of data.m) {
 			this.#handleMessage(message, { channelId })
 		}
+
+		// Send received messages to server if socket is open so that they are not received twice
+		// let filteredMessages = payload.messages.filter(({ objectId }) => objectId);
+		// filteredMessages.length > 0 && this.sendCommand(Opcodes.SYN, {
+		// 	messages: data.m.map(({ objectId }) => ({
+		// 		channelId: payload.channelId,
+		// 		messageId: objectId,
+		// 		transport: 'pn',
+		// 		ts: Date.now()
+		// 	}))
+		// });
 	}
 
 	/**
@@ -132,7 +143,7 @@ export default class PubNubBroker extends EventEmitter {
 	 */
 	unsubscribe(channelId = null) {
 		if (typeof channelId !== null) {
-			return this.#subscriptions.delete(channelId)
+			return this.#subscriptions.delete(channelId);
 		}
 
 		this.#subscriptions.clear();

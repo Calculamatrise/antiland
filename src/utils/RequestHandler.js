@@ -22,6 +22,7 @@ export default class {
 			if (typeof arguments[i] == 'object' && arguments[i] !== null) {
 				let headers = new Headers(arguments[i].headers);
 				this.client.token && headers.append('X-Parse-Session-Token', this.client.token),
+				typeof arguments[i].body == 'object' && arguments[i].body !== null && Object.assign(arguments[i].body, { localization: this.client.options.localization }),
 				Object.assign(arguments[i], { debug: this.client.listenerCount('debug') > 0, headers })
 			}
 		}

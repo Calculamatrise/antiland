@@ -25,7 +25,8 @@ export default class Group extends Dialogue {
 		super(...arguments, true);
 		Object.defineProperty(this, 'humanLink', { value: null, writable: true });
 		this._patch(data);
-		this.id !== null && this.hasOwnProperty('client') && this.client.groups.cache.set(this.id, this)
+		this.id !== null && this.hasOwnProperty('client') && (this.client.dialogues.cache.set(this.id, this),
+		this.client.groups.cache.set(this.id, this))
 	}
 
 	get manageable() {

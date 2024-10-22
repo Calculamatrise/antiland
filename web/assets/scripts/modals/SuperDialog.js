@@ -4,9 +4,9 @@ export default class SuperDialog extends HTMLDialogElement {
 	form = this.appendChild(document.createElement('form'));
 	title = null;
 	constructor() {
-		super();
-		this.setAttribute('is', 'super-dialog');
-		this.addEventListener('close', this.remove, { once: true });
+		super(),
+		this.setAttribute('is', 'super-dialog'),
+		this.addEventListener('close', this.remove, { once: true })
 	}
 
 	/**
@@ -17,8 +17,8 @@ export default class SuperDialog extends HTMLDialogElement {
 	 * @param {string} [data.type]
 	 */
 	addActionButton(data) {
-		let type = typeof data.type == 'string' && data.type.toLowerCase() || 'button';
-		let element = this.form.appendChild(document.createElement(type));
+		let type = typeof data.type == 'string' && data.type.toLowerCase() || 'button'
+		  , element = this.form.appendChild(document.createElement(type));
 		this.actions.push(data);
 		for (let key in data) {
 			if (typeof data[key] == 'undefined') continue;
@@ -36,10 +36,10 @@ export default class SuperDialog extends HTMLDialogElement {
 				break;
 			}
 		}
-		typeof data.click != 'function' && element.setAttribute('formmethod', 'dialog');
-		element.innerText = data.name;
+		typeof data.click != 'function' && element.setAttribute('formmethod', 'dialog'),
+		element.innerText = data.name,
 		typeof data.callback == 'function' && data.callback(element);
-		return element;
+		return element
 	}
 
 	setTitle(title) {
@@ -70,25 +70,23 @@ export default class SuperDialog extends HTMLDialogElement {
 			}
 		} else {
 			let close = temp.form.appendChild(document.createElement('button'));
-			close.setAttribute('formmethod', 'dialog');
+			close.setAttribute('formmethod', 'dialog'),
 			close.innerText = 'Close';
 		}
-		typeof title == 'string' && this.setTitle();
+		typeof title == 'string' && this.setTitle(),
 		temp.setMessage(message);
-		return document.body.appendChild(temp);
+		return document.body.appendChild(temp)
 	}
 
 	static error(err, callback) {
 		let temp = this.create(err.message || err, [{
 			name: 'Dismiss'
 		}]);
-		temp.classList.add('error');
-		temp.showModal();
+		temp.classList.add('error'),
+		temp.showModal(),
 		typeof callback == 'function' && temp.addEventListener('close', callback, { once: true });
-		return temp;
+		return temp
 	}
 }
 
-customElements.define('super-dialog', SuperDialog, {
-	extends: 'dialog'
-});
+customElements.define('super-dialog', SuperDialog, { extends: 'dialog' });

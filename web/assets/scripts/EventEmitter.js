@@ -17,7 +17,7 @@ export default class EventEmitter {
 		for (const listener of listeners) {
 			listener.apply(this, args);
 			if (this.#temp.delete(listener)) {
-				listeners.delete(listener);
+				listeners.delete(listener)
 			}
 		}
 	}
@@ -32,7 +32,7 @@ export default class EventEmitter {
 			throw new TypeError("Events must be of type: Array<String>");
 		}
 
-		events.forEach(event => this.emit(event, ...args));
+		events.forEach(event => this.emit(event, ...args))
 	}
 
 	/**
@@ -60,7 +60,7 @@ export default class EventEmitter {
 
 		const events = this.#events.get(event);
 		return events.add(listener),
-			events.size;
+			events.size
 	}
 
 	/**
@@ -70,7 +70,7 @@ export default class EventEmitter {
 	 * @returns {Function}
 	 */
 	once(event, listener) {
-		return this.on(event, listener, { once: true });
+		return this.on(event, listener, { once: true })
 	}
 
 	/**
@@ -79,7 +79,7 @@ export default class EventEmitter {
 	 * @returns {Set}
 	 */
 	listeners(event) {
-		return this.#events.get(event) || new Set();
+		return this.#events.get(event) || new Set()
 	}
 
 	/**
@@ -88,7 +88,7 @@ export default class EventEmitter {
 	 * @returns {Number}
 	 */
 	listenerCount(event) {
-		return this.listeners(event).size;
+		return this.listeners(event).size
 	}
 
 	/**
@@ -99,7 +99,7 @@ export default class EventEmitter {
 	 */
 	off(event, listener) {
 		if (arguments.length === 0) {
-			this.#events.clear();
+			this.#events.clear(),
 			this.#temp.clear();
 			return true;
 		} if (arguments.length === 1) {
@@ -113,7 +113,7 @@ export default class EventEmitter {
 			listeners.delete(listener);
 		}
 
-		return true;
+		return true
 	}
 
 	/**
@@ -126,7 +126,7 @@ export default class EventEmitter {
 			throw new TypeError("Event must be of type: String");
 		}
 
-		return this.#events.delete(event);
+		return this.#events.delete(event)
 	}
 }
 

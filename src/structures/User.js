@@ -5,6 +5,7 @@ import FriendManager from "../managers/FriendManager.js";
 export default class User extends BaseStructure {
 	activity = null;
 	age = null;
+	avatar = {};
 	displayName = null;
 	friends = new FriendManager(this);
 	gender = null;
@@ -72,7 +73,7 @@ export default class User extends BaseStructure {
 							this[key].accessories = new Set(data[key][prop]);
 							break;
 						case 'blessed':
-							// sp
+							this._patch({ [prop]: data[key][prop] });
 							break;
 						case 'idx':
 							this[key].id = data[key][prop];
@@ -258,14 +259,24 @@ export default class User extends BaseStructure {
 		})
 	}
 
-	static convertToUserObject(data, target) {
+	static resolve(data, target) {
+		target && (target = target.toLowerCase()) || (target = 'sender');
 		let object = Object.assign({}, data[target]);
+		if (target) {
+			if (!object.id) {
+				let id = data[target + 'Id'] || data[target.charAt(0) + 'id'] || data.id || data.objectId;
+				id && (object.id = id);
+			}
+
+			if (!object.profileName) {
+				let profileName = data[target + 'Name'] || data[target + 'sName'] || data.profileName;
+				profileName && (object.profileName = profileName);
+			}
+		}
 		switch (target) {
 		case 'receiver':
 			for (let key in data) {
 				switch (key) {
-				case 'receiverId':
-				case 'rid':
 				case 'whom':
 					object.id = data[key];
 					break;
@@ -275,35 +286,24 @@ export default class User extends BaseStructure {
 			}
 			break;
 		default:
-			if ('sender' in data) {
-				Object.assign(object, data.sender);
-			}
 			for (let key in data) {
 				switch (key) {
-				case 'id':
-					if (object[key]) break;
 				case 'by':
-				case 'senderId':
-				case 'sid':
 					object.id = data[key];
 					break;
-				case 'profileName':
-				case 'senderName':
-				case 'sendersName':
-					object.profileName = data[key];
+				case 'objectId':
 					break;
 				default:
 					object[key] = data[key]
 				}
 			}
 		}
-		if ('type' in object) {
-			delete object.type;
-		}
+		'objectId' in object && delete object.objectId,
+		'type' in object && delete object.type;
 		return object
 	}
 
-	static parseUserObjects(data) {
+	static resolveAll(data) {
 		const appendMetadata = object => {
 			if ('accessories' in data) {
 				object.avatar ||= {},
@@ -326,6 +326,11 @@ export default class User extends BaseStructure {
 		}
 
 		if ('receiverId' in data) {
+			// create user objects
+			// new this({
+			// 	id: data.receiverId || data.receiver,
+			// 	profileName: data.receiverName
+			// });
 			data.receiver = {
 				id: data.receiverId || data.receiver,
 				profileName: data.receiverName

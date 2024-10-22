@@ -4,24 +4,24 @@ import ChannelType from "../../../../src/utils/ChannelType.js";
 
 export default class MemberWrapper extends UserWrapper {
 	constructor(member) {
-		super();
-		this.dataset.did = member.dialogueId;
-		this.dataset.position = member.position;
-		Object.defineProperty(this, 'member', { value: member });
+		super(),
+		this.dataset.did = member.dialogueId,
+		this.dataset.position = member.position,
+		Object.defineProperty(this, 'member', { value: member })
 	}
 
 	static create(member) {
 		let temp = new this(member);
 		temp.avatar = user.member.appendChild(this.createAvatarContainer());
-		return temp;
+		return temp
 	}
 
 	static createCard(member) {
 		let card = super.createCard(member.user);
-		card.classList.add('member-card');
-		card.dataset.did = member.dialogueId;
+		card.classList.add('member-card'),
+		card.dataset.did = member.dialogueId,
 		card.dataset.position = member.position;
-		return card;
+		return card
 	}
 
 	static createContextMenuOptions(member, { client }) {
@@ -61,7 +61,7 @@ export default class MemberWrapper extends UserWrapper {
 				})
 			});
 		}
-		return options;
+		return options
 	}
 }
 

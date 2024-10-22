@@ -9,8 +9,8 @@ if ('serviceWorker' in navigator) {
 	navigator.serviceWorker.register('service-worker.js');
 }
 
-let contentCache = CacheManager.create(Application.cacheKey, { persist: true });
-let sessionCache = CacheManager.create(Application.cacheKey + '_temp');
+let contentCache = CacheManager.create(Application.cacheKey, { persist: true })
+  , sessionCache = CacheManager.create(Application.cacheKey + '_temp');
 
 // Remember which channel was selected in localStorage?
 // Or which nav button was selected
@@ -29,13 +29,13 @@ import MemberWrapper from "./assets/scripts/modals/Member.js";
 import SuperDialog from "./assets/scripts/modals/SuperDialog.js";
 import UserWrapper from "./assets/scripts/modals/User.js";
 
-let activeDialogue = null;
-let archivedChats;
-let pinnedChats;
+let activeDialogue = null
+  , archivedChats
+  , pinnedChats;
 
-const client = new Client({ debug: true, fallback: true, maxReconnectAttempts: 6 });
-const authContainer = document.querySelector('.auth-container');
-const chatsContainer = document.querySelector('.panel.left-panel .chats');
+const client = new Client({ debug: true, fallback: true, maxReconnectAttempts: 6 })
+	, authContainer = document.querySelector('.auth-container')
+	, chatsContainer = document.querySelector('.panel.left-panel .chats');
 for (const radio of document.querySelectorAll('input[type="radio"][name="chats"]')) {
 	radio.addEventListener('change', event => {
 		let allowed = event.target.id.toUpperCase().replace(/s$/i, '');
@@ -45,29 +45,29 @@ for (const radio of document.querySelectorAll('input[type="radio"][name="chats"]
 	});
 }
 
-const dialogueMembersView = document.querySelector('.members-list');
-const dialogueView = document.querySelector('#dialogue');
-const dialogueMetadata = dialogueView.querySelector('.metadata');
-const dialogueMetadataTitle = dialogueMetadata.querySelector('.title');
-const dialogueMetadataDescription = dialogueMetadata.querySelector('.description');
-const dialogueMediaContainer = dialogueView.querySelector('.media-container');
-const dialogueReplyContainer = dialogueView.querySelector('.reply-container');
-const dialogueReplyAuthor = dialogueReplyContainer.querySelector('.author');
-const dialogueReplyCancel = dialogueReplyContainer.querySelector('button');
+const dialogueMembersView = document.querySelector('.members-list')
+	, dialogueView = document.querySelector('#dialogue')
+	, dialogueMetadata = dialogueView.querySelector('.metadata')
+	, dialogueMetadataTitle = dialogueMetadata.querySelector('.title')
+	, dialogueMetadataDescription = dialogueMetadata.querySelector('.description')
+	, dialogueMediaContainer = dialogueView.querySelector('.media-container')
+	, dialogueReplyContainer = dialogueView.querySelector('.reply-container')
+	, dialogueReplyAuthor = dialogueReplyContainer.querySelector('.author')
+	, dialogueReplyCancel = dialogueReplyContainer.querySelector('button');
 dialogueReplyContainer.addEventListener('click', () => {
 	let element = document.querySelector('message-wrapper[data-id="' + dialogueReplyContainer.dataset.mid + '"]');
 	if (!element) return;
-	element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-});
+	element.scrollIntoView({ behavior: 'smooth', block: 'center' })
+}, { passive: true });
 dialogueReplyCancel.addEventListener('click', () => {
-	delete dialogueReplyContainer.dataset.mid;
-	dialogueReplyContainer.style.setProperty('display', 'none');
-});
+	delete dialogueReplyContainer.dataset.mid,
+	dialogueReplyContainer.style.setProperty('display', 'none')
+}, { passive: true });
 
-const dialogueMedia = dialogueView.querySelector('#media');
-const dialogueText = dialogueView.querySelector('#text');
-const dialogueSend = dialogueView.querySelector('#send');
-const messageContainer = document.querySelector('#messages');
+const dialogueMedia = dialogueView.querySelector('#media')
+	, dialogueText = dialogueView.querySelector('#text')
+	, dialogueSend = dialogueView.querySelector('#send')
+	, messageContainer = document.querySelector('#messages');
 
 // check params for p -- user profile open dialog if present
 let openDialogueId = Application.searchParams.get('g');
@@ -114,21 +114,21 @@ function getChatTab(dialogue, { createIfNotExists } = {}) {
 			radio: { value: radio, writable: true }
 		});
 	}
-	return chat;
+	return chat
 }
 
 function updateChatTab(dialogue) {
-	let chat = getChatTab(dialogue, { createIfNotExists: true });
-	let cachedDialogue = cachedDialogues && cachedDialogues[dialogue.id];
-	let notInChats = chat.parentElement !== chatsContainer;
-	client.user && client.user.favorites.cache.has(dialogue.id) && (chat.classList.add('favorite'),
-	cachedDialogue.pinned = true);
-	cachedDialogue.archived && getChatArchive({ createIfNotExists: true }).appendChild(chat);
-	cachedDialogue.pinned && getPinnedChats({ createIfNotExists: true }).appendChild(chat);
-	!cachedDialogue.archived && !cachedDialogue.pinned && notInChats && (pinnedChats ? pinnedChats.after(chat) : archivedChats ? archivedChats.after(chat) : chatsContainer.appendChild(chat));
+	let chat = getChatTab(dialogue, { createIfNotExists: true })
+	  , cachedDialogue = cachedDialogues && cachedDialogues[dialogue.id]
+	  , notInChats = chat.parentElement !== chatsContainer;
+	cachedDialogue && (client.user && client.user.favorites.cache.has(dialogue.id) && (chat.classList.add('favorite'),
+	cachedDialogue.pinned = true),
+	cachedDialogue.archived && getChatArchive({ createIfNotExists: true }).appendChild(chat),
+	cachedDialogue.pinned && getPinnedChats({ createIfNotExists: true }).appendChild(chat),
+	!cachedDialogue.archived && !cachedDialogue.pinned && notInChats && (pinnedChats ? pinnedChats.after(chat) : archivedChats ? archivedChats.after(chat) : chatsContainer.appendChild(chat)));
 	chat.name.innerText = dialogue.name;
 	dialogue.lastMessage && (chat.lastMessage.innerText = (dialogue.lastMessage.author.id === client.user.id ? 'You: ' : '') + dialogue.lastMessage.content.replace(/\n+.+/g, ''));
-	return chat;
+	return chat
 }
 
 function getChatArchive({ createIfNotExists } = {}) {
@@ -141,7 +141,7 @@ function getChatArchive({ createIfNotExists } = {}) {
 		archivedChats.classList.add('chats');
 		chatsContainer.prepend(details);
 	}
-	return archivedChats || null;
+	return archivedChats || null
 }
 
 function getPinnedChats({ createIfNotExists } = {}) {
@@ -151,7 +151,7 @@ function getPinnedChats({ createIfNotExists } = {}) {
 		pinnedChats.style.setProperty('display', 'contents');
 		archivedChats ? archivedChats.after(pinnedChats) : chatsContainer.prepend(pinnedChats);
 	}
-	return pinnedChats || null;
+	return pinnedChats || null
 }
 
 client.on('ready', async () => {
@@ -217,16 +217,16 @@ client.on('ready', async () => {
 		}
 	}
 
-	authContainer.close('success');
+	authContainer.close('success')
 });
 
 client.on('messageCreate', message => createMessage(message));
 client.on('giftMessageCreate', message => createMessage(Object.assign(message, { author: message.sender })));
 client.on('messageDelete', message => {
-	let subContainer = getMessageContainer(message.dialogueId, { createIfNotExists: true });
-	let messageWrapper = subContainer.querySelector('message-wrapper[data-id="' + message.id + '"]');
+	let subContainer = getMessageContainer(message.dialogueId, { createIfNotExists: true })
+	  , messageWrapper = subContainer.querySelector('message-wrapper[data-id="' + message.id + '"]');
 	if (null === messageWrapper) return;
-	messageWrapper.classList.add('deleted');
+	messageWrapper.classList.add('deleted')
 });
 
 const authUsername = authContainer.querySelector('input[type="text"]');
@@ -236,9 +236,8 @@ authContainer.addEventListener('close', async event => {
 	case 'cancel':
 		return;
 	case 'success':
-		authUsername.value = null;
-		authPassword.value = null;
-		return;
+		authUsername.value = null,
+		authPassword.value = null
 	}
 });
 
@@ -251,7 +250,7 @@ login.addEventListener('click', async event => {
 	}).catch(err => {
 		SuperDialog.error(err.message);
 	});
-	event.target.classList.remove('loading');
+	event.target.classList.remove('loading')
 });
 
 const logout = document.querySelector('#logout');
@@ -260,8 +259,8 @@ logout.addEventListener('click', async event => {
 	await client.destroy(true);
 	localStorage.removeItem('al_session');
 	event.target.classList.remove('loading');
-	location.reload();
-});
+	location.reload()
+}, { passive: true });
 
 // check if user token is saved first, if yes then login
 const token = localStorage.getItem('al_session');
@@ -282,7 +281,7 @@ function openDialogue(dialogueId) {
 		SuperDialog.error("Failed to find dialogue.");
 		return;
 	}
-	history.pushState({ dialogueId, name: dialogue.name }, null, location.pathname + '?g=' + dialogueId);
+	history.pushState({ dialogueId, name: dialogue.name }, null, location.pathname + '?g=' + dialogueId)
 	// dialogueText.setAttribute('placeholder', 'Message ' + dialogue.name);
 }
 
@@ -315,28 +314,28 @@ function showDialogue(data) {
 		let lastMessageTimestamp = container.lastElementChild && new Date(container.lastElementChild.querySelector('.timestamp').getAttribute('title').replace(/\s+at\s+/, ' '));
 		let messageHistory = await dialogue.messages.fetch({ force: true, since: lastMessageTimestamp }); // cache that it has been fetched
 		for (let message of messageHistory.values()) {
-			createMessage(message, true);
+			createMessage(message, true)
 		}
-	});
+	})
 }
 
 function getMessageContainer(dialogueId, { createIfNotExists } = {}) {
 	let container = messageContainer.querySelector('div.dialogue-chats[data-id="' + dialogueId + '"]');
 	if (container === null && createIfNotExists) {
-		container = messageContainer.appendChild(document.createElement('div'));
-		container.classList.add('dialogue-chats');
-		container.dataset.id = dialogueId;
+		container = messageContainer.appendChild(document.createElement('div')),
+		container.classList.add('dialogue-chats'),
+		container.dataset.id = dialogueId,
 		container.style.setProperty('display', 'none');
 	}
-	return container;
+	return container
 }
 
 function createMessage(message, scrollToBottom) {
 	let subContainer = getMessageContainer(message.dialogueId, { createIfNotExists: true });
 	if (null !== subContainer.querySelector('message-wrapper[data-id="' + message.id + '"]')) return;
-	let autoScroll = messageContainer.scrollHeight - messageContainer.scrollTop <= messageContainer.offsetHeight;
-	let lastMessageSid = subContainer.lastElementChild && subContainer.lastElementChild.dataset.sid;
-	let msg = subContainer.appendChild(MessageWrapper.create(message));
+	let autoScroll = messageContainer.scrollHeight - messageContainer.scrollTop <= messageContainer.offsetHeight
+	  , lastMessageSid = subContainer.lastElementChild && subContainer.lastElementChild.dataset.sid
+	  , msg = subContainer.appendChild(MessageWrapper.create(message));
 	lastMessageSid !== message.author.id && msg.setAuthor();
 	(autoScroll || scrollToBottom) && messageContainer.scrollTo({
 		behavior: 'instant',
@@ -351,7 +350,7 @@ function createMessage(message, scrollToBottom) {
 	});
 	let lastMessagePreview = document.querySelector('label[data-id="' + message.dialogueId + '"] > .last-message');
 	null !== lastMessagePreview && (lastMessagePreview.innerText = message.content);
-	return msg;
+	return msg
 }
 
 const mediaFiles = new Map();
@@ -361,102 +360,103 @@ dialogueText.addEventListener('keydown', async event => {
 		event.shiftKey || (event.preventDefault(),
 		// send media files first;
 		sendMessage(),
-		delete dialogueReplyContainer.dataset.mid,
 		dialogueText.value = null,
 		dialogueMediaContainer.replaceChildren(),
-		mediaFiles.clear());
-		break;
+		mediaFiles.clear())
 	}
 });
 
 dialogueMedia.addEventListener('change', ({ target }) => {
-	handleFileInput({ files: target.files });
-	target.value = null;
-});
+	handleFileInput({ files: target.files }),
+	target.value = null
+}, { passive: true });
 window.addEventListener('drop', event => {
-	event.preventDefault();
-	handleFileInput(event.dataTransfer);
+	event.preventDefault(),
+	handleFileInput(event.dataTransfer)
 });
-window.addEventListener('paste', ({ clipboardData }) => handleFileInput(clipboardData));
+window.addEventListener('paste', ({ clipboardData }) => handleFileInput(clipboardData), { passive: true });
 function handleFileInput({ files }) {
 	for (let file of files) {
-		let uuid = crypto.randomUUID();
-		let previewURL = URL.createObjectURL(file);
-		let previewContainer = dialogueMediaContainer.appendChild(document.createElement('div'));
+		let uuid = crypto.randomUUID()
+		  , previewURL = URL.createObjectURL(file)
+		  , previewContainer = dialogueMediaContainer.appendChild(document.createElement('div'));
 		previewContainer.classList.add('preview-container');
 		previewContainer.dataset.id = uuid;
 		let previewImg = previewContainer.appendChild(document.createElement('img'));
 		previewImg.src = previewURL;
 		let previewName = previewContainer.appendChild(document.createElement('span'));
 		previewName.innerText = file.name;
-		mediaFiles.set(uuid, previewURL);
+		mediaFiles.set(uuid, previewURL)
 	}
 }
 
 dialogueSend.addEventListener('click', sendMessage);
 function sendMessage() {
-	return activeDialogue.send(dialogueText.value, mediaFiles.size > 0 && { attachments: Array.from(mediaFiles.entries()).map(([name, url]) => ({ name, url })) }).catch(err => {
-		SuperDialog.error(err.message);
+	return activeDialogue.send(dialogueText.value, { attachments: mediaFiles.size > 0 && Array.from(mediaFiles.entries()).map(([name, url]) => ({ name, url })), reference: activeDialogue.messages.cache.get(dialogueReplyContainer.dataset.mid) }).then(res => {
+		delete dialogueReplyContainer.dataset.mid,
+		dialogueReplyContainer.style.setProperty('display', 'none'),
+		dialogueText.value = null,
+		dialogueMediaContainer.replaceChildren(),
+		mediaFiles.clear();
+		return res
+	}).catch(err => {
+		SuperDialog.error(err.message)
 	})
 }
 
 const settingsContainer = document.querySelector('.settings-container');
 const settings = document.querySelector('#settings');
-settings.addEventListener('click', event => {
-	event.preventDefault();
-	settingsContainer.showModal();
-});
-
+settings.addEventListener('click', () => settingsContainer.showModal(), { passive: true });
 const saveSettings = settingsContainer.querySelector('button[value="save"]');
 saveSettings.addEventListener('click', event => {
-	event.preventDefault();
-	event.target.classList.add('loading');
+	event.preventDefault(),
+	event.target.classList.add('loading'),
 	// do shit
-	event.target.classList.remove('loading');
+	event.target.classList.remove('loading')
 	// close if success
-	// settingsContainer.close();
+	// settingsContainer.close()
 });
 
-window.navigation.addEventListener('navigatesuccess', () => showDialogue());
+window.navigation.addEventListener('navigatesuccess', () => showDialogue(), { passive: true });
 window.addEventListener('contextmenu', async event => {
 	event.preventDefault();
 	let userWrapper = event.target.closest('.user-card');
 	if (userWrapper) {
 		if (userWrapper.classList.contains('member-card')) {
-			let dialogue = await client.dialogues.fetch(userWrapper.dataset.did);
-			let member = await dialogue.members.fetch(userWrapper.dataset.id, { partial: true });
-			let options = MemberWrapper.createContextMenuOptions(member, { client });
+			let dialogue = await client.dialogues.fetch(userWrapper.dataset.did)
+			  , member = await dialogue.members.fetch(userWrapper.dataset.id, { partial: true })
+			  , options = MemberWrapper.createContextMenuOptions(member, { client });
 			ContextMenu.create(options, event);
 			return;
 		}
 
-		let user = await client.users.fetch(userWrapper.dataset.id);
-		let options = UserWrapper.createContextMenuOptions(user, { client });
+		let user = await client.users.fetch(userWrapper.dataset.id)
+		  , options = UserWrapper.createContextMenuOptions(user, { client });
 		ContextMenu.create(options, event);
 	}
 
 	let element = event.target.closest('message-wrapper');
 	if (element) {
 		// event.preventDefault();
-		let chatContainer = element.closest('.dialogue-chats');
-		let dialogue = await client.dialogues.fetch(chatContainer.dataset.id);
-		let isModerator = (dialogue.type !== ChannelType.PRIVATE && dialogue.moderators.cache.has(client.user.id)) || dialogue.founderId === client.user.id;
+		let chatContainer = element.closest('.dialogue-chats')
+		  , dialogue = await client.dialogues.fetch(chatContainer.dataset.id)
+		  , isModerator = (dialogue.type !== ChannelType.PRIVATE && dialogue.moderators.cache.has(client.user.id)) || dialogue.founderId === client.user.id;
 		if (event.target.closest('.avatar') || event.target.closest('.metadata')) {
 			if (dialogue.type !== ChannelType.PRIVATE) {
-				let member = await dialogue.members.fetch(element.dataset.sid, { partial: true });
-				let options = MemberWrapper.createContextMenuOptions(member, { client });
+				let member = await dialogue.members.fetch(element.dataset.sid, { partial: true })
+				  , options = MemberWrapper.createContextMenuOptions(member, { client });
 				ContextMenu.create(options, event);
 				return;
 			}
 
-			let member = await client.users.fetch(element.dataset.sid);
-			let options = UserWrapper.createContextMenuOptions(member, { client });
+			let member = await client.users.fetch(element.dataset.sid)
+			  , options = UserWrapper.createContextMenuOptions(member, { client });
 			ContextMenu.create(options, event);
 			return;
 		}
 
-		let message = await dialogue.messages.fetch(element.dataset.id);
-		let isDeleted = !message || message.deleted;
+		let message = await dialogue.messages.fetch(element.dataset.id)
+		  , isDeleted = !message || message.deleted;
 		const options = [{
 			disabled: isDeleted || message.lovers.cache.has(client.user.id),
 			name: 'Like',
@@ -465,9 +465,9 @@ window.addEventListener('contextmenu', async event => {
 			disabled: isDeleted || message.id === dialogueReplyContainer.dataset.mid,
 			name: 'Reply',
 			click() {
-				dialogueReplyAuthor.innerText = message.author.displayName;
-				dialogueReplyContainer.dataset.mid = message.id;
-				dialogueReplyContainer.style.removeProperty('display');
+				dialogueReplyAuthor.innerText = message.author.displayName,
+				dialogueReplyContainer.dataset.mid = message.id,
+				dialogueReplyContainer.style.removeProperty('display')
 			}
 		}, {
 			name: 'Copy Text',
@@ -525,24 +525,24 @@ window.addEventListener('contextmenu', async event => {
 		return;
 	}
 
-	let chat = event.target.closest('.dialogue');
-	let type = chat !== null && chat.dataset.type;
+	let chat = event.target.closest('.dialogue')
+	  , type = chat !== null && chat.dataset.type;
 	if (/^(group|private|public)$/i.test(type)) {
 		// event.preventDefault();
-		let dialogue = await client.dialogues.fetch(chat.dataset.id);
-		let isFounder = dialogue.founderId === client.user.id;
-		let isFavorite = client.user.favorites.cache.has(dialogue.id);
-		let dialogues = contentCache.get('dialogues');
-		let dialogueCache = dialogues && dialogues[dialogue.id];
-		let isArchived = dialogueCache && dialogueCache.archived;
-		let isPinned = dialogueCache && dialogueCache.pinned;
+		let dialogue = await client.dialogues.fetch(chat.dataset.id)
+		  , isFounder = dialogue.founderId === client.user.id
+		  , isFavorite = client.user.favorites.cache.has(dialogue.id)
+		  , dialogues = contentCache.get('dialogues')
+		  , dialogueCache = dialogues && dialogues[dialogue.id]
+		  , isArchived = dialogueCache && dialogueCache.archived
+		  , isPinned = dialogueCache && dialogueCache.pinned;
 		const options = [{
 			name: (isArchived ? 'Una' : 'A') + 'rchive',
 			click: () => {
 				isArchived = !dialogueCache.archived;
 				dialogueCache.archived = isArchived;
 				contentCache.update('dialogues', { [dialogue.id]: dialogueCache });
-				updateChatTab(dialogueCache);
+				updateChatTab(dialogueCache)
 			}
 		}, {
 			name: isFounder ? 'Delete' : 'Leave',
@@ -554,8 +554,8 @@ window.addEventListener('contextmenu', async event => {
 					let sidebarButton = document.querySelector('.dialogue[data-id="' + dialogue.id + '"]');
 					if (sidebarButton) {
 						let newOpenDialogue = sidebarButton.previousElementSibling || sidebarButton.nextElementSibling;
-						newOpenDialogue && openDialogue(newOpenDialogue.dataset.id);
-						sidebarButton.remove();
+						newOpenDialogue && openDialogue(newOpenDialogue.dataset.id),
+						sidebarButton.remove()
 					}
 				}
 			})
@@ -567,12 +567,12 @@ window.addEventListener('contextmenu', async event => {
 				isPinned = !dialogueCache.pinned;
 				dialogueCache.pinned = isPinned;
 				contentCache.update('dialogues', { [dialogue.id]: dialogueCache });
-				updateChatTab(dialogueCache);
+				updateChatTab(dialogueCache)
 			}
 		}, {
 			name: (isFavorite ? 'Unf' : 'F') + 'avourite',
 			click: () => client.user.favorites[isFavorite ? 'remove' : 'add'](dialogue.id).then(res => {
-				updateChatTab(dialogueCache);
+				updateChatTab(dialogueCache)
 			})
 		}));
 		options.length > 0 && options.push({ type: 'hr' });
@@ -649,6 +649,6 @@ window.addEventListener('contextmenu', async event => {
 				}
 			}
 		}], event);
-		return;
+		return
 	}
 });

@@ -129,7 +129,7 @@ Object.defineProperty(Object, 'merge', {
 			}
 		}
 
-		return target;
+		return target
 	},
 	writable: true
 });

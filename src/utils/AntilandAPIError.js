@@ -1,4 +1,6 @@
 export default class AntilandAPIError extends Error {
+	name = "AntilandAPIError";
+
 	/**
 	 * 
 	 * @param {string} message
@@ -9,10 +11,10 @@ export default class AntilandAPIError extends Error {
 	 * @param {string} [options.method]
 	 */
 	constructor(message, { body, code, endpoint, method } = {}) {
-		super(message);
-		Object.defineProperty(this, 'body', { value: body || {} });
-		Object.defineProperty(this, 'code', { value: code ?? null });
-		Object.defineProperty(this, 'endpoint', { value: endpoint || null });
-		Object.defineProperty(this, 'method', { value: method || 'GET' });
+		super(message),
+		Object.defineProperty(this, 'body', { value: body || {} }),
+		Object.defineProperty(this, 'code', { value: code ?? null }),
+		Object.defineProperty(this, 'endpoint', { value: endpoint || null }),
+		Object.defineProperty(this, 'method', { value: method || 'GET' })
 	}
 }

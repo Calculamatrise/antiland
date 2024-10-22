@@ -21,7 +21,10 @@ export default class {
 	_patch(data) {
 		if (typeof data != 'object' || data == null) return;
 		for (let key of this._filterData(data, true)) {
-		// for (let key in data) {
+			// if (data[key] === null) {
+			// 	delete data[key];
+			// 	continue;
+			// }
 			switch (key) {
 			case 'body':
 			case 'header':

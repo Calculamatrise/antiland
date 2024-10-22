@@ -1,9 +1,9 @@
 export default class QuickActionMenu extends HTMLElement {
 	options = [];
 	constructor() {
-		super();
-		this.constructor.contextMenu = this;
-		this.addEventListener('contextmenu', event => event.preventDefault());
+		super(),
+		this.constructor.contextMenu = this,
+		this.addEventListener('contextmenu', event => event.preventDefault())
 	}
 
 	/**
@@ -14,8 +14,8 @@ export default class QuickActionMenu extends HTMLElement {
 	 * @param {string} [data.type]
 	 */
 	addOption(data) {
-		let type = typeof data.type == 'string' && data.type.toLowerCase() || 'button';
-		let element = this.appendChild(document.createElement(type));
+		let type = typeof data.type == 'string' && data.type.toLowerCase() || 'button'
+		  , element = this.appendChild(document.createElement(type));
 		this.options.push(data);
 		if (/^(b|h)r$/i.test(type)) return element;
 		for (let key in data) {
@@ -34,20 +34,20 @@ export default class QuickActionMenu extends HTMLElement {
 				break;
 			}
 		}
-		element.innerText = data.name;
+		element.innerText = data.name,
 		typeof data.callback == 'function' && data.callback(element);
-		return element;
+		return element
 	}
 
 	clear() {
-		this.options.splice(0);
-		this.replaceChildren();
+		this.options.splice(0),
+		this.replaceChildren()
 	}
 
 	remove() {
 		if (null === this.constructor.menu) return;
 		super.remove();
-		this.constructor.menu = null;
+		this.constructor.menu = null
 	}
 
 	static menu = null;
@@ -62,9 +62,9 @@ export default class QuickActionMenu extends HTMLElement {
 			this.menu.addOption(option);
 		}
 
-		element.appendChild(this.menu);
+		element.appendChild(this.menu),
 		element.addEventListener('mouseleave', this.menu.remove.bind(this.menu), { once: true });
-		return this.menu;
+		return this.menu
 	}
 }
 

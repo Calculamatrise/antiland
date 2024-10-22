@@ -87,6 +87,18 @@ export default class Member extends BaseStructure {
 	}
 
 	/**
+	 * Fetch this member
+	 * @param {boolean} [force]
+	 * @returns {Promise<this>}
+	 */
+	async fetch(force) {
+		if (!force && !Object.values(this).includes(null)) {
+			return this;
+		}
+		return this.dialogue.members.fetch(this.id).then(this._patch.bind(this))
+	}
+
+	/**
 	 * Unban a user
 	 * @protected moderation endpoint for moderators
 	 * @param {object} [options]
@@ -113,4 +125,14 @@ export default class Member extends BaseStructure {
 
 	// mod() {}
 	// unmod() {}
+
+	static resolve(data) {
+		data = User.resolve(data, 'member');
+		// for (let key in data) {
+		// 	switch (key) {
+		// 	}
+		// }
+		data.position ||= 'member';
+		return data
+	}
 }

@@ -9,10 +9,11 @@ import UserManager from "../src/managers/UserManager";
 
 import ClientUser from "../src/structures/ClientUser";
 import Dialogue from "../src/structures/Dialogue";
-import Message from "../src/structures/Message";
-import User from "../src/structures/User";
 import FriendRequest from "../src/structures/FriendRequest";
 import GiftMessage from "../src/structures/GiftMessage";
+import Message from "../src/structures/Message";
+import User from "../src/structures/User";
+import Member from "../src/structures/Member.js";
 
 //#region Classes
 
@@ -42,26 +43,32 @@ export class Client extends EventEmitter {
 //#region Typedefs
 
 export interface ClientEvents {
-	banCreate: [dialogue: Dialogue],
-	blocked: [blocker: User],
+	blockAdd: [blocker: User],
+	blockRemove: [blocker: User],
+	channelBanAdd: [dialogue: Dialogue],
+	// channelBanExpire: [dialogue: Dialogue],
+	channelBanRemove: [dialogue: Dialogue],
 	channelCreate: [dialogue: Dialogue],
 	channelDelete: [dialogue: Dialogue],
+	channelMemberAdd: [member: Member],
 	channelUpdate: [oldDialogue: Dialogue, newDialogue: Dialogue],
+	contactBlockAdd: [user: User],
+	contactBlockRemove: [user: User],
 	debug: [data: object],
 	error: [error: Error],
 	friendRequestCreate: [friendRequest: FriendRequest],
+	// friendRequestDelete: [user: User],
 	giftMessageCreate: [message: GiftMessage],
+	karmaTaskCreate: [task: object],
+	karmaTaskUpdate: [task: object],
 	messageCreate: [message: Message, isAuthorBlocked: boolean],
 	messageDelete: [message: Message],
 	messageReactionAdd: [message: Message?],
+	messageReportAdd: [message: Message],
 	messageUpdate: [oldMessage: Message, newMessage: Message],
-	notificationCreate: [],
-	ping: [ping: number],
+	notificationCreate: [data: object],
 	raw: [data: object],
-	rawNotification: [data: object],
-	rawPrivate: [data: object],
 	ready: [],
-	userBlocked: [user: User],
 	warn: [data: object]
 }
 
@@ -160,21 +167,26 @@ export enum ChatSetupFlags {
 	DENY_BON_REMOVE = 'BON_REMOVE_DISABLED'
 }
 
-export enum ChatSetupFlags {
+export enum CurrencyType {
 	KARMA = 'karma',
 	TOKENS = 'tokens'
 }
 
 export enum Events {
-	Blocked = 'blocked',
 	ChannelBanAdd = 'channelBanAdd',
+	// ChannelBanExpire = 'channelBanExpire',
 	ChannelBanRemove = 'channelBanRemove',
 	ChannelCreate = 'channelCreate',
 	ChannelDelete = 'channelDelete',
 	ChannelMemberAdd = 'channelMemberAdd',
 	// ChannelMemberRemove = 'channelMemberRemove',
 	ChannelUpdate = 'channelUpdate',
+	ClientBlockAdd = 'blockAdd',
+	ClientBlockRemove = 'blockRemove',
+	// ClientGiftAdd = 'giftAdd',
 	ClientReady = 'ready',
+	ContactBlockAdd = 'contactBlockAdd',
+	ContactBlockRemove = 'contactBlockRemove',
 	Debug = 'debug',
 	Error = 'error',
 	FriendRequestCreate = 'friendRequestCreate',
@@ -187,11 +199,12 @@ export enum Events {
 	MessageReactionAdd = 'messageReactionAdd',
 	MessageReportAdd = 'messageReportAdd',
 	MessageUpdate = 'messageUpdate',
+	NotificationCreate = 'notificationCreate',
 	Ping = 'ping',
 	Raw = 'raw',
-	Unblocked = 'unblocked',
-	UserBlocked = 'userBlocked',
-	UserUnblocked = 'userUnblocked',
+	RelationshipCreate = 'relationshipCreate',
+	RelationshipDelete = 'relationshipDelete',
+	RelationshipUpdate = 'relationshipUpdate',
 	Warn = 'warn'
 }
 

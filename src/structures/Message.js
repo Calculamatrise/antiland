@@ -35,6 +35,8 @@ export default class Message extends BaseStructure {
 			sticker: { value: null, writable: true }
 		});
 		this._patch(data);
+		let userData = data.sender || User.resolve(data, 'sender');
+		userData.id !== this.id && (this.author = data.sender instanceof User ? data.sender : new User(userData, this));
 		false !== cache && this.id !== null && this.hasOwnProperty('client') && dialogue.messages.cache.set(this.id, this)
 	}
 
@@ -45,11 +47,14 @@ export default class Message extends BaseStructure {
 	_patch(data, shallowPatch) {
 		if (typeof data != 'object' || data == null) return;
 		shallowPatch || super._patch(...arguments);
-		data.sender instanceof User && (this.author = data.sender);
+		data.sender instanceof User && (this.author ||= data.sender);
 		for (let key in data) {
 			switch (key) {
+			case 'accessories':
+				this.author._patch({ avatar: { [key]: data[key] }});
+				break;
 			case 'avatar':
-				this.author._patch({ avatar: { idx: data[key] }});
+				this.author._patch({ [key]: data[key] });
 				break;
 			case 'dialogue':
 				if (this[key] !== null) break;
@@ -122,6 +127,7 @@ export default class Message extends BaseStructure {
 					break;
 				}
 			case 'messageSenderId':
+				if (this.author) break;
 				if (this.client.users.cache.has(data[key])) {
 					this.author = this.client.users.cache.get(data[key]);
 					break;
@@ -267,7 +273,7 @@ export default class Message extends BaseStructure {
 
 	stickerURL() {
 		if (this.stickerId === null) return null;
-		return "https://gfx.antiland.com/stickers/" + this.stickerId;
+		return "https://gfx.antiland.com/stickers/" + this.stickerId
 	}
 
 	/**

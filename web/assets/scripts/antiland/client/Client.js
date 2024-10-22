@@ -35,7 +35,7 @@ export default class Client extends BaseClient {
 	 * @param {string} [options.currency]
 	 * @returns {Promise<boolean>}
 	 */
-	purchase(skus, { currency = 'karma' } = {}) {
+	async purchase(skus, { currency = 'karma' } = {}) {
 		if (typeof skus[Symbol.iterator] != 'function') return this.purchase([skus], ...Array.prototype.slice.call(arguments, 1));
 		return this.requests.post("functions/v2:purchase.iaps", {
 			currency,
