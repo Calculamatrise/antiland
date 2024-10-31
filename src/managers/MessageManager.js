@@ -1,8 +1,10 @@
 import BaseManager from "./BaseManager.js";
-import GiftMessage from "../structures/GiftMessage.js";
+// import GiftMessage from "../structures/GiftMessage.js";
 import Message from "../structures/Message.js";
+import User from "../structures/User.js";
 
 export default class MessageManager extends BaseManager {
+	total = 0;
 	constructor() {
 		super(...arguments);
 		let maxCacheSize = (this.client.options && (this.client.options.configuredHistoryLength ?? this.client.options.historyLength)) ?? 50;
@@ -82,9 +84,9 @@ export default class MessageManager extends BaseManager {
 	 * @returns {Promise<Map<string, Message>>}
 	 */
 	async await({ errors, filter, idle, max, maxProcessed, time } = {}, callback) {
-		let counter = 0;
-		let processedCounter = 0;
-		let messages = new Map();
+		let counter = 0
+		  , processedCounter = 0
+		  , messages = new Map();
 		return new Promise((resolve, reject) => {
 			let timeout = time && setTimeout(() => {
 				this.client.client.off('messageCreate', listener);
@@ -92,15 +94,15 @@ export default class MessageManager extends BaseManager {
 					reject(messages);
 				}
 				reject(new RangeError("Time limit exceeded."));
-			}, time);
-			let idleTimeout = idle && setTimeout(() => {
+			}, time)
+			  , idleTimeout = idle && setTimeout(() => {
 				this.client.client.off('messageCreate', listener);
 				if (errors && errors.includes('idle')) {
 					reject(messages);
 				}
 				reject(new RangeError("Idle time exceeded."));
-			}, idle);
-			let listener = message => {
+			}, idle)
+			  , listener = message => {
 				let checkFilter = filter && !filter(message);
 				if (!checkFilter) {
 					idle && idleTimeout.refresh();
@@ -193,8 +195,8 @@ export default class MessageManager extends BaseManager {
 	 * @returns {Promise<boolean>}
 	 */
 	async delete(message) {
-		let messageId = typeof message == 'object' ? message.id : message;
-		let entry = this.cache.get(messageId);
+		let messageId = typeof message == 'object' ? message.id : message
+		  , entry = this.cache.get(messageId);
 		if (entry && entry.author.id !== this.client.client.user.id || !this.client.options.setup?.has('OWN_MSG_REMOVE_ALLOWED')) {
 			if (!this.manageable) {
 				throw new Error("Insufficient privileges.");

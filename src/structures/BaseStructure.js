@@ -6,8 +6,8 @@ export default class {
 		Object.defineProperties(this, {
 			createdAt: { value: null, writable: true },
 			createdTimestamp: { value: null, writable: true },
-			partial: { value: Object.values(data).length < Object.keys(this).length, writable: true }
-		});
+			partial: { value: Object.keys(data).filter(key => this.hasOwnProperty(key)).length < Object.keys(this).length, writable: true }
+		}),
 		ignoreUpdate || this._patch(...arguments)
 	}
 
@@ -16,6 +16,12 @@ export default class {
 			let descriptor = Object.getOwnPropertyDescriptor(this, property);
 			return !descriptor || descriptor.writable
 		})
+	}
+
+	_filterNullOrUndefined(data, deep) {
+		return Object.fromEntries(Object.entries(data).filter(([, value]) => {
+			return typeof value != 'undefined' && value !== null
+		}))
 	}
 
 	_patch(data) {
@@ -55,6 +61,8 @@ export default class {
 				Object.defineProperty(this, key, { enumerable: true, value: data[key], writable: false })
 			}
 		}
+
+		this.partial && Object.values(this).filter(v => v === null).length < 3 && (this.partial = false)
 	}
 
 	async fetch() { return this.partial = false, this }

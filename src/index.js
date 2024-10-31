@@ -9,6 +9,7 @@ export { default as ChatMood } from "./utils/ChatMood.js";
 export { default as ChatSetupFlags } from "./utils/ChatSetupFlags.js";
 export { default as CurrencyType } from "./utils/CurrencyType.js";
 export { default as Events } from "./utils/Events.js";
+export { default as KarmaTask } from "./utils/KarmaTask.js";
 export { default as MessageType } from "./utils/MessageType.js";
 
 export * as default from "./index.js";

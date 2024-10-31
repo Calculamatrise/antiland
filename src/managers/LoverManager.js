@@ -2,6 +2,8 @@ import BaseManager from "./BaseManager.js";
 import User from "../structures/User.js";
 
 export default class LoverManager extends BaseManager {
+	total = 0;
+
 	/**
 	 * Fetch the users that sent love to this message
 	 * @param {string} id

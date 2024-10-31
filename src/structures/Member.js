@@ -18,16 +18,16 @@ export default class Member extends BaseStructure {
 
 			data.position ||= dialogue.founderId === id ? 'founder' : (dialogue.moderators && dialogue.moderators.cache.has(id)) ? 'moderator' : 'member';
 		}
-		super(...arguments, true);
+		super(...Array.prototype.slice.call(arguments, 0, 2), true),
 		Object.defineProperties(this, {
 			banInfo: { value: null, writable: true },
 			banned: { value: false, writable: true },
 			dialogue: { value: dialogue },
-			dialogueId: { enumerable: true, value: dialogue.id }
-		});
-		this.user = new User(data, dialogue);
-		this._patch(data);
-		this.id !== null && this.hasOwnProperty('client') && dialogue.members.cache.set(this.id, this)
+			dialogueId: { value: dialogue.id }
+		}),
+		this.user = data instanceof User ? data : new User(data, dialogue),
+		data instanceof User || this._patch(data),
+		this.user.id !== null && this.hasOwnProperty('client') && dialogue.members.cache.set(this.user.id, this)
 	}
 
 	get manageable() {
@@ -36,8 +36,8 @@ export default class Member extends BaseStructure {
 
 	_patch(data) {
 		if (typeof data != 'object' || data == null) return;
-		super._patch(...arguments);
-		this.user._patch(...arguments);
+		super._patch(...arguments),
+		data instanceof User || this.user._patch(...arguments);
 		for (let key in data) {
 			switch (key) {
 			case 'position':
@@ -60,14 +60,14 @@ export default class Member extends BaseStructure {
 	async ban({ force, messageId, reason = "No reason provided." } = {}) {
 		if (!this.manageable) {
 			throw new Error("Insufficient privileges.");
-		} else if (!force && this.dialogue.bans.cache.has(this.id)) {
-			return this.dialogue.bans.cache.get(this.id);
+		} else if (!force && this.dialogue.bans.cache.has(this.user.id)) {
+			return this.dialogue.bans.cache.get(this.user.id);
 		}
 		return this.client.requests.post("functions/v2:chat.mod.ban", {
 			dialogueId: this.dialogueId,
 			message: String(messageId),
 			reason,
-			userId: this.id
+			userId: this.user.id
 		}).then(res => {
 			if (res.banned) {
 				let createdAt = new Date();
@@ -81,7 +81,7 @@ export default class Member extends BaseStructure {
 					endsTimestamp: { value: endsAt.getTime() }
 				});
 			}
-			return res.banned && (this.dialogue.bans.cache.set(this.id, res.info),
+			return res.banned && (this.dialogue.bans.cache.set(this.user.id, res.info),
 			res.info)
 		})
 	}
@@ -92,10 +92,11 @@ export default class Member extends BaseStructure {
 	 * @returns {Promise<this>}
 	 */
 	async fetch(force) {
-		if (!force && !Object.values(this).includes(null)) {
+		await this.user.fetch(force);
+		if (!force && !this.partial) {
 			return this;
 		}
-		return this.dialogue.members.fetch(this.id).then(this._patch.bind(this))
+		return this.dialogue.members.fetch(this.user.id, { force: true }).then(this._patch.bind(this))
 	}
 
 	/**
@@ -108,7 +109,7 @@ export default class Member extends BaseStructure {
 	async unban({ force } = {}) {
 		if (!this.manageable) {
 			throw new Error("Insufficient privileges.");
-		} else if (!force && !this.dialogue.bans.cache.has(this.id)) {
+		} else if (!force && !this.dialogue.bans.cache.has(this.user.id)) {
 			return true;
 		}
 		return this.fetchDM({ createIfNotExists: true }).then(dialogue => {
@@ -117,7 +118,7 @@ export default class Member extends BaseStructure {
 				if (result < 1) {
 					throw new Error("No bans found.");
 				}
-				this.dialogue.bans.cache.delete(this.id);
+				this.dialogue.bans.cache.delete(this.user.id);
 				return result > 0
 			})
 		})

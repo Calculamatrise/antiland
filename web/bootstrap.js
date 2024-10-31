@@ -305,14 +305,14 @@ function showDialogue(data) {
 		activeDialogue = dialogue;
 		if (dialogue.type !== ChannelType.PRIVATE) {
 			dialogueMetadataDescription.innerText = dialogue.description;
-			let members = await dialogue.members.fetch({ force: true });
+			let members = await dialogue.members.fetchActive({ force: true });
 			for (let member of members.values()) {
 				dialogueMembersView.appendChild(MemberWrapper.createCard(member));
 			}
 		}
 
-		let lastMessageTimestamp = container.lastElementChild && new Date(container.lastElementChild.querySelector('.timestamp').getAttribute('title').replace(/\s+at\s+/, ' '));
-		let messageHistory = await dialogue.messages.fetch({ force: true, since: lastMessageTimestamp }); // cache that it has been fetched
+		let lastMessageTimestamp = container.lastElementChild && new Date(container.lastElementChild.querySelector('.timestamp').getAttribute('title').replace(/\s+at\s+/, ' '))
+		  , messageHistory = await dialogue.messages.fetch({ force: true, since: lastMessageTimestamp }); // cache that it has been fetched
 		for (let message of messageHistory.values()) {
 			createMessage(message, true)
 		}

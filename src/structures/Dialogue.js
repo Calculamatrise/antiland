@@ -60,7 +60,7 @@ export default class Dialogue extends BaseStructure {
 				this[key] = data[key] instanceof Message ? data[key] : new Message(typeof data[key] == 'string' ? { id: data[key] } : data[key], this, { partial: true });
 				break;
 			case 'msgCount':
-				this.messageCount = data[key];
+				this.messages.total = data[key];
 				break;
 			case 'options':
 				this.options ||= {};
@@ -92,7 +92,7 @@ export default class Dialogue extends BaseStructure {
 	 * @returns {Promise<this>}
 	 */
 	async fetch(force) {
-		if (!force && !Object.values(this).includes(null)) {
+		if (!force && !this.partial) {
 			return this;
 		}
 		return this.client.requests.post("functions/v2:chat.byId", {

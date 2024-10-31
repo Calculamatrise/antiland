@@ -3,13 +3,17 @@ import EventEmitter from "../../EventEmitter.js";
 import PubNubBroker from "../utils/PubNubBroker.js";
 import RequestHandler from "../utils/RequestHandler.js";
 import ClientUser from "../../../../../src/structures/ClientUser.js";
+import Dialogue from "../../../../../src/structures/Dialogue.js";
 import FriendRequest from "../../../../../src/structures/FriendRequest.js";
 import GiftMessage from "../../../../../src/structures/GiftMessage.js";
+import Group from "../../../../../src/structures/Group.js";
 import Member from "../../../../../src/structures/Member.js";
 import Message from "../../../../../src/structures/Message.js";
+import SystemMessage from "../../../../../src/structures/SystemMessage.js";
 import User from "../../../../../src/structures/User.js";
 
 import Events from "../../../../../src/utils/Events.js";
+import KarmaTask from "../../../../../src/utils/KarmaTask.js";
 import MessageType from "../../../../../src/utils/MessageType.js";
 import Opcodes from "../../../../../src/utils/Opcodes.js";
 
@@ -91,7 +95,16 @@ export default class extends EventEmitter {
 				throw err
 			}),
 			socket.addEventListener('error', errHandler, { once: true }),
-			socket.addEventListener('close', code => (this.#ws._staleTimer && clearInterval(this.#ws._staleTimer), this.#ws = null, this.emit('disconnect', code))),
+			socket.addEventListener('close', ({ code }) => {
+				if (1000 !== code && this.options.maxReconnectAttempts > this.#reconnectAttempts++) {
+					this.options.fallback && (this.options.pubnub = true),
+					this.#connect(cb);
+					return;
+				}
+				this.#ws._staleTimer && clearInterval(this.#ws._staleTimer),
+				this.#ws = null,
+				this.emit('disconnect', code)
+			}),
 			socket.addEventListener('message', event => this.#ws.readyState === this.#ws.OPEN && this.#messageListener(event.data)),
 			socket.addEventListener('open', () => {
 				this.#ws = socket,
@@ -189,25 +202,20 @@ export default class extends EventEmitter {
 		}
 	}
 
-	async destroy(disconnect) {
-		disconnect && (this.connectionId = null,
-		this.user = null),
-		this.#pingTimeout && clearTimeout(this.#pingTimeout);
+	async destroy() {
+		this.#pingTimeout && clearTimeout(this.#pingTimeout),
+		this.connectionId = null,
+		this.user = null;
 		if (!this.#ws) return true;
 		return new Promise((resolve, reject) => {
-			this.#ws.once('close', resolve),
-			this.#ws.once('error', err => {
-				disconnect ? (this.#ws.terminate(),
-				resolve(0)) : reject(err)
-			}),
-			this.#ws[this.#ws.isStale ? 'terminate' : 'close']()
+			this.#ws.addEventListener('close', resolve, { once: true }),
+			this.#ws.addEventListener('error', reject, { once: true }),
+			this.#ws.close(arguments[0] ?? 1000)
 		})
 	}
 
 	async reconnect() {
-		await this.destroy().catch(() => {
-			return this.#ws.terminate()
-		});
+		await this.destroy(3008);
 		if (!this.token) {
 			throw new Error("Session token not found!");
 		}
@@ -262,9 +270,15 @@ export default class extends EventEmitter {
 			case MessageType.CHANNEL_BAN_CREATE:
 				// setTimeout for ban, then emit ChannelBanRemove/Expire
 				return this.emit(Events.ChannelBanAdd, data);
+			case MessageType.GIFT_MESSAGE:
+				let message = new SystemMessage(data, data.dialogue);
+				this.emit(Events.SystemMessageCreate, message);
+				// message.receiverId == this.user.id && (this.user.karma += message.karma,
+				// this.emit('giftReceive', message)); // emit notification?
+				return;
 			case MessageType.KARMA_TASK_PROGRESS:
-				switch(data.body.task.id.toLowerCase()) {
-				case 'karmatask.dailybonus':
+				switch(data.body.task.id?.replace(/\d+/g, '#')) {
+				case KarmaTask.DAILY_BONUS:
 					// start 24 hour timeout then emit Events.KarmaTaskCreate
 					this.user.karma += data.body.task.reward.currencyReward?.price?.karma | 0,
 					this.user.tasks.update(data.body.task),
@@ -276,12 +290,14 @@ export default class extends EventEmitter {
 							}, Date.parse(iso) - Date.now()));
 						}
 					}
-					return;
+					break;
 				default:
 					console.warn('unknown karma task', data.body),
 					this.emit(Events.Warn, "Unknown KarmaTask:", data.body);
 					return this.emit(Events.Debug, { data: data.body, type: 'UNKNOWN_KARMA_TASK' })
 				}
+				this.emit(Events.KarmaTaskUpdate, data);
+				return;
 			case MessageType.FRIEND_REQUEST_CREATE:
 				let entry = new FriendRequest(data, this.user.friends);
 				this.user.friends.pending.incoming.set(entry.id, entry);
@@ -476,7 +492,11 @@ export default class extends EventEmitter {
 			if (err.code !== 141) {
 				throw err;
 			}
-			this.unsubscribe(dialogueId)
+			// this.unsubscribe(dialogueId);
+			return new (channelId === this.user.channelId ? Dialogue : Group)(Object.assign({}, data, {
+				id: dialogueId,
+				objectId: null
+			}), { client: this })
 		})) || null;
 		dialogue !== null && typeof data.dialogue == 'object' && dialogue._patch(data.dialogue);
 		let likerId = this.constructor.assertFirst(data.likerId || this.constructor.parseId(data.liker), (data.messageSenderId && (data.senderId || this.constructor.parseId(data.sender))), id => id !== data.messageSenderId) || null
@@ -493,7 +513,7 @@ export default class extends EventEmitter {
 		  , receiver = (receiverId !== null && this.users.cache.get(receiverId)) || null;
 		receiver !== null && typeof data.receiver == 'object' && (// check for changes ,
 		receiver._patch(data.receiver, /* callback for changed properties? */));
-		let senderId = (data.messageSenderId || data.senderId || this.constructor.parseId(data.sender) || data.sid || (data.hasOwnProperty('by') && (data.by || this.user.id))) || null
+		let senderId = (data.messageSenderId || data.giftSenderId || data.senderId || this.constructor.parseId(data.sender) || data.sid || (data.hasOwnProperty('by') && (data.by || this.user.id))) || null
 		  , sender = senderId !== null && (this.users.cache.get(senderId) || new User(User.resolve(data, 'sender'), { client: this })) || null;
 		sender !== null && typeof data.sender == 'object' && data.sender.id !== likerId && (// check for changes ,
 		sender._patch(data.sender, /* callback for changed properties? */));
@@ -514,10 +534,10 @@ export default class extends EventEmitter {
 			message: { enumerable: false, value: message, writable: message !== null },
 			messageId: { enumerable: true, value: messageId, writable: messageId !== null }
 		}, type === MessageType.MESSAGE_LIKE && {
-			liker: { enumerable: true, value: liker, writable: liker !== null },
+			liker: { enumerable: false, value: liker, writable: liker !== null },
 			likerId: { enumerable: true, value: likerId, writable: likerId !== null }
 		}), receiverId !== null && {
-			receiver: { enumerable: true, value: receiver, writable: receiver !== null },
+			receiver: { enumerable: false, value: receiver, writable: receiver !== null },
 			receiverId: { enumerable: true, value: receiverId, writable: receiverId !== null },
 		}, senderId !== null && {
 			sender: { enumerable: false, value: sender, writable: sender !== null },

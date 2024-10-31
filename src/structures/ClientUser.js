@@ -3,11 +3,10 @@ import ClientFriendManager from "../managers/ClientFriendManager.js";
 import ClientStickerManager from "../managers/ClientStickerManager.js";
 import ContactManager from "../managers/ContactManager.js";
 import FavoriteManager from "../managers/FavoriteManager.js";
-import PresenceManager from "../managers/PresenceManager.js";
+import ClientPresenceManager from "../managers/ClientPresenceManager.js";
 import TaskManager from "../managers/TaskManager.js";
 
 export default class ClientUser extends User {
-	accentColor = null;
 	blockedBy = new Set();
 	channelId = null;
 	contacts = new ContactManager(this);
@@ -16,7 +15,7 @@ export default class ClientUser extends User {
 	friends = new ClientFriendManager(this);
 	hexAccentColor = null;
 	messages = new Map(); // private message manager
-	presence = new PresenceManager(this);
+	presence = new ClientPresenceManager(this);
 	// settings = {}; /* add user settings, content settings,
 	// security settings, minkarma, etc.?? */
 	stickers = new ClientStickerManager(this);
@@ -76,8 +75,7 @@ export default class ClientUser extends User {
 				Object.assign(this.avatar, { id: data[key] });
 				break;
 			case 'badgeColor':
-				this.hexAccentColor = data[key];
-				this.accentColor = parseInt(this.hexAccentColor.replace(/^#/, ''), 16);
+				super._patch({ hexColor: data[key] });
 				break;
 			case 'blockedBy':
 				// if blockedBy included 'all', client is in prison.

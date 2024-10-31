@@ -1,16 +1,12 @@
-import BaseStructure from "./BaseStructure.js";
+import BaseMessage from "./BaseMessage.js";
 import LoverManager from "../managers/LoverManager.js";
 import Dialogue from "./Dialogue.js";
 import User from "./User.js";
 import MessageType from "../utils/MessageType.js";
 
-export default class Message extends BaseStructure {
-	attachments = new Map();
+export default class Message extends BaseMessage {
 	author = null;
-	content = null;
-	dialogueId = null;
 	lovers = new LoverManager(this);
-	referenceId = null;
 	reports = 0;
 	stickerId = null;
 	constructor(data, dialogue, { partial, cache } = {}) {
@@ -23,17 +19,14 @@ export default class Message extends BaseStructure {
 				return entry
 			}
 		}
-		super(...arguments, true);
-		let isDialogue = dialogue instanceof Dialogue;
+		super(...Array.prototype.slice.call(arguments, 0, 2), { checkCache: true }),
 		Object.defineProperties(this, {
 			deleted: { value: false, writable: true },
-			dialogue: { value: isDialogue ? dialogue : null, writable: !isDialogue },
-			edits: { value: null, writable: true },
+			editHistory: { value: null, writable: true },
 			originalContent: { value: null, writable: true },
 			partial: { value: partial || this.partial, writable: true },
-			reference: { value: null, writable: true },
 			sticker: { value: null, writable: true }
-		});
+		}),
 		this._patch(data);
 		let userData = data.sender || User.resolve(data, 'sender');
 		userData.id !== this.id && (this.author = data.sender instanceof User ? data.sender : new User(userData, this));
@@ -54,65 +47,33 @@ export default class Message extends BaseStructure {
 				this.author._patch({ avatar: { [key]: data[key] }});
 				break;
 			case 'avatar':
+			case 'blessed':
 				this.author._patch({ [key]: data[key] });
 				break;
-			case 'dialogue':
-				if (this[key] !== null) break;
-				if (typeof data[key] == 'object') {
-					if (this.dialogue instanceof Dialogue) {
-						this.dialogue._patch(data[key]);
-					} else if (data[key] instanceof Dialogue) {
-						Object.defineProperty(this, key, { value: data[key], writable: false });
-					} else {
-						Object.defineProperty(this, key, { value: new Dialogue(data[key], this), writable: false });
-					}
-					this.dialogueId === null && this.dialogue.id && (this.dialogueId = this.dialogue.id);
-					break;
-				}
-			case 'dialogueId':
-				this.dialogue === null && Object.defineProperty(this, 'dialogue', { value: new Dialogue({ id: data[key] }, this), writable: false });
-				this.dialogueId = data[key];
-				break;
-			// case 'color':
-			case 'hexColor':
-				this.color = parseInt(data[key].replace(/^#/, ''), 16);
-			case 'blessed':
 			case 'deleted':
 				this[key] = data[key];
 				break;
+			// case 'color':
+			case 'hexColor':
+				this.author._patch({ [key]: data[key] });
+				break;
 			case 'likes':
 			case 'likesCount':
-				this.likes = data[key];
+				this.author && (this.author.karma += data[key] - this.likes),
+				this.likes = data[key],
+				this.lovers.total = data[key];
 				break;
-			case 'media':
-				this[key] ||= {};
-				for (let prop in data[key]) {
-					switch (prop) {
-					case 'source':
-					case 'url':
-						this[key].url = data[key][prop];
-						this[key].type ||= /\.((jpe?|pn)g|webp)$/i.test(data[key][prop]) ? 'photo' : 'video';
-						this.attachments.set(data[key][prop].replace(/.+\/([^_]+).+/, '$1'), this[key]);
-						break;
-					case 'thumb':
-					case 'thumbUrl':
-						this[key].thumb = data[key][prop];
-						break;
-					case 'type':
-						this[key][prop] = data[key][prop]
-					}
-				}
-				break;
-			case 'replyToId':
-				if (this.reference !== null) break;
-				this.referenceId = data[key];
-				this.dialogue !== null && Object.defineProperty(this, 'reference', { value: new Message({ id: data[key] }, this.dialogue), writable: false });
-				break;
+			// case 'replyToId':
+			// 	if (this.reference !== null) break;
+			// 	this.referenceId = data[key];
+			// 	this.dialogue !== null && Object.defineProperty(this, 'reference', { value: new this.constructor({ id: data[key] }, this.dialogue), writable: false });
+			// 	break;
 			case 'reports':
 			case 'reportsCount':
 				this.reports = data[key];
 				break;
 			case 'sender':
+				data.id === '61I6aBTTs6' && console.log(data[key])
 				let sender = data[key] instanceof User ? data[key] : new User(data[key], this);
 				if (data.type === MessageType.MESSAGE_LIKE) {
 					this.lovers.cache.set(sender.id, sender);
@@ -132,33 +93,21 @@ export default class Message extends BaseStructure {
 					this.author = this.client.users.cache.get(data[key]);
 					break;
 				}
-				this.author = new User({ id: data[key] }, this, { partial: this.partial, cache: !this.partial });
+				this.author = new User({ id: data[key] }, this, { partial: this.partial /* , cache: !this.partial */ });
 				break;
 			case 'sendersName':
 				this.author._patch({ profileName: data[key] });
 				break;
 			case 'sticker':
-				this.content = "[sticker=" + data[key] + "]";
-				this.stickerId = data[key];
-				if (this.sticker !== null) break;
-				Object.defineProperty(this, 'sticker', {
-					value: {
-						id: data[key],
-						url: this.stickerURL(),
-						type: 'sticker'
-					},
-					writable: false
-				});
-				this.attachments.set(data[key], this.sticker);
+				this.stickerId = data[key],
+				this.sticker === null && (this.sticker = this.attachments.get(data[key]));
 				break;
 			case 'message':
 			case 'text':
 				if (typeof data[key] != 'string' || data[key] === this.id) break;
-				/^\[sticker=\w+\]$/i.test(data[key]) && this._patch({ sticker: data[key].replace(/^\[sticker=(\w+)\]/i, '$1') });
-				this.content !== null && (this.originalContent === null && Object.defineProperty(this, 'originalContent', { value: this.content, writable: false }),
-				this.edits === null && Object.defineProperty(this, 'edits', { value: [], writable: false }),
-				this.edits.push(this.content));
-				this.content = data[key]
+				this.content !== null && (this.originalContent === null && (this.originalContent = this.content),
+				this.editHistory === null && (this.editHistory = []),
+				this.editHistory.push(this.content))
 			}
 		}
 	}
@@ -203,10 +152,11 @@ export default class Message extends BaseStructure {
 	 * @returns {Promise<this>}
 	 */
 	async fetch(force) {
-		if (!force && !Object.values(this).includes(null)) {
+		await this.author.fetch(force);
+		if (!force && !this.partial) {
 			return this;
 		}
-		return this.dialogue.messages.fetch(this.id, { force }).then(this._patch.bind(this))
+		return this.dialogue.messages.fetch(this.id, { force: true }).then(this._patch.bind(this))
 	}
 
 	/**
@@ -254,8 +204,8 @@ export default class Message extends BaseStructure {
 	 * @returns {Promise<Message>}
 	 */
 	async replyWithMedia(mediaURL) {
-		let contentType = 'image';
-		let dataURI = await fetch(mediaURL).then(r => {
+		let contentType = 'image'
+		  , dataURI = await fetch(mediaURL).then(r => {
 			contentType = r.headers.get('content-type');
 			return r.arrayBuffer()
 		}).then(r => btoa(new Uint8Array(r).reduce((data, byte) => data + String.fromCharCode(byte), '')));
@@ -271,22 +221,22 @@ export default class Message extends BaseStructure {
 		})
 	}
 
+	report() {
+		return this.client.requests.post("functions/v2:chat.mod.sendComplaint", {
+			dialogueId: this.dialogueId,
+			isPrivate: this.dialogue && this.dialogue.constructor === Dialogue,
+			messageId: this.id,
+			reason: 'ChatReportFlags[]', // unfinished
+			userId: this.author.id
+		})
+		// return this.client.requests.post("functions/v2:chat.message.action", {
+		// 	action: 'report',
+		// 	messageId: this.id
+		// })
+	}
+
 	stickerURL() {
 		if (this.stickerId === null) return null;
 		return "https://gfx.antiland.com/stickers/" + this.stickerId
-	}
-
-	/**
-	 * Translate this message
-	 * @param {string} [locale] preferred locale
-	 * @returns {Promise<string>}
-	 */
-	translate(locale = 'en') {
-		return this.client.requests.post("functions/v2:chat.message.translate", {
-			lang: locale,
-			messageId: this.id,
-			persist: false,
-			text: this.content
-		})
 	}
 }

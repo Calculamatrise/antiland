@@ -3,17 +3,26 @@ import Dialogue from "./Dialogue.js";
 import FriendManager from "../managers/FriendManager.js";
 
 export default class User extends BaseStructure {
+	accentColor = null;
+	// accessories = null;
 	activity = null;
 	age = null;
+	artifacts = {};
 	avatar = {};
+	// avatar = null;
+	// avatarAccessories = null;
+	description = null;
 	displayName = null;
 	friends = new FriendManager(this);
 	gender = null;
+	hexAccentColor = null;
+	interests = new Set();
 	isAdmin = false;
 	isInPrison = false;
 	isVIP = false;
 	karma = null;
 	minKarma = null;
+	mood = null;
 	username = null;
 	constructor(data, options, { partial, cache, skipPatch } = {}) {
 		if (data instanceof User && data.constructor === User) return data;
@@ -33,6 +42,7 @@ export default class User extends BaseStructure {
 			partial: { value: partial || this.partial, writable: true }
 		});
 		skipPatch || this._patch(data),
+		this.id
 		false !== cache && this.id !== null && this.hasOwnProperty('client') && this.client.users.cache.set(this.id, this)
 	}
 
@@ -53,18 +63,12 @@ export default class User extends BaseStructure {
 			case 'karma':
 			case 'karmaWallArtifacts':
 			case 'minKarma':
-			case 'views':
 				this[key] = data[key];
 				break;
 			case 'artifacts':
-				if (this[key] instanceof Object) {
-					Object.assign(this[key], data[key]);
-					break;
-				}
-				this[key] = data[key];
+				this[key] = Object.assign({}, this[key], data[key]);
 				break;
 			case 'avatar': // https://gfx.antiland.com/avatars/8
-			case 'mood':
 				this[key] ||= {};
 				if (typeof data[key] == 'object') {
 					for (let prop in data[key]) {
@@ -94,6 +98,11 @@ export default class User extends BaseStructure {
 				this.superPowers ||= {};
 				this.superPowers[key] = data[key];
 				break;
+			// case 'color':
+			case 'hexColor':
+				this.hexAccentColor = data[key];
+				this.accentColor = parseInt(this.hexAccentColor.replace(/^#/, ''), 16);
+				break;
 			case 'features':
 				let counters = data[key] instanceof Object && data[key].counters;
 				if (typeof counters != 'object') break;
@@ -103,7 +112,10 @@ export default class User extends BaseStructure {
 						this.accessoriesOwned = counters[key];
 						break;
 					case 'avatars':
-						this.avatarsOwned = counters[key];
+						this[key + 'Owned'] = counters[key];
+						break;
+					case 'friends':
+						this.friends.total = counters[key];
 						break;
 					case 'likes':
 						this.likesReceived = counters[key];
@@ -114,7 +126,7 @@ export default class User extends BaseStructure {
 				}
 				break;
 			case 'friendsCount':
-				this.friendCount = data[key];
+				this.friends.total = data[key];
 				break;
 			case 'whom':
 				this.blocked = true;
@@ -125,23 +137,27 @@ export default class User extends BaseStructure {
 				Object.defineProperty(this, key, { value: data[key], writable: false });
 				break;
 			case 'interests':
-				this[key] ||= {};
 				for (let interest in data[key]) {
 					switch (interest) {
 					case 'allow':
 					case 'categories':
-						this[key].categories = new Set(Array.isArray(data[key][interest]) ? data[key][interest] : data[key][interest].allow);
-						break;
-					case 'deny':
-						break;
-					default:
-						this[key][interest] = data[key][interest];
+						if (!Array.isArray(data[key][interest])) {
+							this._patch({ [key]: { [interest]: data[key][interest].allow }});
+							break;
+						}
+						this[key] = new Set(data[key][interest])
 					}
 				}
 				break;
+			case 'mood':
+				this[key] = typeof data[key] == 'object' ? data[key].id || data[key].idx : data[key];
+				break;
 			case 'profileName':
 				this.displayName = data[key];
-				this.username ||= this.displayName.replace(/\s[👩🚺🚹]+$/, match => (this.gender ||= (match.endsWith('🚹') ? '' : 'FE') + 'MALE', '')).toLowerCase()
+				this.username ||= this.displayName.replace(/\s[👩🚺🚹]+$/, match => (this.gender ||= (match.endsWith('🚹') ? '' : 'FE') + 'MALE', '')).toLowerCase();
+				break;
+			case 'views':
+				this[key] = Math.max(this[key], data[key])
 			}
 		}
 		return this
@@ -193,7 +209,7 @@ export default class User extends BaseStructure {
 	 * @returns {Promise<this>}
 	 */
 	async fetch(force) {
-		if (!force && !Object.values(this).includes(null)) {
+		if (!force && !this.partial) {
 			return this;
 		}
 		return this.client.requests.post("functions/v2:profile.byId", {
@@ -243,6 +259,21 @@ export default class User extends BaseStructure {
 		}).then(r => r === 'paired')
 	}
 
+	moodURL() {
+		if (!this.mood) return null;
+		return "https://gfx.antiland.com/moods/" + this.mood
+	}
+
+	report() {
+		return this.client.requests.post("functions/v2:chat.mod.sendComplaint", {
+			dialogueId: 'n/a', // this.dialogueId,
+			isPrivate: true, // this.dialogue && this.dialogue.constructor === Dialogue,
+			messageId: 'n/a', // this.id,
+			reason: 'ChatReportFlags[]', // unfinished
+			userId: this.author.id
+		})
+	}
+
 	/**
 	 * Send a message to this user
 	 * @param {string} content
@@ -261,10 +292,11 @@ export default class User extends BaseStructure {
 
 	static resolve(data, target) {
 		target && (target = target.toLowerCase()) || (target = 'sender');
-		let object = Object.assign({}, data[target]);
+		let object = Object.assign({}, data[target])
+		  , filterExisting = obj => Object.fromEntries(Object.entries(obj).filter(([key]) => !object.hasOwnProperty(key)));
 		if (target) {
 			if (!object.id) {
-				let id = data[target + 'Id'] || data[target.charAt(0) + 'id'] || data.id || data.objectId;
+				let id = data['gift' + target.replace(/^\w/, c => c.toUpperCase()) + 'Id'] || data[target + 'Id'] || data[target.charAt(0) + 'id'] || data.id || data.objectId;
 				id && (object.id = id);
 			}
 
@@ -272,10 +304,20 @@ export default class User extends BaseStructure {
 				let profileName = data[target + 'Name'] || data[target + 'sName'] || data.profileName;
 				profileName && (object.profileName = profileName);
 			}
+
+			if (!object.avatar) {
+				let avatar = data[target + 'Ava'] || data[target + 'Avatar'];
+				avatar && (object.avatar = avatar);
+			}
+
+			if (!object.blessed) {
+				let blessed = data[target + 'Blessed'];
+				blessed && (data.blessed = blessed);
+			}
 		}
 		switch (target) {
 		case 'receiver':
-			for (let key in data) {
+			for (let key in filterExisting(data)) {
 				switch (key) {
 				case 'whom':
 					object.id = data[key];
@@ -286,7 +328,7 @@ export default class User extends BaseStructure {
 			}
 			break;
 		default:
-			for (let key in data) {
+			for (let key in filterExisting(data)) {
 				switch (key) {
 				case 'by':
 					object.id = data[key];

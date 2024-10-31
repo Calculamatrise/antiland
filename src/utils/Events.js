@@ -27,6 +27,7 @@
  * @property {string} RelationshipCreate relationshipCreate
  * @property {string} RelationshipDelete relationshipDelete
  * @property {string} RelationshipUpdate relationshipUpdate
+ * @property {string} SystemMessageCreate systemMessageCreate
  * @property {string} Warn warn
  */
 
@@ -66,5 +67,6 @@ export default {
 	RelationshipCreate: 'relationshipCreate', // contact add
 	RelationshipDelete: 'relationshipDelete', // contact remove
 	RelationshipUpdate: 'relationshipUpdate', // block?
+	SystemMessageCreate: 'systemMessageCreate',
 	Warn: 'warn'
 }

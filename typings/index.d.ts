@@ -1,6 +1,6 @@
 import EventEmitter from "events";
 
-import { ActivityType, ArtifactType, ChannelFlags, Category, ChannelType, ChatFilter, ChatMood, ChatSetupFlags, Events, MessageType } from "../src";
+import { ActivityType, ArtifactType, ChannelFlags, Category, ChannelType, ChatFilter, ChatMood, ChatSetupFlags, Events, KarmaTask, MessageType } from "../src";
 import CallManager from "../src/managers/CallManager";
 import DialogueManager from "../src/managers/DialogueManager";
 import GroupManager from "../src/managers/GroupManager";
@@ -11,9 +11,10 @@ import ClientUser from "../src/structures/ClientUser";
 import Dialogue from "../src/structures/Dialogue";
 import FriendRequest from "../src/structures/FriendRequest";
 import GiftMessage from "../src/structures/GiftMessage";
-import Message from "../src/structures/Message";
-import User from "../src/structures/User";
 import Member from "../src/structures/Member.js";
+import Message from "../src/structures/Message";
+import SystemMessage from "../src/structures/SystemMessage.js";
+import User from "../src/structures/User";
 
 //#region Classes
 
@@ -67,8 +68,12 @@ export interface ClientEvents {
 	messageReportAdd: [message: Message],
 	messageUpdate: [oldMessage: Message, newMessage: Message],
 	notificationCreate: [data: object],
-	raw: [data: object],
 	ready: [],
+	raw: [data: object],
+	relationshipCreate: [user: User],
+	relationshipDelete: [user: User],
+	relationshipUpdate: [user: User],
+	systemMessageCreate: [message: SystemMessage],
 	warn: [data: object]
 }
 
@@ -205,7 +210,18 @@ export enum Events {
 	RelationshipCreate = 'relationshipCreate',
 	RelationshipDelete = 'relationshipDelete',
 	RelationshipUpdate = 'relationshipUpdate',
+	SystemMessageCreate = 'systemMessageCreate',
 	Warn = 'warn'
+}
+
+export enum KarmaTask {
+	ACCEPT_PRIVATE = 'karmaTask.accept#pvts',
+	CRYSTAL_DRAGON = 'karmaTask.crystalDragon',
+	DAILY_BONUS = 'karmaTask.dailyBonus',
+	JOIN_GROUPS = 'karmaTask.join#groups',
+	LADDER = 'karmaTask.#',
+	MAKE_FRIENDS = 'karmaTask.friend#',
+	SEND_GIFT = 'karmaTask.giftSomeone'
 }
 
 export enum MessageType {

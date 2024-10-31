@@ -6,7 +6,7 @@ export default class ClientFriendManager extends FriendManager {
 	pending = {
 		incoming: new Map(),
 		outgoing: new Map()
-	}
+	};
 	async fetch(id, { force } = {}) {
 		if (!force && this.cache.size > 0) {
 			if (this.cache.has(id)) {
@@ -61,8 +61,8 @@ export default class ClientFriendManager extends FriendManager {
 					break;
 				}
 			case true:
-				let user = await this.client.client.users.fetch(userId);
-				let entry = new FriendRequest(user, this);
+				let user = await this.client.client.users.fetch(userId)
+				  , entry = new FriendRequest(user, this);
 				this.pending.outgoing.set(entry.id, entry);
 			}
 			return result
@@ -115,8 +115,8 @@ export default class ClientFriendManager extends FriendManager {
 				return false;
 			case 'paired':
 				if (!this.cache.has(userId)) {
-					let user = await this.client.client.users.fetch(userId);
-					let entry = new FriendRequest(user, this);
+					let user = await this.client.client.users.fetch(userId)
+					  , entry = new FriendRequest(user, this);
 					this.pending.outgoing.set(entry.id, entry);
 				}
 				return true;

@@ -33,7 +33,7 @@ export default class MemberManager extends BaseManager {
 			return this.client.client.users.fetch(id).then(user => {
 				let entry = new Member(user, this.client);
 				this.cache.set(entry.id, entry);
-				return entry;
+				return entry
 			});
 		}
 
@@ -61,6 +61,7 @@ export default class MemberManager extends BaseManager {
 	 * @returns {Promise<object>}
 	 */
 	async fetchActive(id, { force } = {}) {
+		if (arguments[0] instanceof Object) return this.fetchActive(null, ...arguments);
 		let activeMembers = new Map(Array.from(this.cache.values()).filter(user => user.activity === 'ONLINE').map(entry => [entry.id, entry]));
 		if (!force && activeMembers.size > 0) {
 			if (activeMembers.has(id)) {
