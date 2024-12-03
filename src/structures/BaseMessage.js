@@ -12,9 +12,8 @@ export default class BaseMessage extends BaseStructure {
 	hexColor = null;
 	referenceId = null;
 	constructor(data, dialogue) {
-		super(...arguments, true);
 		let isDialogue = dialogue instanceof Dialogue;
-		Object.defineProperties(this, {
+		Object.defineProperties(super(...arguments, true), {
 			// broker: { value: null, writable: true },
 			dialogue: { value: isDialogue ? dialogue : null, writable: !isDialogue },
 			ephemeral: { enumerable: false },
@@ -119,7 +118,7 @@ export default class BaseMessage extends BaseStructure {
 	 * @returns {Promise<string>}
 	 */
 	translate(locale = 'en') {
-		return this.client.requests.post("functions/v2:chat.message.translate", {
+		return this.client.rest.post("functions/v2:chat.message.translate", {
 			lang: locale,
 			messageId: this.id,
 			persist: false,

@@ -9,7 +9,7 @@ export default class TaskManager extends BaseManager {
 				return this.cache;
 			}
 		}
-		return this.client.client.requests.post("functions/v2:karmaTasks.all").then(async entries => {
+		return this.client.client.rest.post("functions/v2:karmaTasks.all").then(async entries => {
 			for (let item of entries) {
 				this.cache.set(item.id, item);
 			}
@@ -25,7 +25,7 @@ export default class TaskManager extends BaseManager {
 		if (!force && this.cache.has(taskId)) {
 			return this.cache.get(taskId)
 		}
-		return this.client.client.requests.post("functions/v2:karmaTasks.checkProgress", {
+		return this.client.client.rest.post("functions/v2:karmaTasks.checkProgress", {
 			taskId,
 			reset
 		}).then(data => {

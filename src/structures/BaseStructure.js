@@ -1,9 +1,9 @@
-export default class {
+import Base from "./Base.js";
+
+export default class extends Base {
 	id = null;
 	constructor(data, options, ignoreUpdate) {
-		if (typeof options == 'object' && options != null)
-			options.hasOwnProperty('client') && Object.defineProperty(this, 'client', { value: options.client });
-		Object.defineProperties(this, {
+		Object.defineProperties(super(typeof options == 'object' && options != null && options.client), {
 			createdAt: { value: null, writable: true },
 			createdTimestamp: { value: null, writable: true },
 			partial: { value: Object.keys(data).filter(key => this.hasOwnProperty(key)).length < Object.keys(this).length, writable: true }

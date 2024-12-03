@@ -26,7 +26,7 @@ export default class User extends BaseStructure {
 	username = null;
 	constructor(data, options, { partial, cache, skipPatch } = {}) {
 		if (data instanceof User && data.constructor === User) return data;
-		if (data instanceof Object && options instanceof Object && options.hasOwnProperty('client')) {
+		else if (data instanceof Object && options instanceof Object && options.hasOwnProperty('client')) {
 			let id = data.id || data.objectId;
 			let entry = options.client.users.cache.get(id);
 			if (entry) {
@@ -34,16 +34,14 @@ export default class User extends BaseStructure {
 				return entry
 			}
 		}
-		super(...arguments, true);
-		Object.defineProperties(this, {
+		Object.defineProperties(super(...arguments, true), {
 			blocked: { value: false, writable: true },
 			dmChannel: { value: null, writable: true },
 			humanLink: { value: null, writable: true },
 			partial: { value: partial || this.partial, writable: true }
 		});
 		skipPatch || this._patch(data),
-		this.id
-		false !== cache && this.id !== null && this.hasOwnProperty('client') && this.client.users.cache.set(this.id, this)
+		false !== cache && this.id !== null && this.client !== null && this.client.users.cache.set(this.id, this)
 	}
 
 	_patch(data) {
@@ -169,7 +167,7 @@ export default class User extends BaseStructure {
 	}
 
 	block() {
-		return this,client.user.contacts.block(this.id)
+		return this.client.user.contacts.block(this.id)
 	}
 
 	/**
@@ -182,7 +180,7 @@ export default class User extends BaseStructure {
 		if (!force && this.averageRating !== null) {
 			return this.averageRating
 		}
-		return this.client.requests.post("functions/v2:profile.rating", {
+		return this.client.rest.post("functions/v2:profile.rating", {
 			userId: this.id
 		}).then(r => this.averageRating = r)
 	}
@@ -192,7 +190,7 @@ export default class User extends BaseStructure {
 	 * @returns {Promise<Dialogue>}
 	 */
 	async createDM() {
-		return this.client.requests.post("functions/v2:chat.createPrivate", {
+		return this.client.rest.post("functions/v2:chat.createPrivate", {
 			userId: this.id
 		}).then(data => {
 			return Object.defineProperty(this, 'dmChannel', {
@@ -212,7 +210,7 @@ export default class User extends BaseStructure {
 		if (!force && !this.partial) {
 			return this;
 		}
-		return this.client.requests.post("functions/v2:profile.byId", {
+		return this.client.rest.post("functions/v2:profile.byId", {
 			userId: this.id
 		}).then(this._patch.bind(this))
 	}
@@ -227,7 +225,7 @@ export default class User extends BaseStructure {
 		if (!createIfNotExists && this.dmChannel) {
 			return this.dmChannel;
 		}
-		return this.client.requests.post("functions/v2:chat.getPrivate", {
+		return this.client.rest.post("functions/v2:chat.getPrivate", {
 			createIfNotExists,
 			userId: this.id
 		}).then(data => {
@@ -254,7 +252,7 @@ export default class User extends BaseStructure {
 		if (!force && this.client.user.friends.cache.has(this.id)) {
 			return true;
 		}
-		return this.client.requests.post("functions/v2:contact.mate.isPaired", {
+		return this.client.rest.post("functions/v2:contact.mate.isPaired", {
 			userId: this.id
 		}).then(r => r === 'paired')
 	}
@@ -265,7 +263,7 @@ export default class User extends BaseStructure {
 	}
 
 	report() {
-		return this.client.requests.post("functions/v2:chat.mod.sendComplaint", {
+		return this.client.rest.post("functions/v2:chat.mod.sendComplaint", {
 			dialogueId: 'n/a', // this.dialogueId,
 			isPrivate: true, // this.dialogue && this.dialogue.constructor === Dialogue,
 			messageId: 'n/a', // this.id,

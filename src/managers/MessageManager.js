@@ -1,7 +1,7 @@
 import BaseManager from "./BaseManager.js";
 // import GiftMessage from "../structures/GiftMessage.js";
 import Message from "../structures/Message.js";
-import User from "../structures/User.js";
+// import User from "../structures/User.js";
 
 export default class MessageManager extends BaseManager {
 	total = 0;
@@ -34,7 +34,7 @@ export default class MessageManager extends BaseManager {
 			}
 		}
 
-		return this.client.client.requests.post("functions/v2:chat.message.history", Object.assign({
+		return this.client.client.rest.post("functions/v2:chat.message.history", Object.assign({
 			dialogueId: this.client.id,
 			fetch: limit ?? 300
 		}, since instanceof Date && {
@@ -73,7 +73,7 @@ export default class MessageManager extends BaseManager {
 
 	/**
 	 * Await messages
-	 * @param {object} [options]
+	 * @param {object} options
 	 * @param {Iterable} [options.errors]
 	 * @param {function} [options.filter]
 	 * @param {number} [options.idle]
@@ -168,7 +168,7 @@ export default class MessageManager extends BaseManager {
 			}
 			return true
 		}
-		return this.client.client.requests.post("functions/v2:chat.mod.delete1dMessages", {
+		return this.client.client.rest.post("functions/v2:chat.mod.delete1dMessages", {
 			// dialogueId: this.client.id, // not needed???
 			senderId
 		}).then(result => {
@@ -201,12 +201,12 @@ export default class MessageManager extends BaseManager {
 			if (!this.manageable) {
 				throw new Error("Insufficient privileges.");
 			}
-			return this.client.client.requests.post("functions/v2:chat.mod.deleteMessage", {
+			return this.client.client.rest.post("functions/v2:chat.mod.deleteMessage", {
 				dialogueId: this.client.id,
 				messageId
 			}).then(r => r && (entry.deleted = true))
 		}
-		return this.client.client.requests.post("functions/v2:chat.message.delete", {
+		return this.client.client.rest.post("functions/v2:chat.message.delete", {
 			messageId
 		}).then(r => r && (entry && (entry.deleted = true), r))
 	}
@@ -218,7 +218,7 @@ export default class MessageManager extends BaseManager {
 	 * @returns {Promise<boolean?>}
 	 */
 	async edit(messageId, content) {
-		return this.client.client.requests.post("functions/v2:chat.message.changeText", {
+		return this.client.client.rest.post("functions/v2:chat.message.changeText", {
 			messageId: messageId,
 			text: content
 		}).then(r => {
@@ -233,7 +233,7 @@ export default class MessageManager extends BaseManager {
 	 * @returns {Promise<number>} Number of likes
 	 */
 	async like(messageId) {
-		return this.client.requests.post("functions/v2:chat.message.love", { messageId })
+		return this.client.rest.post("functions/v2:chat.message.love", { messageId })
 	}
 
 	/**
@@ -244,7 +244,7 @@ export default class MessageManager extends BaseManager {
 	 */
 	async translate(message, locale = 'en') {
 		message = typeof message == 'object' ? message : await this.fetch(message);
-		return this.client.client.requests.post("functions/v2:chat.message.translate", {
+		return this.client.client.rest.post("functions/v2:chat.message.translate", {
 			lang: locale,
 			messageId: message.id,
 			persist: false,

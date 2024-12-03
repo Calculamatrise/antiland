@@ -11,7 +11,7 @@ export default class Message extends BaseMessage {
 	stickerId = null;
 	constructor(data, dialogue, { partial, cache } = {}) {
 		if (data instanceof Message) return data;
-		if (data instanceof Object && dialogue instanceof Object && dialogue.hasOwnProperty('messages')) {
+		else if (data instanceof Object && dialogue instanceof Object && dialogue.hasOwnProperty('messages')) {
 			let id = data.id || data.objectId;
 			let entry = dialogue.messages.cache.get(id);
 			if (entry) {
@@ -19,8 +19,7 @@ export default class Message extends BaseMessage {
 				return entry
 			}
 		}
-		super(...Array.prototype.slice.call(arguments, 0, 2), { checkCache: true }),
-		Object.defineProperties(this, {
+		Object.defineProperties(super(...Array.prototype.slice.call(arguments, 0, 2), { checkCache: true }), {
 			deleted: { value: false, writable: true },
 			editHistory: { value: null, writable: true },
 			originalContent: { value: null, writable: true },
@@ -117,7 +116,7 @@ export default class Message extends BaseMessage {
 	 * @returns {Promise<Message>}
 	 */
 	delete() {
-		return this.client.requests.post("functions/v2:chat.message.delete", {
+		return this.client.rest.post("functions/v2:chat.message.delete", {
 			messageId: this.id
 		}).then(res => {
 			if (!res) {
@@ -133,7 +132,7 @@ export default class Message extends BaseMessage {
 	 * @returns {Promise<Message>}
 	 */
 	async edit(text) {
-		return this.client.requests.post("functions/v2:chat.message.changeText", {
+		return this.client.rest.post("functions/v2:chat.message.changeText", {
 			messageId: this.id,
 			text
 		}).then(res => {
@@ -164,7 +163,7 @@ export default class Message extends BaseMessage {
 	 * @returns {Promise<Message>}
 	 */
 	async like() {
-		return this.client.requests.post("functions/v2:chat.message.love", {
+		return this.client.rest.post("functions/v2:chat.message.love", {
 			messageId: this.id
 		}).then(result => {
 			this.lovers.cache.set(this.client.user.id, this.client.user);
@@ -182,7 +181,7 @@ export default class Message extends BaseMessage {
 	 */
 	async reply({ attachments, content, prependReference } = {}) {
 		if (typeof arguments[0] != 'object') return this.reply(Object.assign(...Array.prototype.slice.call(arguments, 1), { content: arguments[0] }));
-		return this.client.requests.post("functions/v2:chat.message.sendText", {
+		return this.client.rest.post("functions/v2:chat.message.sendText", {
 			dialogueId: this.dialogueId,
 			replyToId: this.id,
 			text: (prependReference ? '>>> ' + this.content.replace(/^(?=>).+\n/, '').replace(/^(.{40})(.|\n)+/, "$1…") + '\n' : '') + content
@@ -209,7 +208,7 @@ export default class Message extends BaseMessage {
 			contentType = r.headers.get('content-type');
 			return r.arrayBuffer()
 		}).then(r => btoa(new Uint8Array(r).reduce((data, byte) => data + String.fromCharCode(byte), '')));
-		return this.client.requests.post("functions/v2:chat.message.send" + (/^image/i.test(contentType) ? 'Photo' : 'Video'), {
+		return this.client.rest.post("functions/v2:chat.message.send" + (/^image/i.test(contentType) ? 'Photo' : 'Video'), {
 			body: dataURI,
 			dialogueId: this.dialogueId,
 			replyToId: this.id
@@ -222,14 +221,14 @@ export default class Message extends BaseMessage {
 	}
 
 	report() {
-		return this.client.requests.post("functions/v2:chat.mod.sendComplaint", {
+		return this.client.rest.post("functions/v2:chat.mod.sendComplaint", {
 			dialogueId: this.dialogueId,
 			isPrivate: this.dialogue && this.dialogue.constructor === Dialogue,
 			messageId: this.id,
 			reason: 'ChatReportFlags[]', // unfinished
 			userId: this.author.id
 		})
-		// return this.client.requests.post("functions/v2:chat.message.action", {
+		// return this.client.rest.post("functions/v2:chat.message.action", {
 		// 	action: 'report',
 		// 	messageId: this.id
 		// })

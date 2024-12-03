@@ -1,12 +1,14 @@
 import EventEmitter from "events";
 
-import { ActivityType, ArtifactType, ChannelFlags, Category, ChannelType, ChatFilter, ChatMood, ChatSetupFlags, Events, KarmaTask, MessageType } from "../src";
+import { ActivityType, ArtifactType, ChannelFlags, Category, ChannelType, ChatFilter, ChatMood, ChatSetupFlags, Client, Events, KarmaTask, MessageType } from "../src";
 import CallManager from "../src/managers/CallManager";
 import DialogueManager from "../src/managers/DialogueManager";
 import GroupManager from "../src/managers/GroupManager";
+import PurchaseManager from "../src/managers/PurchaseManager.js";
 import StickerManager from "../src/managers/StickerManager";
 import UserManager from "../src/managers/UserManager";
 
+import BaseClient from "../src/client/BaseClient.js";
 import ClientUser from "../src/structures/ClientUser";
 import Dialogue from "../src/structures/Dialogue";
 import FriendRequest from "../src/structures/FriendRequest";
@@ -18,25 +20,31 @@ import User from "../src/structures/User";
 
 //#region Classes
 
-export class Client extends EventEmitter {
+export class BaseClient extends EventEmitter {
+	public ping: number;
+	public readyAt: Date;
+	public uptime: number;
+	public destroy(): this;
+	public emit<Event extends keyof ClientEvents>(event: Event, ...args: ClientEvents[Event]): boolean;
+	public off<Event extends keyof ClientEvents>(event: Event, listener: (...args: ClientEvents[Event]) => void): this;
+	public on<Event extends keyof ClientEvents>(event: Event, listener: (...args: ClientEvents[Event]) => void): this;
+	public once<Event extends keyof ClientEvents>(event: Event, listener: (...args: ClientEvents[Event]) => void): this;
+	public removeAllListeners<Event extends keyof ClientEvents>(event?: Event): this;
+}
+
+export class Client extends BaseClient {
 	public calls: CallManager;
 	public dialogues: DialogueManager;
 	public groups: GroupManager;
+	public purchases: PurchaseManager;
 	public stickers: StickerManager;
 	public user: ClientUser;
 	public users: UserManager;
 	public constructor(options?: ClientOptions);
-	public destroy(): this;
 	public login(token: string | { username: string, password: string }): this;
 	public reconnect(): this;
 	public subscribe(channelId: string): undefined;
 	public unsubscribe(channelId: string): undefined;
-
-	public on<Event extends keyof ClientEvents>(event: Event, listener: (...args: ClientEvents[Event]) => void): this;
-	public once<Event extends keyof ClientEvents>(event: Event, listener: (...args: ClientEvents[Event]) => void): this;
-	public emit<Event extends keyof ClientEvents>(event: Event, ...args: ClientEvents[Event]): boolean;
-	public off<Event extends keyof ClientEvents>(event: Event, listener: (...args: ClientEvents[Event]) => void): this;
-	public removeAllListeners<Event extends keyof ClientEvents>(event?: Event): this;
 }
 
 //#endregion
@@ -44,28 +52,33 @@ export class Client extends EventEmitter {
 //#region Typedefs
 
 export interface ClientEvents {
-	blockAdd: [blocker: User],
-	blockRemove: [blocker: User],
+	blockAdd: [user: User],
+	blockRemove: [user: User],
 	channelBanAdd: [dialogue: Dialogue],
-	// channelBanExpire: [dialogue: Dialogue],
+	channelBanExpire: [dialogue: Dialogue],
 	channelBanRemove: [dialogue: Dialogue],
 	channelCreate: [dialogue: Dialogue],
 	channelDelete: [dialogue: Dialogue],
 	channelMemberAdd: [member: Member],
+	channelPresenceCreate: [raw: object],
+	channelPresenceDelete: [raw: object],
+	channelTypingStart: [raw: object],
+	channelTypingEnd: [raw: object],
 	channelUpdate: [oldDialogue: Dialogue, newDialogue: Dialogue],
 	contactBlockAdd: [user: User],
 	contactBlockRemove: [user: User],
 	debug: [data: object],
 	error: [error: Error],
 	friendRequestCreate: [friendRequest: FriendRequest],
+	friendRequestUpdate: [friendRequest: FriendRequest],
 	// friendRequestDelete: [user: User],
 	giftMessageCreate: [message: GiftMessage],
 	karmaTaskCreate: [task: object],
 	karmaTaskUpdate: [task: object],
-	messageCreate: [message: Message, isAuthorBlocked: boolean],
+	messageCreate: [message: Message],
 	messageDelete: [message: Message],
 	messageReactionAdd: [message: Message?],
-	messageReportAdd: [message: Message],
+	messageReport: [message: Message],
 	messageUpdate: [oldMessage: Message, newMessage: Message],
 	notificationCreate: [data: object],
 	ready: [],
@@ -179,7 +192,7 @@ export enum CurrencyType {
 
 export enum Events {
 	ChannelBanAdd = 'channelBanAdd',
-	// ChannelBanExpire = 'channelBanExpire',
+	ChannelBanExpire = 'channelBanExpire',
 	ChannelBanRemove = 'channelBanRemove',
 	ChannelCreate = 'channelCreate',
 	ChannelDelete = 'channelDelete',
@@ -195,6 +208,7 @@ export enum Events {
 	Debug = 'debug',
 	Error = 'error',
 	FriendRequestCreate = 'friendRequestCreate',
+	FriendRequestUpdate = 'friendRequestUpdate',
 	// FriendRequestDelete = 'friendRequestDelete',
 	GiftMessageCreate = 'giftMessageCreate',
 	KarmaTaskCreate = 'karmaTaskCreate',
@@ -202,7 +216,7 @@ export enum Events {
 	MessageCreate = 'messageCreate',
 	MessageDelete = 'messageDelete',
 	MessageReactionAdd = 'messageReactionAdd',
-	MessageReportAdd = 'messageReportAdd',
+	MessageReport = 'messageReport',
 	MessageUpdate = 'messageUpdate',
 	NotificationCreate = 'notificationCreate',
 	Ping = 'ping',
@@ -230,6 +244,10 @@ export enum MessageType {
 	BLOCKED_WHOM = 'blocked',
 	CHANNEL_BAN_CREATE = 'deleteChat',
 	CHANNEL_MEMBER_ADD = 'join_notification',
+	CHANNEL_PRESENCE_CREATE = 'dialogue.members.opened',
+	CHANNEL_PRESENCE_DELETE = 'dialogue.members.closed',
+	CHANNEL_TYPING_START = 'dialogue.typing.started',
+	CHANNEL_TYPING_END = 'dialogue.typing.ended',
 	EMAIL_VERIFIED = 'email_verified',
 	FRIEND_REQUEST_CREATE = 'mate.event.request',
 	GIFT_MESSAGE = 'giftname',

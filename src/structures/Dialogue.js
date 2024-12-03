@@ -10,7 +10,7 @@ export default class Dialogue extends BaseStructure {
 	messages = new MessageManager(this);
 	constructor(data, options, isGroup) {
 		if (data instanceof Dialogue) return data;
-		if (data instanceof Object && options instanceof Object && options.hasOwnProperty('client')) {
+		else if (data instanceof Object && options instanceof Object && options.hasOwnProperty('client')) {
 			let id = data.id || data.objectId;
 			let entry = options.client.dialogues.cache.get(id);
 			if (entry) {
@@ -18,12 +18,11 @@ export default class Dialogue extends BaseStructure {
 				return entry
 			}
 		}
-		super(...arguments, true);
-		Object.defineProperties(this, {
+		Object.defineProperties(super(...arguments, true), {
 			[isGroup ? 'founder' : 'friend']: { value: null, writable: true },
 			lastMessage: { value: null, writable: true }
-		});
-		isGroup || this._patch(data);
+		}),
+		isGroup || this._patch(data),
 		this.id !== null && this.hasOwnProperty('client') && this.client.dialogues.cache.set(this.id, this)
 	}
 
@@ -95,19 +94,19 @@ export default class Dialogue extends BaseStructure {
 		if (!force && !this.partial) {
 			return this;
 		}
-		return this.client.requests.post("functions/v2:chat.byId", {
+		return this.client.rest.post("functions/v2:chat.byId", {
 			dialogueId: this.id
 		}).then(this._patch.bind(this))
 	}
 
 	leave() {
-		return this.client.requests.post("functions/v2:chat.leave", {
+		return this.client.rest.post("functions/v2:chat.leave", {
 			dialogueId: this.id
 		})
 	}
 
 	rating() {
-		return this.client.requests.post("functions/v2:chat.rating", {
+		return this.client.rest.post("functions/v2:chat.rating", {
 			dialogueId: this.id
 		})
 	}
@@ -132,7 +131,7 @@ export default class Dialogue extends BaseStructure {
 				return this.sendMedia(attachment.url, { reference })
 			}));
 		}
-		return this.client.requests.post("functions/v2:chat.message.sendText", Object.assign({
+		return this.client.rest.post("functions/v2:chat.message.sendText", Object.assign({
 			dialogueId: this.id,
 			text: content
 		}, reference && Object.assign({
@@ -152,6 +151,10 @@ export default class Dialogue extends BaseStructure {
 		})
 	}
 
+	async sendGift() {
+		return this.client.users.sendGift(...arguments)
+	}
+
 	/**
 	 * Send media
 	 * @param {string} mediaURL
@@ -165,7 +168,7 @@ export default class Dialogue extends BaseStructure {
 			contentType = r.headers.get('content-type');
 			return r.arrayBuffer()
 		}).then(r => btoa(new Uint8Array(r).reduce((data, byte) => data + String.fromCharCode(byte), '')));
-		return this.client.requests.post("functions/v2:chat.message.send" + (/^image/i.test(contentType) ? 'Photo' : 'Video'), Object.assign({
+		return this.client.rest.post("functions/v2:chat.message.send" + (/^image/i.test(contentType) ? 'Photo' : 'Video'), Object.assign({
 			body: dataURI,
 			dialogueId: this.id
 		}, reference ? {
@@ -179,7 +182,7 @@ export default class Dialogue extends BaseStructure {
 	}
 
 	sendSticker(stickerId, { reference } = {}) {
-		return this.client.requests.post("functions/v2:chat.message.sendSticker", Object.assign({
+		return this.client.rest.post("functions/v2:chat.message.sendSticker", Object.assign({
 			dialogueId: this.id,
 			sticker: stickerId
 		}, reference ? {

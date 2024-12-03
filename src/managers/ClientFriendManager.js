@@ -17,7 +17,7 @@ export default class ClientFriendManager extends FriendManager {
 		}
 
 		// if id is present, use isPaired to check individual users
-		return this.client.client.requests.post("functions/v2:contact.mate.list").then(data => {
+		return this.client.client.rest.post("functions/v2:contact.mate.list").then(data => {
 			if (data.awaiting.length > 0) {
 				for (let item of data.awaiting) {
 					let entry = new FriendRequest(item, this);
@@ -52,7 +52,7 @@ export default class ClientFriendManager extends FriendManager {
 				return 'paired';
 			}
 		}
-		return this.client.client.requests.post("functions/v2:contact.mate.request" + (check ? 'AndCheck' : ''), { userId }).then(async result => {
+		return this.client.client.rest.post("functions/v2:contact.mate.request" + (check ? 'AndCheck' : ''), { userId }).then(async result => {
 			switch(result) {
 			case 'paired':
 				break;
@@ -76,7 +76,7 @@ export default class ClientFriendManager extends FriendManager {
 	 */
 	async accept(user) {
 		let userId = typeof user == 'object' ? user.id : user;
-		return this.client.client.requests.post("functions/v2:contact.mate.accept", { userId }).then(result => {
+		return this.client.client.rest.post("functions/v2:contact.mate.accept", { userId }).then(result => {
 			return result && (this.pending.incoming.delete(userId) && this.cache.set(userId, this.client.client.users.cache.get(userId)),
 			result)
 		})
@@ -92,7 +92,7 @@ export default class ClientFriendManager extends FriendManager {
 		if (!this.pending.outgoing.has(userId)) {
 			throw new Error("You have not sent a friend request to this user.");
 		}
-		return this.client.client.requests.post("functions/v2:contact.mate.reject", { userId }).then(r => {
+		return this.client.client.rest.post("functions/v2:contact.mate.reject", { userId }).then(r => {
 			return r && this.pending.outgoing.delete(userId)
 		})
 	}
@@ -109,7 +109,7 @@ export default class ClientFriendManager extends FriendManager {
 		} else if (this.cache.has(userId)) {
 			return 'paired';
 		}
-		return this.client.client.requests.post("functions/v2:contact.mate.isPaired", { userId }).then(async result => {
+		return this.client.client.rest.post("functions/v2:contact.mate.isPaired", { userId }).then(async result => {
 			switch(result) {
 			case 'none':
 				return false;
@@ -140,7 +140,7 @@ export default class ClientFriendManager extends FriendManager {
 		if (!this.pending.incoming.has(userId)) {
 			throw new Error("Friend request not found.");
 		}
-		return this.client.client.requests.post("functions/v2:contact.mate.reject", { userId }).then(r => {
+		return this.client.client.rest.post("functions/v2:contact.mate.reject", { userId }).then(r => {
 			return r && this.pending.incoming.delete(userId)
 		})
 	}
@@ -155,7 +155,7 @@ export default class ClientFriendManager extends FriendManager {
 		if (!this.cache.has(userId)) {
 			throw new Error("Friend not found.");
 		}
-		return this.client.client.requests.post("functions/v2:contact.mate.reject", { userId }).then(r => {
+		return this.client.client.rest.post("functions/v2:contact.mate.reject", { userId }).then(r => {
 			return r && this.cache.delete(userId)
 		})
 	}

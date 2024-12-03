@@ -6,7 +6,7 @@ export default class BanManager extends BaseManager {
 		if (!force && this.cache.has(id)) {
 			return this.cache.get(id);
 		}
-		return this.client.client.requests.post("functions/v2:chat.checkBan", {
+		return this.client.client.rest.post("functions/v2:chat.checkBan", {
 			dialogueId: this.client.id,
 			userId: id
 		}).then(async ({ banned }) => {
@@ -35,7 +35,7 @@ export default class BanManager extends BaseManager {
 		} else if (!force && this.cache.has(userId)) {
 			return this.cache.get(userId);
 		}
-		return this.client.client.requests.post("functions/v2:chat.mod.ban", {
+		return this.client.client.rest.post("functions/v2:chat.mod.ban", {
 			dialogueId: this.client.id,
 			message: messageId,
 			reason,
@@ -63,7 +63,7 @@ export default class BanManager extends BaseManager {
 	 * @returns {Promise<Dialogue>}
 	 */
 	async appeal() {
-		return this.client.client.requests.post("functions/v2:chat.mod.appealClubBan", {
+		return this.client.client.rest.post("functions/v2:chat.mod.appealClubBan", {
 			dialogueId: this.client.id
 		}).then(data => {
 			let entry = new Dialogue(data.appealRoom, this.client);

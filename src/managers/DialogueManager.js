@@ -5,11 +5,13 @@ import Group from "../structures/Group.js";
 
 export default class DialogueManager extends BaseManager {
 	async fetch(id, { force } = {}) {
-		if (!force && this.cache.has(id)) {
+		if (!id || id instanceof Object) {
+			return this.fetchActive(...Array.prototype.slice.call(arguments, 1 - id instanceof Object));
+		} else if (!force && this.cache.has(id)) {
 			return this.cache.get(id);
 		}
 
-		return this.client.requests.post("functions/v2:chat.byId", {
+		return this.client.rest.post("functions/v2:chat.byId", {
 			dialogueId: id
 		}).then(async data => {
 			if (!data) return null;
@@ -35,7 +37,7 @@ export default class DialogueManager extends BaseManager {
 			return this.cache;
 		}
 
-		return this.client.requests.post("functions/v2:chat.my").then(entries => {
+		return this.client.rest.post("functions/v2:chat.my").then(entries => {
 			for (let item of entries.filter(({ type }) => /^private$/i.test(type))) {
 				let entry = new Dialogue(item, this);
 				this.client.dialogues.cache.set(entry.id, entry);
@@ -58,7 +60,7 @@ export default class DialogueManager extends BaseManager {
 	 * @returns {Promise<boolean>}
 	 */
 	async block(dialogueId) {
-		return this.client.requests.post("functions/v2:chat.block", {
+		return this.client.rest.post("functions/v2:chat.block", {
 			dialogueId
 		}).then(result => {
 			if (result && this.cache.has(dialogueId)) {
@@ -76,7 +78,7 @@ export default class DialogueManager extends BaseManager {
 	 * @returns {Promise<object?>}
 	 */
 	async editMessage(messageId, content) {
-		return this.client.requests.post("functions/v2:chat.message.changeText", {
+		return this.client.rest.post("functions/v2:chat.message.changeText", {
 			messageId: messageId,
 			text: content
 		})
@@ -86,7 +88,7 @@ export default class DialogueManager extends BaseManager {
 	 * Fetch message history
 	 * @param {string} dialogueId
 	 * @param {object} [options]
-	 * @param {boolean} [options.force]
+	 * @param {boolean} options.force
 	 * @returns {Promise<Iterable<object>>}
 	 */
 	async history(dialogueId, { force } = {}) {
@@ -101,7 +103,7 @@ export default class DialogueManager extends BaseManager {
 	 */
 	async leave(dialogueId) {
 		this.client.unsubscribe(dialogueId);
-		return this.client.requests.post("functions/v2:chat.leave", { dialogueId }).then(result => {
+		return this.client.rest.post("functions/v2:chat.leave", { dialogueId }).then(result => {
 			result && (this.cache.delete(dialogueId),
 			this.client.groups.cache.delete(dialogueId));
 			return result
@@ -112,7 +114,7 @@ export default class DialogueManager extends BaseManager {
 	 * Start a random chat
 	 * @param {Iterable} lastUsers
 	 * @param {object} [options]
-	 * @param {boolean} [options.unique] Whether to find a unique chat
+	 * @param {boolean} options.unique Whether to find a unique chat
 	 * @returns {Promise<unknown>}
 	 */
 	async random(lastUsers = null, { unique } = {}) {
@@ -135,7 +137,7 @@ export default class DialogueManager extends BaseManager {
 	 */
 	async send(dialogueId, content, { attachments, prependReference, reference, referenceId } = {}) {
 		referenceId && (reference = Object.assign({}, reference, { id: referenceId }));
-		return this.client.requests.post("functions/v2:chat.message.sendText", Object.assign({
+		return this.client.rest.post("functions/v2:chat.message.sendText", Object.assign({
 			dialogueId,
 			text: content
 		}, reference && Object.assign({
@@ -173,7 +175,7 @@ export default class DialogueManager extends BaseManager {
 	 * @returns {Promise<number>} Number of likes
 	 */
 	async sendLove(messageId) {
-		return this.client.requests.post("functions/v2:chat.message.love", { messageId })
+		return this.client.rest.post("functions/v2:chat.message.love", { messageId })
 	}
 
 	/**
@@ -192,7 +194,7 @@ export default class DialogueManager extends BaseManager {
 			return r.arrayBuffer()
 		}).then(r => btoa(new Uint8Array(r).reduce((data, byte) => data + String.fromCharCode(byte), '')));
 		referenceId && (reference = Object.assign({}, reference, { id: referenceId }));
-		return this.client.requests.post("functions/v2:chat.message.send" + (/^image/i.test(contentType) ? 'Photo' : 'Video'), Object.assign({
+		return this.client.rest.post("functions/v2:chat.message.send" + (/^image/i.test(contentType) ? 'Photo' : 'Video'), Object.assign({
 			body: dataURI,
 			dialogueId
 		}, reference && {
@@ -207,7 +209,7 @@ export default class DialogueManager extends BaseManager {
 
 	async sendSticker(dialogueId, stickerId, { force, reference, referenceId } = {}) {
 		referenceId && (reference = Object.assign({}, reference, { id: referenceId }));
-		return this.client.requests.post("functions/v2:chat.message.sendSticker", Object.assign({
+		return this.client.rest.post("functions/v2:chat.message.sendSticker", Object.assign({
 			dialogueId,
 			sticker: stickerId
 		}, reference && {
@@ -226,6 +228,6 @@ export default class DialogueManager extends BaseManager {
 	 * @returns {Promise<boolean>}
 	 */
 	async unsend(messageId) {
-		return this.client.requests.post("functions/v2:chat.message.delete", { messageId })
+		return this.client.rest.post("functions/v2:chat.message.delete", { messageId })
 	}
 }

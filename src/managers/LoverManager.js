@@ -8,7 +8,7 @@ export default class LoverManager extends BaseManager {
 	 * Fetch the users that sent love to this message
 	 * @param {string} id
 	 * @param {object} [options]
-	 * @param {boolean} [options.force]
+	 * @param {boolean} options.force
 	 * @returns {Promise<string|Map<string, User>>}
 	 */
 	async fetch(id, { force } = {}) {
@@ -20,7 +20,7 @@ export default class LoverManager extends BaseManager {
 			}
 		}
 
-		return this.client.client.requests.post("functions/v2:chat.message.getLovers", {
+		return this.client.client.rest.post("functions/v2:chat.message.getLovers", {
 			messageId: this.client.id
 		}).then(entries => {
 			for (let item of entries) {

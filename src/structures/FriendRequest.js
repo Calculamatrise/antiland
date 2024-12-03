@@ -5,8 +5,7 @@ export default class FriendRequest extends BaseStructure {
 	userId = null;
 	user = null;
 	constructor(data, options) {
-		super(...arguments, true),
-		Object.defineProperty(this, 'user', { value: data instanceof Object ? new User(data.user || data, options.client) : null, writable: true }),
+		Object.defineProperty(super(...arguments, true), 'user', { value: data instanceof Object ? new User(data.user || data, options.client) : null, writable: true }),
 		this._patch(data)
 	}
 
@@ -26,14 +25,14 @@ export default class FriendRequest extends BaseStructure {
 	}
 
 	accept() {
-		return this.client.client.requests.post("functions/v2:contact.mate.accept", { userId: this.id }).then(r => {
+		return this.client.client.rest.post("functions/v2:contact.mate.accept", { userId: this.id }).then(r => {
 			return r && (this.client.friends.cache.set(this.userId, this.user),
 			this.client.friends.pending.incoming.delete(this.userId))
 		})
 	}
 
 	reject() {
-		return this.client.client.requests.post("functions/v2:contact.mate.reject", { userId: this.id }).then(r => {
+		return this.client.client.rest.post("functions/v2:contact.mate.reject", { userId: this.id }).then(r => {
 			return r && this.client.friends.pending.incoming.delete(this.userId)
 		})
 	}

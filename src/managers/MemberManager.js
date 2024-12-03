@@ -38,7 +38,7 @@ export default class MemberManager extends BaseManager {
 		}
 
 		page ??= 0;
-		return this.client.client.requests.post("functions/v2:chat.getMembers", {
+		return this.client.client.rest.post("functions/v2:chat.getMembers", {
 			dialogueId: this.client.id,
 			page,
 			search: search || null
@@ -71,7 +71,7 @@ export default class MemberManager extends BaseManager {
 			}
 		}
 
-		return this.client.client.requests.post("functions/v2:chat.getActiveUsers", {
+		return this.client.client.rest.post("functions/v2:chat.getActiveUsers", {
 			dialogueId: this.client.id
 		}).then(entries => {
 			for (let item of entries) {
@@ -99,7 +99,7 @@ export default class MemberManager extends BaseManager {
 		} else if (!force && this.client.bans.cache.has(userId)) {
 			return this.client.bans.cache.get(userId);
 		}
-		return this.client.client.requests.post("functions/v2:chat.mod.ban", {
+		return this.client.client.rest.post("functions/v2:chat.mod.ban", {
 			dialogueId: this.client.id,
 			message: messageId,
 			reason,
@@ -130,14 +130,14 @@ export default class MemberManager extends BaseManager {
 	/**
 	 * Check if client can ban
 	 * @param {object} [options]
-	 * @param {boolean} [options.force]
+	 * @param {boolean} options.force
 	 * @returns {Promise<boolean>}
 	 */
 	async canIBan({ force } = {}) {
 		if (!force && (this.client.founder.id === this.client.client.user.id || this.client.admins.has(this.client.client.user.id))) {
 			return true;
 		}
-		return this.client.client.requests.post("functions/v2:chat.mod.canIBan", {
+		return this.client.client.rest.post("functions/v2:chat.mod.canIBan", {
 			dialogueId: this.client.id
 		}).then(r => r && (this.client.admins.add(this.client.client.user.id), r))
 	}
@@ -148,7 +148,7 @@ export default class MemberManager extends BaseManager {
 	 * @returns {Promise<unknown>}
 	 */
 	async invite(mateIds) {
-		return this.client.client.requests.post(`functions/v2:chat.addMatesToGroup`, {
+		return this.client.client.rest.post(`functions/v2:chat.addMatesToGroup`, {
 			dialogueId: this.client.id,
 			mateIds: Array.from(new Set(mateIds || this.client.user.friends.cache.keys())).map(m => typeof m == 'object' ? m.id : m)
 		})

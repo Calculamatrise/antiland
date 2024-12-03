@@ -9,7 +9,7 @@ export default class ModeratorManager extends BaseManager {
 	 * Fetch current moderators
 	 * @param {string} id
 	 * @param {object} [options]
-	 * @param {boolean} [options.force]
+	 * @param {boolean} options.force
 	 * @returns {Promise<Member|Map<string, Member>>}
 	 */
 	async fetch(id, { force } = {}) {
@@ -39,7 +39,7 @@ export default class ModeratorManager extends BaseManager {
 		} else if (this.cache.has(userId)) {
 			return true;
 		}
-		return this.client.client.requests.post("functions/v2:chat.mod.add", {
+		return this.client.client.rest.post("functions/v2:chat.mod.add", {
 			dialogueId: this.client.id,
 			userId
 		}).then(async res => {
@@ -64,7 +64,7 @@ export default class ModeratorManager extends BaseManager {
 		} else if (!this.cache.has(userId)) {
 			return true;
 		}
-		return this.client.client.requests.post("functions/v2:chat.mod.delete", {
+		return this.client.client.rest.post("functions/v2:chat.mod.delete", {
 			dialogueId: this.client.id,
 			userId
 		}).then(res => {

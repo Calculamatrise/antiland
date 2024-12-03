@@ -19,67 +19,55 @@ import Opcodes from "../../../../../src/utils/Opcodes.js";
 
 export default class extends EventEmitter {
 	#reconnectAttempts = 0;
-	#clientVersion = "antiland/web";
-	#gateway = "wss://ps.anti.land/v1/";
+	#clientVersion = "nodejs/antiland";
+	#gateway = "wss://ps.anti.land/v";
 	#lastMessageTimestamp = new Map();
 	#pingTimeout = null;
 	#pingTimestamp = Date.now();
 	#subscriptionQueue = new Set();
 	#timeouts = [];
 	#ws = null;
-	_outgoing = new Set(); // use this to guaruntee a response from the server/make promises
+	_outgoing = new Set();
 	connectionId = null;
-	options = null;
+	options = {
+		fallback: true,
+		gatewayVersion: 2,
+		localization: 'en',
+		maxReconnectAttempts: 3,
+		pubnub: false,
+		reconnectDelay: 0,
+		staleTimer: 3e4,
+		subscribe: true
+	};
 	ping = 0;
 	readyAt = null;
 	readyTimestamp = null;
-	requests = new RequestHandler(this);
+	rest = new RequestHandler(this);
 	subscriptions = new Set();
 	token = null;
-	uptime = 0;
 	user = null;
 
 	get uptime() {
 		return Number(this.readyTimestamp && (Date.now() - this.readyTimestamp))
 	}
 
-	/**
-	 * @param {ClientOptions} [options]
-	 * @param {Iterable<string>} [options.channels] initial subscriptions
-	 * @param {boolean} [options.fallback] whether to fallback to a pubnub connection
-	 * @param {string} [options.localization]
-	 * @param {number} [options.maxReconnectAttempts]
-	 * @param {boolean} [options.pubnub] prefer pubnub
-	 * @param {number} [options.reconnectDelay] delay before attempting to reconnect
-	 * @param {number} [options.staleTimer] stale determinator
-	 * @param {boolean} [options.subscribe] whether to automatically subscribe to active chats
-	 */
 	constructor(options) {
-		super();
-		this.options = Object.assign({}, this.options, {
-			fallback: true,
-			localization: 'en',
-			pubnub: false,
-			reconnectDelay: 0,
-			staleTimer: 3e4,
-			subscribe: true
+		Object.defineProperties(super(), {
+			_outgoing: { enumerable: false },
+			connectionId: { enumerable: false },
+			readyAt: { enumerable: false },
+			token: { enumerable: false }
 		});
 		for (let [key, value] of Object.entries(options).filter(([key, value]) => {
 			return this.options.hasOwnProperty(key) && (this.options[key] === null || typeof this.options[key] == typeof value);
 		})) {
 			this.options[key] = value;
 		}
-		Object.defineProperties(this, {
-			_outgoing: { enumerable: false },
-			connectionId: { enumerable: false },
-			readyAt: { enumerable: false },
-			token: { enumerable: false }
-		})
 	}
 
 	#connect(cb) {
 		return new Promise((resolve, reject) => {
-			let socket = this.options.pubnub ? new PubNubBroker(this) : new WebSocket(this.#gateway + "?client=" + this.#clientVersion + (this.connectionId ? '&connectionId=' + this.connectionId : ''))
+			let socket = this.options.pubnub ? new PubNubBroker(this) : new WebSocket(this.#gateway + this.options.gatewayVersion + "/?client=" + this.#clientVersion + (this.connectionId ? '&connectionId=' + this.connectionId : ''))
 			  , errHandler = err => this.options.maxReconnectAttempts > this.#reconnectAttempts++ ? resolve(this.options.fallback && (this.options.pubnub = true), this.#connect(cb)) : reject(err);
 			socket.addEventListener('error', err => {
 				if (socket.readyState === socket.OPEN) {
@@ -96,6 +84,11 @@ export default class extends EventEmitter {
 			}),
 			socket.addEventListener('error', errHandler, { once: true }),
 			socket.addEventListener('close', ({ code }) => {
+				for (const timeout of this.#timeouts) {
+					clearTimeout(timeout);
+				}
+
+				this.#timeouts.splice(0);
 				if (1000 !== code && this.options.maxReconnectAttempts > this.#reconnectAttempts++) {
 					this.options.fallback && (this.options.pubnub = true),
 					this.#connect(cb);
@@ -135,9 +128,7 @@ export default class extends EventEmitter {
 	#errorHandler(err) {
 		if (this.listenerCount('error') > 0) {
 			this.emit(Events.Error, err);
-		} else {
-			throw err
-		}
+		} else throw err
 	}
 
 	#messageListener(message) {
@@ -167,14 +158,32 @@ export default class extends EventEmitter {
 			break;
 		case Opcodes.SUBSCRIPTIONS:
 			if (!payload) break; // channel not found
-			for (let channelId of payload.diff.dropped)
-				this.#subscriptionQueue.delete(channelId),
-				this.subscriptions.delete(channelId),
-				channelId !== this.user.channelId && this.emit(Events.ChannelDelete, channelId);
-			for (let channelId of payload.diff.added)
-				this.#subscriptionQueue.delete(channelId),
-				this.subscriptions.add(channelId),
-				channelId !== this.user.channelId && this.emit(Events.ChannelCreate, channelId);
+			if (this.options.gatewayVersion > 1) {
+				if ('channels' in payload) {
+					for (let channelId of payload.channels)
+						this.#subscriptionQueue.delete(channelId),
+						this.subscriptions.add(channelId),
+						channelId !== this.user.channelId && this.emit(Events.ChannelCreate, channelId);
+				}
+
+				if ('deactivatedChannels' in payload) {
+					for (let channelId of payload.deactivatedChannels)
+						this.#subscriptionQueue.delete(channelId),
+						this.subscriptions.delete(channelId),
+						channelId !== this.user.channelId && this.emit(Events.ChannelDelete, channelId);
+				}
+			}
+
+			if ('diff' in payload) {
+				for (let channelId of payload.diff.dropped)
+					this.#subscriptionQueue.delete(channelId),
+					this.subscriptions.delete(channelId),
+					channelId !== this.user.channelId && this.emit(Events.ChannelDelete, channelId);
+				for (let channelId of payload.diff.added)
+					this.#subscriptionQueue.delete(channelId),
+					this.subscriptions.add(channelId),
+					channelId !== this.user.channelId && this.emit(Events.ChannelCreate, channelId);
+			}
 			break;
 		case Opcodes.ACK:
 			this._outgoing.delete(payload.id),
@@ -183,7 +192,7 @@ export default class extends EventEmitter {
 		case Opcodes.PONG:
 			this.ping = Date.now() - this.#pingTimestamp,
 			// ping all chat presences
-			// this.requests.post("functions/v2:chat.presence.ping", {
+			// this.rest.post("functions/v2:chat.presence.ping", {
 			// 	dialogueId: this.user.id
 			// }),
 			this.#pingTimeout = setTimeout(() => {
@@ -200,56 +209,6 @@ export default class extends EventEmitter {
 			this.emit(Events.Debug, { message, type: 'UNKNOWN_OPCODE' }),
 			this.emit(Events.Warn, "Unrecognized opcode:", data)
 		}
-	}
-
-	async destroy() {
-		this.#pingTimeout && clearTimeout(this.#pingTimeout),
-		this.connectionId = null,
-		this.user = null;
-		if (!this.#ws) return true;
-		return new Promise((resolve, reject) => {
-			this.#ws.addEventListener('close', resolve, { once: true }),
-			this.#ws.addEventListener('error', reject, { once: true }),
-			this.#ws.close(arguments[0] ?? 1000)
-		})
-	}
-
-	async reconnect() {
-		await this.destroy(3008);
-		if (!this.token) {
-			throw new Error("Session token not found!");
-		}
-		this.emit('reconnecting'),
-		!this.options.pubnub && this.#reconnectAttempts === this.options.maxReconnectAttempts - 1 && this.options.fallback && (this.options.pubnub = true);
-		return this.login(this.token)
-	}
-
-	sendCommand(code, payload, uniqueId) {
-		uniqueId && (uniqueId = Date.now().toString() + Math.random(),
-		this._outgoing.add(uniqueId));
-		return this.#ws.send(JSON.stringify(Object.assign({
-			type: typeof code == 'number' ? code : Opcodes[code],
-			payload
-		}, uniqueId ? {
-			id: uniqueId
-		} : null)))
-	}
-
-	sendCommandAsync(code, payload, cb) {
-		return new Promise((resolve, reject) => {
-			let uniqueId = (Date.now() - performance.now()) + '.' + Math.random()
-			  , listener;
-			this.on('ack', listener = message => {
-				if (message.id !== uniqueId) return;
-				this.removeListener('ack', listener),
-				listener = null,
-				typeof cb == 'function' && cb(message),
-				resolve(message)
-			});
-			arguments.splice(2, 0, uniqueId),
-			this.sendCommand(...arguments),
-			setTimeout(() => reject(new RangeError("Request timeout")), 3e4)
-		})
 	}
 
 	async _handleMessage(data, { channelId }) {
@@ -338,6 +297,18 @@ export default class extends EventEmitter {
 		case MessageType.CHANNEL_MEMBER_ADD:
 			this.emit(Events.ChannelMemberAdd, data.member);
 			return;
+		case MessageType.CHANNEL_PRESENCE_CREATE:
+			this.emit(Events.ChannelPresenceCreate, data);
+			return;
+		case MessageType.CHANNEL_PRESENCE_DELETE:
+			this.emit(Events.ChannelPresenceDelete, data);
+			return;
+		case MessageType.CHANNEL_TYPING_START:
+			this.emit(Events.ChannelTypingStart, data);
+			return;
+		case MessageType.CHANNEL_TYPING_END:
+			this.emit(Events.ChannelTypingEnd, data);
+			return;
 		case MessageType.GIFT_MESSAGE:
 			let message = new GiftMessage(data, data.dialogue);
 			this.emit(Events.GiftMessageCreate, message),
@@ -384,23 +355,92 @@ export default class extends EventEmitter {
 		this.emit(Events.MessageCreate, message)
 	}
 
-	subscribe(channelId) {
+	_verifyCredentials(credentials) {
+		return new Promise((resolve, reject) => {
+			if (typeof credentials == 'object' && credentials != null) {
+				this.rest.post("functions/v2:profile.login", {
+					username: credentials.username ?? credentials.login,
+					password: credentials.password
+				}, true).then(resolve).catch(reject);
+			} else if (typeof credentials == 'string') {
+				this.rest.constructor.request("functions/v2:profile.me", {
+					body: null,
+					method: 'POST'
+				}, credentials).then(resolve).catch(reject)
+			}
+		})
+	}
+
+	async destroy() {
+		this.#pingTimeout && clearTimeout(this.#pingTimeout),
+		this.connectionId = null,
+		this.user = null,
+		this.subscriptions.clear();
+		if (!this.#ws) return true;
+		return new Promise((resolve, reject) => {
+			this.#ws.once('close', resolve),
+			this.#ws.once('error', err => arguments.length > 0 ? this.#ws.terminate() : reject(err)),
+			this.#ws[this.#ws.isStale ? 'terminate' : 'close'](arguments[0] ?? 1000)
+		})
+	}
+
+	async reconnect() {
+		await this.destroy(1006 /* 3008 timeout */).catch(() => {
+			return this.#ws.terminate()
+		});
+		if (!this.token) {
+			throw new Error("Session token not found!");
+		}
+		this.emit('reconnecting'),
+		!this.options.pubnub && this.#reconnectAttempts === this.options.maxReconnectAttempts - 1 && this.options.fallback && (this.options.pubnub = true);
+		return this.login(this.token)
+	}
+
+	sendCommand(code, payload, uniqueId) {
+		uniqueId && (uniqueId = Date.now().toString() + Math.random(),
+		this._outgoing.add(uniqueId));
+		return this.#ws.send(JSON.stringify(Object.assign({
+			type: typeof code == 'number' ? code : Opcodes[code],
+			payload
+		}, uniqueId ? {
+			id: uniqueId
+		} : null)))
+	}
+
+	sendCommandAsync(code, payload, cb) {
+		return new Promise((resolve, reject) => {
+			let uniqueId = (Date.now() - performance.now()) + '.' + Math.random()
+				, listener;
+			this.on('ack', listener = message => {
+				if (message.id !== uniqueId) return;
+				this.removeListener('ack', listener),
+				listener = null,
+				typeof cb == 'function' && cb(message),
+				resolve(message)
+			});
+			this.sendCommand(...Array.prototype.splice.call(arguments, 2, 0, uniqueId)),
+			setTimeout(() => reject(new RangeError("Request timeout")), 3e4)
+		})
+	}
+
+	subscribe(channelId, { presence, withPresence } = {}) {
+		presence && (channelId = channelId.replace(/-presence$/, '-presence'));
 		if (this.subscriptions.has(channelId) || this.#subscriptionQueue.has(channelId)) return;
 		this.#subscriptionQueue.add(channelId);
+		withPresence && !presence && this.#subscriptionQueue.add(channelId + '-presence');
 		this.sendCommand(Opcodes.NAVIGATE, {
 			channels: Array(Array.from(this.subscriptions.values()), Array.from(this.#subscriptionQueue.values())).flat().map(channelId => ({
 				channelId,
 				offset: ''
-			})).concat({
-				channelId,
-				offset: ''
-			}),
+			})),
 			verbose: true
 		})
 	}
 
-	unsubscribe(channelId) {
+	unsubscribe(channelId, { presence, withPresence } = {}) {
+		presence && (channelId = channelId.replace(/-presence$/, '-presence'));
 		this.#subscriptionQueue.delete(channelId);
+		!presence && withPresence && this.#subscriptionQueue.add(channelId + '-presence');
 		if (!this.subscriptions.delete(channelId)) return;
 		this.sendCommand(Opcodes.NAVIGATE, {
 			channels: Array(Array.from(this.subscriptions.values()), Array.from(this.#subscriptionQueue.values())).flat().map(channelId => ({
@@ -416,39 +456,37 @@ export default class extends EventEmitter {
 	}
 
 	async login(token, listener) {
-		if (typeof token == 'object' && token != null) {
-			token = await this.requests.post("functions/v2:profile.login", {
-				username: token.username ?? token.login,
-				password: token.password
-			}, true).then(({ auth }) => auth.sessionToken);
-			if (!token) {
-				throw new Error("Invalid login info");
-			}
-		} else if (!token) {
-			token = globalThis.process && process.env.ANTILAND_TOKEN;
+		token ??= globalThis.process && process.env.ANTILAND_TOKEN;
+		let data = await this._verifyCredentials(token);
+		data.auth && data.auth.sessionToken && (this.token = data.auth.sessionToken);
+		if (!this.token) {
+			throw new Error("Invalid login info");
 		}
 
-		let data = await this.requests.constructor.request("functions/v2:profile.me", {
-			body: null,
-			method: 'POST'
-		}, token).then(data => {
-			data.auth && data.auth.sessionToken && (this.token = data.auth.sessionToken);
-			return data
-		});
 		this.user = new ClientUser(data, { client: this }),
 		this.users.cache.set(this.user.id, this.user);
 		await this.#connect(async socket => {
 			typeof listener == 'function' && this.once('ready', listener);
 			// if blockedBy included 'all', client is in prison or .isInPrison
 			this.#subscriptionQueue.add(this.user.channelId);
+
+			const channelsWithPresence = this.options.channelsWithPresence || [];
 			if (this.options.subscribe) {
 				let groups = await this.groups.fetchActive({ force: true });
 				for (let channelId of groups.keys()) {
 					this.#subscriptionQueue.add(channelId);
+					if (channelsWithPresence.includes(channelId)) {
+						this.#subscriptionQueue.add(channelId + '-presence');
+					}
 				}
-			} else if (this.options.channels) {
+			}
+
+			if (this.options.channels) {
 				for (let channelId of this.options.channels) {
 					this.#subscriptionQueue.add(channelId);
+					if (channelsWithPresence.includes(channelId)) {
+						this.#subscriptionQueue.add(channelId + '-presence');
+					}
 				}
 			}
 
@@ -461,7 +499,7 @@ export default class extends EventEmitter {
 					offset: ''
 				})),
 				deactivatedChannels: [],
-				sessionId: token,
+				sessionId: this.token,
 				verbose: true
 			})
 		})
@@ -488,7 +526,7 @@ export default class extends EventEmitter {
 			header: { enumerable: false }
 		}));
 		let dialogueId = (data.dialogueId || this.constructor.parseId(data.dialogue) || data.did || data.deleteChat || (channelId !== this.user.channelId && channelId)) || null
-		  , dialogue = (dialogueId !== null && await this.dialogues.fetch(dialogueId).catch(err => {
+			, dialogue = (dialogueId !== null && await this.dialogues.fetch(dialogueId).catch(err => {
 			if (err.code !== 141) {
 				throw err;
 			}
@@ -500,21 +538,21 @@ export default class extends EventEmitter {
 		})) || null;
 		dialogue !== null && typeof data.dialogue == 'object' && dialogue._patch(data.dialogue);
 		let likerId = this.constructor.assertFirst(data.likerId || this.constructor.parseId(data.liker), (data.messageSenderId && (data.senderId || this.constructor.parseId(data.sender))), id => id !== data.messageSenderId) || null
-		  , liker = likerId !== null && (this.users.cache.get(likerId) || new User(User.resolve(data, 'liker'), { client: this })) || null;
+			, liker = likerId !== null && (this.users.cache.get(likerId) || new User(User.resolve(data, 'liker'), { client: this })) || null;
 		liker !== null && liker._patch(data.liker);
 		let memberId = data.memberId || this.constructor.parseId(data.member) || null
-		  , member = (memberId !== null && (dialogue !== null && dialogue.members.cache.get(memberId) || new Member(Member.resolve(data), dialogue))) || null;
+			, member = (memberId !== null && (dialogue !== null && dialogue.members.cache.get(memberId) || new Member(Member.resolve(data), dialogue))) || null;
 		member !== null && typeof data.member == 'object' && member._patch(data.member);
 		let messageId = (data.messageId || data.objectId || (!data.receiver && this.constructor.parseId(data.message)) || data.mid || data.id) || null;
 		!data.text && messageId !== null && messageId !== data.message && (data.text = data.message);
 		let message = (data.text && dialogue !== null && messageId !== null && dialogue.messages.cache.get(messageId)) || null;
 		message !== null && typeof data.message == 'object' && message._patch(data.message);
 		let receiverId = (data.receiverId || (messageId === null && this.constructor.parseId(data.receiver)) || (data.hasOwnProperty('whom') && (data.whom || this.user.id))) || null
-		  , receiver = (receiverId !== null && this.users.cache.get(receiverId)) || null;
+			, receiver = (receiverId !== null && this.users.cache.get(receiverId)) || null;
 		receiver !== null && typeof data.receiver == 'object' && (// check for changes ,
 		receiver._patch(data.receiver, /* callback for changed properties? */));
 		let senderId = (data.messageSenderId || data.giftSenderId || data.senderId || this.constructor.parseId(data.sender) || data.sid || (data.hasOwnProperty('by') && (data.by || this.user.id))) || null
-		  , sender = senderId !== null && (this.users.cache.get(senderId) || new User(User.resolve(data, 'sender'), { client: this })) || null;
+			, sender = senderId !== null && (this.users.cache.get(senderId) || new User(User.resolve(data, 'sender'), { client: this })) || null;
 		sender !== null && typeof data.sender == 'object' && data.sender.id !== likerId && (// check for changes ,
 		sender._patch(data.sender, /* callback for changed properties? */));
 		let type = (data.type && data.type.toUpperCase()) || null;
@@ -545,6 +583,23 @@ export default class extends EventEmitter {
 		}));
 		// message !== null && data.text && message._patch(data);
 		return data
+	}
+
+	async [Symbol.asyncDispose]() {
+		await this.destroy()
+	}
+
+	_validateToken() {
+		return this.rest.constructor.request("functions/v2:profile.me", {
+			body: null,
+			method: 'POST'
+		}, token).then(data => {
+			if (!data.auth || !data.auth.sessionToken) {
+				throw new Error("Invalid token");
+			}
+			data.auth && data.auth.sessionToken && (this.token = data.auth.sessionToken);
+			return data
+		})
 	}
 
 	static assert(arbitrary, callback = () => !0) {

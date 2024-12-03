@@ -6,7 +6,7 @@ export default class StickerManager extends BaseManager {
 			return this.cache.get(id);
 		}
 
-		return this.client.requests.post("functions/v2:purchase.allIaps").then(data => {
+		return this.client.rest.post("functions/v2:purchase.allIaps").then(data => {
 			for (let pack of data.stickers.items) {
 				this.cache.set(pack.avatar, pack.items);
 			}

@@ -8,7 +8,7 @@ export default class Member extends BaseStructure {
 	user = null;
 	constructor(data, dialogue) {
 		if (data instanceof Member) return data;
-		if (data instanceof Object && dialogue instanceof Object && dialogue.hasOwnProperty('messages')) {
+		else if (data instanceof Object && dialogue instanceof Object && dialogue.hasOwnProperty('messages')) {
 			let id = data.id || data.objectId;
 			let entry = dialogue.members.cache.get(id);
 			if (entry) {
@@ -18,8 +18,7 @@ export default class Member extends BaseStructure {
 
 			data.position ||= dialogue.founderId === id ? 'founder' : (dialogue.moderators && dialogue.moderators.cache.has(id)) ? 'moderator' : 'member';
 		}
-		super(...Array.prototype.slice.call(arguments, 0, 2), true),
-		Object.defineProperties(this, {
+		Object.defineProperties(super(...Array.prototype.slice.call(arguments, 0, 2), true), {
 			banInfo: { value: null, writable: true },
 			banned: { value: false, writable: true },
 			dialogue: { value: dialogue },
@@ -63,7 +62,7 @@ export default class Member extends BaseStructure {
 		} else if (!force && this.dialogue.bans.cache.has(this.user.id)) {
 			return this.dialogue.bans.cache.get(this.user.id);
 		}
-		return this.client.requests.post("functions/v2:chat.mod.ban", {
+		return this.client.rest.post("functions/v2:chat.mod.ban", {
 			dialogueId: this.dialogueId,
 			message: String(messageId),
 			reason,

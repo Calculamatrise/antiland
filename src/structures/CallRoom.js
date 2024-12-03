@@ -4,11 +4,10 @@ import { WebSocket } from "ws";
 export default class CallRoom extends BaseStructure {
 	participants = new Map();
 	constructor(data) {
-		super(...arguments, true);
-		Object.defineProperties(this, {
+		Object.defineProperties(super(...arguments, true), {
 			connection: { value: null, writable: true },
 			token: { value: null, writable: true }
-		});
+		}),
 		data instanceof Object && this._patch(data)
 	}
 

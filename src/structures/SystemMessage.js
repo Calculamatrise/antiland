@@ -8,7 +8,7 @@ export default class SystemMessage extends BaseMessage {
 	// title = null; // ? sendersName ("Gift!")
 	constructor(data, dialogue, skipPatch) {
 		if (data instanceof SystemMessage) return data;
-		if (data instanceof Object && dialogue instanceof Object && dialogue.hasOwnProperty('messages')) {
+		else if (data instanceof Object && dialogue instanceof Object && dialogue.hasOwnProperty('messages')) {
 			let id = data.id || data.objectId;
 			let entry = dialogue.messages.cache.get(id);
 			if (entry) {
@@ -16,8 +16,7 @@ export default class SystemMessage extends BaseMessage {
 				return entry
 			}
 		}
-		super(...Array.prototype.slice.call(arguments, 0, 2), { checkCache: true }),
-		Object.defineProperties(this, {
+		Object.defineProperties(super(...Array.prototype.slice.call(arguments, 0, 2), { checkCache: true }), {
 			// broker: { value: null, writable: true },
 			receiver: { value: null, writable: true },
 			// sender: { value: null, writable: true }

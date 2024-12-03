@@ -9,7 +9,7 @@ export default class extends BaseManager {
 			return this.cache.get(id);
 		}
 
-		return this.client.requests.post("functions/v2:profile.byId", {
+		return this.client.rest.post("functions/v2:profile.byId", {
 			userId: id
 		}).then(data => {
 			if (data) {
@@ -25,11 +25,11 @@ export default class extends BaseManager {
 	 * Search existing users
 	 * @param {string} query
 	 * @param {object} [options]
-	 * @param {boolean} [options.cache]
+	 * @param {boolean} options.cache
 	 * @returns {Promise<Iterable<User>>}
 	 */
 	async search(query, { cache } = {}) {
-		return this.client.requests.post("functions/v2:profile.search", {
+		return this.client.rest.post("functions/v2:profile.search", {
 			search: query
 		}).then(data => {
 			for (let item in data) {
@@ -48,8 +48,8 @@ export default class extends BaseManager {
 	 * @param {string} options.password
 	 * @returns {Promise<User>}
 	 */
-	async create({ username, password } = {}) {
-		return this.client.requests.post("functions/v2:profile.register", {
+	async create({ username, password }) {
+		return this.client.rest.post("functions/v2:profile.register", {
 			username,
 			password,
 			lang: 'en'
@@ -72,18 +72,18 @@ export default class extends BaseManager {
 		if (!force && this.client.user.blockedBy.has(userId)) {
 			return true;
 		}
-		return this.client.requests.post("functions/v2:contact.checkPrivateBlocked", { userId })
+		return this.client.rest.post("functions/v2:contact.checkPrivateBlocked", { userId })
 	}
 
 	/**
 	 * Check if you are blocked
 	 * @param {User|string} user
 	 * @param {object} [options]
-	 * @param {boolean} [options.force]
+	 * @param {boolean} options.force
 	 * @returns {Promise<boolean>}
 	 */
 	async getBanInfo(userId) {
-		return this.client.requests.post("functions/v2:contact.getBanInfo", { userId }).then(r => {
+		return this.client.rest.post("functions/v2:contact.getBanInfo", { userId }).then(r => {
 			r.banned && console.log(r);
 			return r.banned && r
 		})
@@ -93,7 +93,7 @@ export default class extends BaseManager {
 	 * Start a private chat
 	 * @param {User|string} user
 	 * @param {object} [options]
-	 * @param {boolean} [options.createIfNotExists] 
+	 * @param {boolean} options.createIfNotExists
 	 * @returns {Promise<Dialogue>}
 	 */
 	async fetchDM(user, { createIfNotExists = false } = {}) {
@@ -106,7 +106,7 @@ export default class extends BaseManager {
 				return user.dmChannel
 			}
 		}
-		return this.client.requests.post("functions/v2:chat.getPrivate", {
+		return this.client.rest.post("functions/v2:chat.getPrivate", {
 			createIfNotExists,
 			userId
 		}).then(data => new Dialogue(data, this))
@@ -116,12 +116,12 @@ export default class extends BaseManager {
 	 * Find a random user profile
 	 * @param {Iterable} [lastUsers]
 	 * @param {object} [options]
-	 * @param {boolean} [options.unique] Whether to filter old randoms
+	 * @param {boolean} options.unique Whether to filter old randoms
 	 * @returns {Promise<User>}
 	 */
 	async random(lastUsers, { unique } = {}) {
 		if (lastUsers instanceof Object && !Array.isArray(lastUsers)) return this.random(null, lastUsers);
-		return this.client.requests.post("functions/v2:profile.random", {
+		return this.client.rest.post("functions/v2:profile.random", {
 			lastUsers: Array.from(lastUsers || (unique && this.#randomCache) || [])
 		}).then(data => {
 			let entry = new User(data, this.client);
@@ -134,17 +134,17 @@ export default class extends BaseManager {
 	/**
 	 * Gift another user
 	 * @param {string|object} user
-	 * @param {object} options
+	 * @param {object} [options]
 	 * @param {string} [options.artifactName]
 	 * @param {string} [options.currency]
 	 * @param {string} [options.dialogueId]
 	 * @param {string} [options.receiverId]
 	 * @returns {Promise<unknown>}
 	 */
-	async sendGift(user, { artifactName, currency = 'karma', dialogueId } = {}) {
+	async sendGift(user, { artifactName = 'rose', currency = 'karma', dialogueId } = {}) {
 		if (typeof user == 'object') return this.sendGift(user.receiverId, user);
 		let receiverId = typeof user == 'object' ? user.id : user;
-		return this.client.requests.post("functions/v2:purchase.gift", {
+		return this.client.rest.post("functions/v2:purchase.gift", {
 			artifactName,
 			currency, // karma or tokens
 			dialogueId,

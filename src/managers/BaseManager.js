@@ -1,19 +1,27 @@
-export default class {
+import Base from "../structures/Base.js";
+
+export default class extends Base {
 	cache = new Map();
 	constructor(client) {
-		/**
-		 * The client that instantiated this Manager
-		 * @name BaseManager#client
-		 * @type {Client}
-		 * @readonly
-		 */
-		Object.defineProperty(this, 'client', { value: client }),
-		Object.defineProperty(this, 'cache', { enumerable: false })
+		Object.defineProperty(super(client), 'cache', { enumerable: false })
 	}
 
 	async fetch(key, { force } = {}) {
 		if (!force && this.cache.has(key)) {
 			return this.cache.get(key)
+		}
+	}
+
+	*[Symbol.iterator]() {
+		for (const entry of this.cache.entries()) {
+			yield entry
+		}
+	}
+
+	async *[Symbol.asyncIterator]() {
+		await this.fetch();
+		for (const entry of this.cache.entries()) {
+			yield entry
 		}
 	}
 }

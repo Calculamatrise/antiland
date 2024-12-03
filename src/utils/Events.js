@@ -1,6 +1,7 @@
 /**
  * @typedef {object} Events
  * @property {string} ChannelBanAdd channelBanAdd
+ * @property {string} ChannelBanExpire channelBanExpire
  * @property {string} ChannelBanRemove channelBanRemove
  * @property {string} ChannelCreate channelCreate
  * @property {string} ChannelDelete channelDelete
@@ -14,13 +15,14 @@
  * @property {string} Debug debug
  * @property {string} Error error
  * @property {string} FriendRequestCreate friendRequestCreate
+ * @property {string} FriendRequestUpdate friendRequestUpdate
  * @property {string} GiftMessageCreate giftMessageCreate
  * @property {string} KarmaTaskCreate karmaTaskCreate
  * @property {string} KarmaTaskUpdate karmaTaskUpdate
  * @property {string} MessageCreate messageCreate
  * @property {string} MessageDelete messageDelete
  * @property {string} MessageReactionAdd messageReactionAdd
- * @property {string} MessageReportAdd message.event.reported
+ * @property {string} MessageReport message.event.reported
  * @property {string} MessageUpdate messageUpdate
  * @property {string} Notification notification
  * @property {string} Raw raw
@@ -37,12 +39,16 @@
  */
 export default {
 	ChannelBanAdd: 'channelBanAdd',
-	// ChannelBanExpire: 'channelBanExpire',
+	ChannelBanExpire: 'channelBanExpire',
 	ChannelBanRemove: 'channelBanRemove',
 	ChannelCreate: 'channelCreate',
 	ChannelDelete: 'channelDelete',
 	ChannelMemberAdd: 'channelMemberAdd',
 	// ChannelMemberRemove: 'channelMemberRemove',
+	ChannelPresenceCreate: 'channelPresenceCreate',
+	ChannelPresenceDelete: 'channelPresenceDelete',
+	ChannelTypingStart: 'channelTypingStart',
+	ChannelTypingEnd: 'channelTypingEnd',
 	ChannelUpdate: 'channelUpdate',
 	ClientBlockAdd: 'blockAdd',
 	ClientBlockRemove: 'blockRemove',
@@ -53,6 +59,7 @@ export default {
 	Debug: 'debug',
 	Error: 'error',
 	FriendRequestCreate: 'friendRequestCreate',
+	FriendRequestUpdate: 'friendRequestUpdate',
 	// FriendRequestDelete: 'friendRequestDelete',
 	GiftMessageCreate: 'giftMessageCreate',
 	KarmaTaskCreate: 'karmaTaskCreate',
@@ -60,7 +67,7 @@ export default {
 	MessageCreate: 'messageCreate',
 	MessageDelete: 'messageDelete',
 	MessageReactionAdd: 'messageReactionAdd',
-	MessageReportAdd: 'messageReportAdd',
+	MessageReportAdd: 'messageReport',
 	MessageUpdate: 'messageUpdate',
 	NotificationCreate: 'notificationCreate',
 	Raw: 'raw',

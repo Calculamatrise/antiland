@@ -11,7 +11,7 @@ export default class CallManager extends BaseManager {
 	 * @returns {Promise<CallRoom>}
 	 */
 	async accept(callerId) {
-		return this.client.requests.post("functions/v2:call.accept", { callerId })
+		return this.client.rest.post("functions/v2:call.accept", { callerId })
 	}
 
 	/**
@@ -19,7 +19,7 @@ export default class CallManager extends BaseManager {
 	 * @returns {Promise<unknown>}
 	 */
 	async cancel(guestId) {
-		return this.client.requests.post("functions/v2:call.cancel", { guestId })
+		return this.client.rest.post("functions/v2:call.cancel", { guestId })
 	}
 
 	/**
@@ -27,11 +27,11 @@ export default class CallManager extends BaseManager {
 	 * @param {string} callId
 	 * @param {number?} rating
 	 * @param {object} [options]
-	 * @param {string} [options.comments]
+	 * @param {string} options.comments
 	 * @returns {Promise<unknown>}
 	 */
 	async rate(callId, rating, { comments } = {}) {
-		return this.client.requests.post("functions/v2:call.rate", {
+		return this.client.rest.post("functions/v2:call.rate", {
 			id: callId,
 			score: rating | 0,
 			comments: comments || null
@@ -44,7 +44,7 @@ export default class CallManager extends BaseManager {
 	 * @returns {Promise<unknown>}
 	 */
 	async reject(callerId) {
-		return this.client.requests.post("functions/v2:call.reject", { callerId })
+		return this.client.rest.post("functions/v2:call.reject", { callerId })
 	}
 
 	/**
@@ -56,11 +56,11 @@ export default class CallManager extends BaseManager {
 		if (!guest) {
 			throw new Error("Guest user does not exist!");
 		}
-		return this.client.requests.post("functions/v2:call.start", { guestId }).then(async r => {
+		return this.client.rest.post("functions/v2:call.start", { guestId }).then(async r => {
 			let room = new CallRoom(r, this);
 			room.participants
-			.set(this.client.user.id, this.client.user)
-			.set(guestId, guest),
+				.set(this.client.user.id, this.client.user)
+				.set(guestId, guest),
 			this.cache.set(room.id, room);
 			return room
 		})

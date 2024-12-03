@@ -8,7 +8,7 @@ export default class ContactManager extends BaseManager {
 			return this.cache
 		}
 
-		return this.client.client.requests.post("functions/v2:friend.list").then(async entries => {
+		return this.client.client.rest.post("functions/v2:friend.list").then(async entries => {
 			for (let item of entries) {
 				let entry = new User(item, this.client);
 				await entry.getPrivateChat();
@@ -20,7 +20,7 @@ export default class ContactManager extends BaseManager {
 
 	async fetchBlocked({ force } = {}) {
 		if (force || this.blocked.size < 1) {
-			let blocked = await this.client.client.requests.post("functions/v2:contact.listBlocked");
+			let blocked = await this.client.client.rest.post("functions/v2:contact.listBlocked");
 			if (blocked.length > 0) {
 				// this.blocked = new Set(); // new Map();
 				for (let data of blocked) {
@@ -41,7 +41,7 @@ export default class ContactManager extends BaseManager {
 	 */
 	async add(user) {
 		let id = typeof user == 'object' ? user.id : user;
-		return this.client.client.requests.post("functions/v2:friend.add", { id }).then(r => {
+		return this.client.client.rest.post("functions/v2:friend.add", { id }).then(r => {
 			return r && this.cache.set(id, this.client.client.users.cache.get(id))
 		})
 	}
@@ -50,7 +50,7 @@ export default class ContactManager extends BaseManager {
 	 * Block another user
 	 * @param {User|string} user
 	 * @param {object} [options]
-	 * @param {boolean} [options.force]
+	 * @param {boolean} options.force
 	 * @returns {Promise<boolean>}
 	 */
 	async block(user, { force } = {}) {
@@ -63,7 +63,7 @@ export default class ContactManager extends BaseManager {
 			}
 			await this.client.client.user.friends.remove(userId);
 		}
-		return this.client.client.requests.post("functions/v2:contact.blockPrivate", { userId }).then(r => {
+		return this.client.client.rest.post("functions/v2:contact.blockPrivate", { userId }).then(r => {
 			return r && (this.blocked.add(userId), r)
 		})
 	}
@@ -72,7 +72,7 @@ export default class ContactManager extends BaseManager {
 	 * Check if a user is blocked
 	 * @param {User|string} user
 	 * @param {object} [options]
-	 * @param {boolean} [options.force]
+	 * @param {boolean} options.force
 	 * @returns {Promise<boolean>}
 	 */
 	async isBlocked(user, { force } = {}) {
@@ -80,7 +80,7 @@ export default class ContactManager extends BaseManager {
 		if (!force && this.blocked.has(userId)) {
 			return true;
 		}
-		return this.client.client.requests.post("functions/v2:contact.checkPrivateBlocked", { userId }).then(r => {
+		return this.client.client.rest.post("functions/v2:contact.checkPrivateBlocked", { userId }).then(r => {
 			return r && (this.blocked.add(userId), r)
 		})
 	}
@@ -89,7 +89,7 @@ export default class ContactManager extends BaseManager {
 	 * Check if you are blocked
 	 * @param {User|string} user
 	 * @param {object} [options]
-	 * @param {boolean} [options.force]
+	 * @param {boolean} options.force
 	 * @returns {Promise<boolean>}
 	 */
 	async isClientBlocked(user, { force } = {}) {
@@ -97,7 +97,7 @@ export default class ContactManager extends BaseManager {
 		if (!force && this.client.client.user.blockedBy.has(userId)) {
 			return true;
 		}
-		return this.client.client.requests.post("functions/v2:contact.getBanInfo", { userId }).then(r => {
+		return this.client.client.rest.post("functions/v2:contact.getBanInfo", { userId }).then(r => {
 			return r && (this.client.client.user.blockedBy.add(userId), r)
 		})
 	}
@@ -107,7 +107,7 @@ export default class ContactManager extends BaseManager {
 	 * @param {Set|Array} [contacts]
 	 */
 	async register(contacts) {
-		return this.client.client.requests.post("functions/v2:profile.registerContacts", {
+		return this.client.client.rest.post("functions/v2:profile.registerContacts", {
 			contacts: contacts || Array.from(this.cache.keys())
 		})
 	}
@@ -119,7 +119,7 @@ export default class ContactManager extends BaseManager {
 	 */
 	async remove(user) {
 		let id = typeof user == 'object' ? user.id : user;
-		return this.client.client.requests.post("functions/v2:friend.delete", { id }).then(r => {
+		return this.client.client.rest.post("functions/v2:friend.delete", { id }).then(r => {
 			return r && this.cache.delete(id)
 		})
 	}
@@ -131,13 +131,13 @@ export default class ContactManager extends BaseManager {
 	 */
 	async unblock(user) {
 		let userId = typeof user == 'object' ? user.id : user;
-		return this.client.client.requests.post("functions/v2:contact.unblockPrivate", { userId }).then(r => {
+		return this.client.client.rest.post("functions/v2:contact.unblockPrivate", { userId }).then(r => {
 			return r && (this.blocked.delete(userId), r)
 		})
 	}
 
 	async unblockAll() {
-		return this.client.client.requests.post("functions/v2:contact.unblockAllPrivate").then(r => {
+		return this.client.client.rest.post("functions/v2:contact.unblockAllPrivate").then(r => {
 			return r && (this.blocked.clear(), r)
 		})
 	}

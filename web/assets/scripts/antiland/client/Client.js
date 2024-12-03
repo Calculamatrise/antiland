@@ -22,7 +22,7 @@ export default class Client extends BaseClient {
 		if (!force && this.iaps) {
 			return this.iaps;
 		}
-		return this.requests.post("functions/v2:purchase.allIaps").then(data => {
+		return this.rest.post("functions/v2:purchase.allIaps").then(data => {
 			!this.iaps && Object.defineProperty(this, 'iaps', { value: {}});
 			return Object.assign(this.iaps, data)
 		})
@@ -37,7 +37,7 @@ export default class Client extends BaseClient {
 	 */
 	async purchase(skus, { currency = 'karma' } = {}) {
 		if (typeof skus[Symbol.iterator] != 'function') return this.purchase([skus], ...Array.prototype.slice.call(arguments, 1));
-		return this.requests.post("functions/v2:purchase.iaps", {
+		return this.rest.post("functions/v2:purchase.iaps", {
 			currency,
 			skus
 		}).then(result => {

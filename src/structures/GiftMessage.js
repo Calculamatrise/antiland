@@ -4,16 +4,13 @@ import User from "./User.js";
 export default class GiftMessage extends SystemMessage {
 	artifactName = null;
 	brokerId = null;
+	icon = 2002;
 	karma = 0;
 	receiverId = null;
 	senderId = null;
-	get iconId() {
-		return this.constructor.icon(this.artifactName)
-	}
-
 	constructor(data, dialogue) {
 		if (data instanceof GiftMessage) return data;
-		if (data instanceof Object && dialogue instanceof Object && dialogue.hasOwnProperty('messages')) {
+		else if (data instanceof Object && dialogue instanceof Object && dialogue.hasOwnProperty('messages')) {
 			let id = data.id || data.objectId;
 			let entry = dialogue.messages.cache.get(id);
 			if (entry) {
@@ -21,10 +18,9 @@ export default class GiftMessage extends SystemMessage {
 				return entry
 			}
 		}
-		super(...Array.prototype.slice.call(arguments, 0, 2), true),
-		Object.defineProperties(this, {
-			avatar: { value: { id: 2002 }},
+		Object.defineProperties(super(...Array.prototype.slice.call(arguments, 0, 2), true), {
 			broker: { value: null, writable: true },
+			icon: { enumerable: false },
 			receiver: { value: null, writable: true },
 			sender: { value: null, writable: true }
 		}),
@@ -42,7 +38,7 @@ export default class GiftMessage extends SystemMessage {
 				break;
 			case 'karma':
 				this[key] = data[key],
-				this.receiver !== null && this.receiver.patch({ [key]: this.receiver[key] + this[key] });
+				this.receiver !== null && this.receiver._patch({ [key]: this.receiver[key] + this[key] });
 				break;
 			case 'receiver':
 			case 'sender':
@@ -50,7 +46,7 @@ export default class GiftMessage extends SystemMessage {
 				break;
 			case 'receiverId':
 				this[key] = data[key],
-				this.receiver === null && (this.receiver = new User({ id: this[key] }));
+				this.receiver === null && (this.receiver = new User({ id: this[key] }, this));
 				break;
 			case 'receiverAva':
 			case 'receiverBlessed':
@@ -66,22 +62,22 @@ export default class GiftMessage extends SystemMessage {
 				break;
 			case 'giftSenderId':
 				this.senderId = data[key],
-				this.sender === null && (this.sender = new User({ id: data[key] }));
+				this.sender === null && (this.sender = new User({ id: data[key] }, this));
 				break;
 			case 'senderId':
 				this.brokerId = data[key],
-				this.broker === null && (this.broker = new User({ id: data[key] }))
+				this.broker === null && (this.broker = new User({ id: data[key] }, this))
 			}
 		}
 	}
 
-	giftAvatarURL() {
-		if (!this.avatar) return null;
-		return "https://gfx.antiland.com/avatars/" + this.avatar.id
+	artifactURL() {
+		return "https://www.antiland.com/chat/gift_" + (this.artifactName ?? 'empty') + "." + this.hash(this.artifactName) + ".png"
 	}
 
 	iconURL() {
-		return "https://www.antiland.com/chat/gift_" + (this.artifactName ?? 'empty') + "." + this.iconId + ".png"
+		if (!this.icon) return null;
+		return "https://gfx.antiland.com/avatars/" + this.icon
 	}
 
 	static artifactHashMap = {
@@ -90,7 +86,7 @@ export default class GiftMessage extends SystemMessage {
 		rose: "a34427cf44ed2f0cc99a",
 		teddy: "33468f76659e3bb47df6"
 	};
-	static icon(artifactName) {
+	static hash(artifactName) {
 		return this.artifactHashMap[artifactName] ?? "200aaa8db7e6e96954b3"
 	}
 }

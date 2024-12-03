@@ -7,7 +7,7 @@ export default class ClientPresenceManager extends BaseManager {
 	 * @returns {Promise<unknown>}
 	 */
 	async fetch(dialogueId) {
-		return this.client.client.requests.post("functions/v2:chat.presence.presence", {
+		return this.client.client.rest.post("functions/v2:chat.presence.presence", {
 			dialogueId,
 			// lastUsers: uid
 		})
@@ -19,7 +19,7 @@ export default class ClientPresenceManager extends BaseManager {
 	 * @returns {Promise<boolean>}
 	 */
 	async ping(dialogueId) {
-		return this.client.client.requests.post("functions/v2:chat.presence.ping", { dialogueId }) // cache, ping cached presences every once in a while
+		return this.client.client.rest.post("functions/v2:chat.presence.ping", { dialogueId }) // cache, ping cached presences every once in a while
 	}
 
 	/**
@@ -28,7 +28,7 @@ export default class ClientPresenceManager extends BaseManager {
 	 * @returns {Promise<boolean>}
 	 */
 	async recall(dialogueId) {
-		return this.client.client.requests.post("functions/v2:chat.presence.leave", { dialogueId })
+		return this.client.client.rest.post("functions/v2:chat.presence.leave", { dialogueId })
 	}
 
 	/**
@@ -38,7 +38,7 @@ export default class ClientPresenceManager extends BaseManager {
 	 * @returns {Promise<unknown>}
 	 */
 	screenshot(dialogueId, messageId) {
-		return this.client.client.requests.post("functions/v2:chat.presence.ss", {
+		return this.client.client.rest.post("functions/v2:chat.presence.ss", {
 			dialogueId,
 			eventType: 'screenshot' || 'video', // ?
 			messageId

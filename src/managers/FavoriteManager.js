@@ -31,7 +31,7 @@ export default class FavoriteManager extends BaseManager {
 			}
 		}
 
-		return this.client.client.requests.post("functions/v2:profile.me").then(async data => {
+		return this.client.client.rest.post("functions/v2:profile.me").then(async data => {
 			return this._cache(data.favorites).then(cache => {
 				return id ? cache.get(id) ?? null : cache
 			})
@@ -61,7 +61,7 @@ export default class FavoriteManager extends BaseManager {
 	 * @returns {ClientUser}
 	 */
 	async backup() {
-		return this.client.client.requests.post("functions/v2:profile.backup", {
+		return this.client.client.rest.post("functions/v2:profile.backup", {
 			favorites: Array.from(this.cache.keys())
 		}).then(this.client._patch.bind(this.client))
 	}

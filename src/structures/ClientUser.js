@@ -21,10 +21,9 @@ export default class ClientUser extends User {
 	stickers = new ClientStickerManager(this);
 	tasks = new TaskManager(this);
 	constructor(data) {
-		super(...arguments, { skipPatch: true });
-		Object.defineProperties(this, {
+		Object.defineProperties(super(...arguments, { skipPatch: true }), {
 			referrerId: { value: null, writable: true }
-		});
+		}),
 		this._patch(data)
 	}
 
@@ -128,14 +127,14 @@ export default class ClientUser extends User {
 	/**
 	 * Fetch content settings
 	 * @param {object} [options]
-	 * @param {boolean} [options.force]
+	 * @param {boolean} options.force
 	 * @returns {Promise<object>}
 	 */
 	async fetchContentSettings({ force } = {}) {
 		if (!force && this.contentSettings) {
 			return this.contentSettings;
 		}
-		return this.client.requests.post("functions/v2:profile.me.contentSettings").then(res => {
+		return this.client.rest.post("functions/v2:profile.me.contentSettings").then(res => {
 			this._patch({ contentSettings: res });
 			return this.contentSettings
 		})
@@ -144,28 +143,34 @@ export default class ClientUser extends User {
 	/**
 	 * Fetch security settings
 	 * @param {object} [options]
-	 * @param {boolean} [options.force]
+	 * @param {boolean} options.force
 	 * @returns {Promise<object>}
 	 */
 	async fetchSecuritySettings({ force } = {}) {
 		if (!force && this.settings) {
 			return this.settings;
 		}
-		return this.client.requests.post("functions/v2:profile.me.security").then(res => {
+		return this.client.rest.post("functions/v2:profile.me.security").then(res => {
 			this._patch({ security: res });
 			return this.security
 		})
 	}
 
+	/**
+	 * Fetch visitors ← COSTS KARMA
+	 * @param {object} [options]
+	 * @param {boolean} options.force
+	 * @returns {Promise<unknown>}
+	 */
 	async fetchVisitors({ force } = {}) {
-		return this.client.requests.post("functions/v2:profile.visitor.list").then(r => {
+		return this.client.rest.post("functions/v2:profile.visitor.list").then(r => {
 			console.log(r) // cache settings // this._patch;
 			return r
 		})
 	}
 
 	generateToken() {
-		return this.client.requests.post("functions/v2:profile.authToken.create").then(r => {
+		return this.client.rest.post("functions/v2:profile.authToken.create").then(r => {
 			console.log(r);
 			return r
 		})
@@ -181,7 +186,7 @@ export default class ClientUser extends User {
 		if (!force && this.humanLink) {
 			return this.humanLink;
 		}
-		return this.client.requests.post("functions/v2:profile.getHumanLink").then(({ link }) => this.humanLink = link)
+		return this.client.rest.post("functions/v2:profile.getHumanLink").then(({ link }) => this.humanLink = link)
 	}
 
 	/**
@@ -189,7 +194,7 @@ export default class ClientUser extends User {
 	 * @returns {Promise<unknown>}
 	 */
 	purchaseSuperPowers() {
-		return this.client.requests.post("functions/v2:purchase.spTrial").then(r => {
+		return this.client.rest.post("functions/v2:purchase.spTrial").then(r => {
 			this.client.debug && console.log(r);
 			this.client.emit('debug', { event: "PurchaseSPTrial", result: r });
 			return r
@@ -202,7 +207,7 @@ export default class ClientUser extends User {
 	 * @returns {Promise<ClientUser>}
 	 */
 	setAccessories(accessories) {
-		return this.client.requests.post("functions/v2:profile.setAccessories", {
+		return this.client.rest.post("functions/v2:profile.setAccessories", {
 			accessories: Array.from(accessories || this.avatar.accessories)
 		}).then(this._patch.bind(this))
 	}
@@ -213,7 +218,7 @@ export default class ClientUser extends User {
 	 * @returns {Promise<ClientUser>}
 	 */
 	setAvatar(avatarId) {
-		return this.client.requests.post("functions/v2:profile.setAvatar", {
+		return this.client.rest.post("functions/v2:profile.setAvatar", {
 			avatar: avatarId ?? this.avatar.id
 		}).then(this._patch.bind(this))
 	}
@@ -226,7 +231,7 @@ export default class ClientUser extends User {
 	 * @returns {Promise<this>}
 	 */
 	setGenderAndAge({ age, gender }) {
-		return this.client.requests.post("functions/v2:profile.setGenderAndAge", {
+		return this.client.rest.post("functions/v2:profile.setGenderAndAge", {
 			birthDate: age ?? this.age,
 			gender: gender || this.gender
 		}).then(this._patch.bind(this))
@@ -241,7 +246,7 @@ export default class ClientUser extends User {
 	 * @returns {Promise<this>}
 	 */
 	setInterestAndLanguage({ likesMale, likesFemale, language }) {
-		return this.client.requests.post("functions/v2:profile.setInterestAndLanguage", {
+		return this.client.rest.post("functions/v2:profile.setInterestAndLanguage", {
 			lang: language || this.language,
 			likesMale: likesMale ?? this.interests.likesMale,
 			likesFemale: likesFemale ?? this.interests.likesFemale
@@ -254,7 +259,7 @@ export default class ClientUser extends User {
 	 * @returns {Promise<unknown>}
 	 */
 	setMood(mood) {
-		return this.client.requests.post("functions/v2:profile.setMood", {
+		return this.client.rest.post("functions/v2:profile.setMood", {
 			mood: mood ?? this.mood
 		}).then(r => {
 			console.log(r)
@@ -268,7 +273,7 @@ export default class ClientUser extends User {
 	 * @returns {Promise<boolean>}
 	 */
 	setPassword(password) {
-		return this.client.requests.post("functions/v2:profile.setPassword", {
+		return this.client.rest.post("functions/v2:profile.setPassword", {
 			password
 		})
 	}
@@ -286,7 +291,7 @@ export default class ClientUser extends User {
 	 * @returns {Promise<ClientUser>}
 	 */
 	setSecuritySettings({ acceptRandoms, allowUnsafeContent, getRandoms, hideMates, karmaWallArtifacts, minKarma, scheduledDeletion }) {
-		return this.client.requests.post("functions/v2:profile.setSecuritySettings", {
+		return this.client.rest.post("functions/v2:profile.setSecuritySettings", {
 			acceptRandoms: acceptRandoms ?? this.security.acceptRandoms,
 			allowUnsafeContent: allowUnsafeContent ?? this.security.allowUnsafeContent,
 			deleted: scheduledDeletion ?? this.security.scheduledDeletion,
@@ -308,7 +313,7 @@ export default class ClientUser extends User {
 	 * @returns {Promise<ClientUser>}
 	 */
 	setSuperPowers({ blessed, doubleKarma, hideVisits, highlightPrivates, showOnline } = {}) {
-		return this.client.requests.post("functions/v2:profile.setSPSettings", Object.assign({}, this.superPowers, {
+		return this.client.rest.post("functions/v2:profile.setSPSettings", Object.assign({}, this.superPowers, {
 			blessed,
 			doubleKarma,
 			hideVisits,
@@ -323,48 +328,48 @@ export default class ClientUser extends User {
 	 * @returns {Promise<ClientUser>}
 	 */
 	setUserData(options) {
-		return this.client.requests.post("functions/v2:profile.setUserData", options).then(this._patch.bind(this))
+		return this.client.rest.post("functions/v2:profile.setUserData", options).then(this._patch.bind(this))
 	}
 
 	/**
 	 * Soft delete your account
-	 * @returns {<Promise<boolean>>}
+	 * @returns {Promise<boolean>}
 	 */
 	softDelete() {
-		return this.client.requests.post("functions/v2:profile.softDelete")
+		return this.client.rest.post("functions/v2:profile.softDelete")
 	}
 
 	/**
 	 * Update your data
-	 * @param {object} options
-	 * @param {string} options.description
-	 * @param {string} options.profileName
+	 * @param {object} [options]
+	 * @param {string} [options.description]
+	 * @param {string} [options.profileName]
 	 * @returns {Promise<this>}
 	 */
 	update(options) {
-		return this.client.requests.post("functions/v2:profile.update", Object.assign({
+		return this.client.rest.post("functions/v2:profile.update", Object.assign({
 			aboutMe: this.description
 		}, options)).then(this._patch.bind(this))
 	}
 
 	/**
 	 * Update your private channel ID
-	 * @param {boolean} rollback
+	 * @param {boolean} [rollback]
 	 * @returns {Promise<ClientUser>}
 	 */
 	updatePrivateChannel(rollback) {
-		return this.client.requests.post("functions/v2:profile.updatePrivateChannel", {
-			rollback: Boolean(rollback)
+		return this.client.rest.post("functions/v2:profile.updatePrivateChannel", {
+			rollback: Boolean(rollback ?? this.channelId !== this.id)
 		}).then(this._patch.bind(this))
 	}
 
 	/**
 	 * Set a vanity URL for your profile
-	 * @param {string} vanity
+	 * @param {string} [vanity] defaults to login username
 	 * @returns {Promise<ClientUser>}
 	 */
 	setHumanLink(vanity) {
-		return this.client.requests.post("functions/v2:profile.setHumanLink", {
+		return this.client.rest.post("functions/v2:profile.setHumanLink", {
 			humanLink: vanity ?? this.login
 		}).then(this._patch.bind(this))
 	}
@@ -374,6 +379,6 @@ export default class ClientUser extends User {
 	 * @returns {Promise<unknown>}
 	 */
 	unsetHumanLink() {
-		return this.client.requests.post("functions/v2:profile.unsetHumanLink")
+		return this.client.rest.post("functions/v2:profile.unsetHumanLink")
 	}
 }

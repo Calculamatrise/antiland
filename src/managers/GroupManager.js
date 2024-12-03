@@ -8,7 +8,7 @@ export default class GroupManager extends DialogueManager {
 			return this.cache;
 		}
 
-		return this.client.requests.post("functions/v2:chat.my").then(entries => {
+		return this.client.rest.post("functions/v2:chat.my").then(entries => {
 			for (let item of entries.filter(({ type }) => /^private$/i.test(type))) {
 				let entry = new Dialogue(item, this);
 				this.client.dialogues.cache.set(entry.id, entry);
@@ -28,23 +28,23 @@ export default class GroupManager extends DialogueManager {
 	/**
 	 * Fetch top chats
 	 * @param {object} [options]
-	 * @param {string} [options.interest]
+	 * @param {string} options.interest
 	 * @returns {Promise<Iterable>}
 	 */
 	async top({ interest } = {}) {
-		return this.client.requests.post("functions/v2:chat.top" + (interest ? 'ByInterest' : ''), interest && { interest })
+		return this.client.rest.post("functions/v2:chat.top" + (interest ? 'ByInterest' : ''), interest && { interest })
 	}
 
 	/**
 	 * Search public group chats
 	 * @param {string} query
 	 * @param {object} [options]
-	 * @param {number} [options.limit]
+	 * @param {number} options.limit
 	 * @returns {Promise<Array<Group>>}
 	 */
 	async search(query, { limit } = {}) {
 		if (query instanceof Object) return this.search(null, query);
-		return this.client.requests.post("functions/v2:chat.search", {
+		return this.client.rest.post("functions/v2:chat.search", {
 			search: query
 		}).then(entries => {
 			let groups = entries.filter(({ type }) => /^(group|public)$/i.test(type)).slice(0, limit);
@@ -65,7 +65,7 @@ export default class GroupManager extends DialogueManager {
 	 * @returns {Promise<Group>}
 	 */
 	async create({ name, isPublic = true } = {}) {
-		return this.client.requests.post("functions/v2:chat.newGroup", { name, isPublic }).then(item => {
+		return this.client.rest.post("functions/v2:chat.newGroup", { name, isPublic }).then(item => {
 			let entry = new Group(item, this);
 			this.cache.set(entry.id, entry);
 			return entry
@@ -75,7 +75,7 @@ export default class GroupManager extends DialogueManager {
 	/**
 	 * Edit a group chat
 	 * @param {string} dialogueId
-	 * @param {object} [options]
+	 * @param {object} options
 	 * @param {Iterable<string>} [options.categories]
 	 * @param {Iterable<string>} [options.filters]
 	 * @param {number} [options.historyLength]
@@ -85,7 +85,7 @@ export default class GroupManager extends DialogueManager {
 	 */
 	async edit(dialogueId, { categories, filters, historyLength, minKarma, setup } = {}) {
 		return this.fetch(dialogueId).then(dialogue => {
-			return this.client.requests.post("functions/v2:chat.mod.setInfo", {
+			return this.client.rest.post("functions/v2:chat.mod.setInfo", {
 				dialogueId,
 				categories: Array.from(categories || dialogue.categories),
 				filters: Array.from(filters || dialogue.options.filters),
@@ -103,7 +103,7 @@ export default class GroupManager extends DialogueManager {
 	 * @returns {Promise<boolean>}
 	 */
 	async invite(dialogueId, mateIds) {
-		return this.client.requests.post(`functions/v2:chat.addMatesToGroup`, {
+		return this.client.rest.post(`functions/v2:chat.addMatesToGroup`, {
 			dialogueId,
 			mateIds: Array.from(new Set(mateIds)).map(m => typeof m == 'object' ? m.id : m)
 		})
@@ -115,7 +115,7 @@ export default class GroupManager extends DialogueManager {
 	 * @returns {Promise<boolean>}
 	 */
 	async join(dialogueId) {
-		return this.client.requests.post(`functions/v2:chat.joinGroup`, {
+		return this.client.rest.post(`functions/v2:chat.joinGroup`, {
 			dialogueId
 		})
 	}

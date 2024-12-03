@@ -14,7 +14,7 @@ export default class Group extends Dialogue {
 	moderators = new ModeratorManager(this);
 	constructor(data, options) {
 		if (data instanceof Group) return data;
-		if (data instanceof Object && options instanceof Object && options.hasOwnProperty('client')) {
+		else if (data instanceof Object && options instanceof Object && options.hasOwnProperty('client')) {
 			let id = data.id || data.objectId;
 			let entry = options.client.groups.cache.get(id);
 			if (entry) {
@@ -22,9 +22,8 @@ export default class Group extends Dialogue {
 				return entry
 			}
 		}
-		super(...arguments, true);
-		Object.defineProperty(this, 'humanLink', { value: null, writable: true });
-		this._patch(data);
+		Object.defineProperty(super(...arguments, true), 'humanLink', { value: null, writable: true }),
+		this._patch(data),
 		this.id !== null && this.hasOwnProperty('client') && (this.client.dialogues.cache.set(this.id, this),
 		this.client.groups.cache.set(this.id, this))
 	}
@@ -102,13 +101,13 @@ export default class Group extends Dialogue {
 	 * @returns {Promise<boolean>}
 	 */
 	join() {
-		return this.client.requests.post("functions/v2:chat.joinGroup", {
+		return this.client.rest.post("functions/v2:chat.joinGroup", {
 			dialogueId: this.id
 		})
 	}
 
 	resetSpamReport() {
-		return this.client.requests.post("functions/v2:chat.resetSpamReport", {
+		return this.client.rest.post("functions/v2:chat.resetSpamReport", {
 			dialogueId: this.id
 		})
 	}
@@ -120,7 +119,7 @@ export default class Group extends Dialogue {
 	 * @returns {Promise<boolean>}
 	 */
 	sendComplaint(userId, messageId) {
-		return this.client.requests.post("functions/v2:chat.mod.sendComplaint", {
+		return this.client.rest.post("functions/v2:chat.mod.sendComplaint", {
 			dialogueId: this.id,
 			userId,
 			messageId
@@ -137,7 +136,7 @@ export default class Group extends Dialogue {
 			throw new Error("You must be the founder to perform this action.");
 		}
 		if (humanLink === null) return this.unsetHumanLink();
-		return this.client.requests.post("functions/v2:chat.mod.setHumanLink", {
+		return this.client.rest.post("functions/v2:chat.mod.setHumanLink", {
 			dialogueId: this.id,
 			humanLink
 		}).then(this._patch.bind(this))
@@ -152,7 +151,7 @@ export default class Group extends Dialogue {
 		if (!this.manageable) {
 			throw new Error("You must be the founder to perform this action.");
 		}
-		return this.client.requests.post("functions/v2:chat.mod.setFilters", {
+		return this.client.rest.post("functions/v2:chat.mod.setFilters", {
 			dialogueId: this.id,
 			filters: Array.from(filters || this.options.filters)
 		}).then(this._patch.bind(this))
@@ -173,7 +172,7 @@ export default class Group extends Dialogue {
 		if (!this.manageable) {
 			throw new Error("You must be the founder to perform this action.");
 		}
-		return this.client.requests.post("functions/v2:chat.mod.setInfo", {
+		return this.client.rest.post("functions/v2:chat.mod.setInfo", {
 			dialogueId: this.id,
 			categories: Array.from(categories || this.categories || []),
 			customBlockedWords: Array.from(blockedWords || this.options.customBlockedWords || []).join(','),
@@ -194,7 +193,7 @@ export default class Group extends Dialogue {
 		if (!this.manageable) {
 			throw new Error("You must be the founder to perform this action.");
 		}
-		return this.client.requests.post("functions/v2:chat.mod.setMood", {
+		return this.client.rest.post("functions/v2:chat.mod.setMood", {
 			dialogueId: this.id,
 			mood
 		}).then(this._patch.bind(this))
@@ -209,7 +208,7 @@ export default class Group extends Dialogue {
 		if (!this.manageable) {
 			throw new Error("You must be the founder to perform this action.");
 		}
-		return this.client.requests.post("functions/v2:chat.mod.setName", {
+		return this.client.rest.post("functions/v2:chat.mod.setName", {
 			dialogueId: this.id,
 			name
 		}).then(this._patch.bind(this))
@@ -223,7 +222,7 @@ export default class Group extends Dialogue {
 		if (!this.manageable) {
 			throw new Error("You must be the founder to perform this action.");
 		}
-		return this.client.requests.post("functions/v2:chat.mod.unsetHumanLink", {
+		return this.client.rest.post("functions/v2:chat.mod.unsetHumanLink", {
 			dialogueId: this.id
 		}).then(r => {
 			console.log(r);

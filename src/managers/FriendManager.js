@@ -12,7 +12,7 @@ export default class FriendManager extends BaseManager {
 			}
 		}
 
-		return this.client.client.requests.post("functions/v2:contact.mate.listByUser", {
+		return this.client.client.rest.post("functions/v2:contact.mate.listByUser", {
 			userId: this.client.id
 		}).then(({ mates }) => {
 			for (let item of mates) {
